@@ -1,0 +1,21 @@
+#!/bin/sh
+
+#TODO:: 
+    # Run the source ./export.sh
+    # Build the Zig esp32-s3 firmware as a static library. 
+    # Run idf.py build 
+
+#set -x 
+echo $ZIG_XTENSA
+current_dir=$(pwd)
+echo "$current_dir"
+# zig-xtensa() {
+#     #zig = $HOME/zig_versions/zig-relsafe-espressif-x86_64-linux-musl-baseline/zig
+#     source $ZIG_XTENSA build 
+# }
+echo $IDF_PATH 
+source $IDF_PATH/export.sh
+
+cd "$current_dir"/main
+$ZIG_XTENSA build 
+

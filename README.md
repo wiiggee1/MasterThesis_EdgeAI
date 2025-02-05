@@ -28,7 +28,8 @@
     ./install.sh esp32s3
     . $HOME/esp/esp-idf/export.sh
     ```
-- 3. Build target and Zig setup: 
+- 3. Build target and Zig setup:
+    - wget https://github.com/kassane/zig-espressif-bootstrap/releases/download/0.14.0-xtensa-dev/zig-relsafe-espressif-x86_64-linux-musl-baseline.tar.xz
     `zig build -Dtarget=xtensa-freestanding-none -Dcpu=esp32s3`
     ...
     ...

@@ -3,4 +3,10 @@ zig-out/
 /build 
 /sdkconfig
 /managed_components
-
+cmake-build-*/
+.cache/
+*zig-*/
+/CMakeFiles
+CMakeCache.txt
+cmake_install*
+Makefile
