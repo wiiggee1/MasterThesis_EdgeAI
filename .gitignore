@@ -6,7 +6,8 @@ zig-out/
 cmake-build-*/
 .cache/
 *zig-*/
-/CMakeFiles
 CMakeCache.txt
+CMakeFiles.txt
 cmake_install*
 Makefile
+compile_commands.json

@@ -33,6 +33,31 @@
     `zig build -Dtarget=xtensa-freestanding-none -Dcpu=esp32s3`
     ...
     ...
+- 4. Linking phase:
+    >Linking means telling the compiler where to find the compiled implementation of the functions declared in the `.h` files. The ESP-IDF components are precompiled into both `.a` and `.o` files, which contains all the compiled `.c` files for a module.
+
+    - **Linking in Zig**: `addLibraryPath()` + `linkSystemLibrary()` = linking against static libs `.a`. Alternativ to link against object files `.o` = `addObjectFile()`.
+
+Alternative approach:     
+        - `zig translate-c` (convert C headers into Zig bindings/declarations): 
+        - `-I` flags to tell Zig where to find C headers. 
+        - Use `@cImport(@cInclude("header.h"))` to include C headers in Zig.
+        - Use `build.zig` to compile and link against C code with Zig.
+Example:
+    ```sh
+    zig translate-c \
+    -lc \
+    -target xtensa-freestanding-none \
+    -mcpu=esp32s3-fp-s32c1i \
+    -D __xtensa \
+    -D __COUNTER__=0 \
+    -I $HOME/esp-idf/components/freertos/FreeRTOS-Kernel/include \
+    -I $HOME/esp-idf/components/freertos/config/include/freertos/ \
+    -I $HOME/esp-idf/components/freertos/config/xtensa/include \
+    bindings.h > bindings.zig
+    ```
+
+
 
 #### Running and flashing the program: 
 
