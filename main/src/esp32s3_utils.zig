@@ -3,17 +3,45 @@ const expect = std.testing.expect;
 // const esp = @import("bindings.zig");
 pub const esp_idf = @import("esp_idf");
 
-pub const util_options = struct {
-    log_fmt: std.fmt,
+pub const logging_options = struct {
+    pub fn logFn(comptime message_level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void {
+        const log_color = switch (message_level) {
+            .err => "\x1b[31m", // red
+            .warn => "\x1b[33m", // yellow
+            .info => "\x1b[32m", // green
+            .debug => "",
+        };
+
+        const log_level: c_int = switch (message_level) {
+            .err => esp_idf.ESP_LOG_ERROR,
+            .warn => esp_idf.ESP_LOG_WARN,
+            .info => esp_idf.ESP_LOG_INFO,
+            .debug => esp_idf.ESP_LOG_DEBUG,
+        };
+
+        const log_tag = switch (message_level) {
+            .err => "ERROR",
+            .warn => "WARN",
+            .info => "INFO",
+            .debug => "DEBUG",
+        };
+        // const log_tag_text = comptime std.log.Level.asText(message_level);
+
+        //#define LOG_FORMAT(letter, format)  LOG_COLOR_ ## letter #letter " (%" PRIu32 ") %s: " format LOG_RESET_COLOR "\n"
+        const log_format = std.fmt.comptimePrint(log_color ++ "[" ++ log_tag ++ "]" ++ " (%u): {s}\x1b[0m\n", .{format});
+        const time = esp_idf.esp_log_timestamp();
+
+        // pub extern "c" fn printf(format: [*:0]const u8, ...) c_int;
+        esp_idf.esp_log_write(log_level, @tagName(scope), log_format, time, args);
+    }
 };
 
-// pub const embed_options: std.Options = .{
-//     .logFn = @call(
-//         .auto,
-//         esp_idf.esp_log_write,
-//         .{ esp_idf.esp_log_level_get("INFO"), "MAIN", util_options },
-//     ),
-// };
+/// Measure the time performance it takes to execute a function.
+pub fn time_measure() void {
+    // esp_timer_get_time would return number of microseconds since the init of ESP Timer.
+    // const start = esp_idf.esp_timer_get_time();
+    // const end = esp_idf.esp_timer_get_time();
+}
 
 /// Generic type for executing delay actions.
 pub fn Delay(comptime T: type) type {

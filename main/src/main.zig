@@ -3,17 +3,20 @@ const builtin = @import("builtin");
 const utils = @import("esp_idf_utils");
 const esp_idf = utils.esp_idf;
 
+pub const std_options = std.Options{
+    // .log_level = std.log.Level.info,
+    .logFn = utils.logging_options.logFn,
+};
+
 /// This is the main entry point for the embedded firmware to run.
 export fn app_main() callconv(.C) void {
     //Run embedded firmware below:
-    // @call(.auto, esp_idf.esp_log_write, .{esp_idf.ESP_LOG_INFO, "MAIN"})
-    const delay_val = utils.ms_to_tick(500);
 
+    const delay_val = utils.ms_to_tick(500);
     while (true) {
         try utils.Delay(esp_idf.TickType_t).init(delay_val).ms();
-        const int = esp_idf.printf("test123\n", .{});
-        _ = int;
-        _ = esp_idf.fflush(esp_idf.STDOUT_FILENO);
+        std.log.info("Hi from info log ", .{});
+        std.log.warn("Hi from warn log", .{});
     }
 }
 
