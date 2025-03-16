@@ -37,10 +37,18 @@ pub const logging_options = struct {
 };
 
 /// Measure the time performance it takes to execute a function.
-pub fn time_measure() void {
+/// Varadic arguments (`...`) take variable number of arguments, which are passed as a tuple.
+/// args is treated as a tuple `.{}` syntax.
+/// `func: anytype` - allow any function.
+/// `args: anytype` - makes it generic over any argument type.
+pub fn time_measure(func: anytype, args: anytype) void {
     // esp_timer_get_time would return number of microseconds since the init of ESP Timer.
-    // const start = esp_idf.esp_timer_get_time();
-    // const end = esp_idf.esp_timer_get_time();
+    const start = esp_idf.esp_timer_get_time();
+    func(args);
+    const end = esp_idf.esp_timer_get_time();
+
+    const diff: i64 = end - start;
+    std.log.info("Function took: {d} time units\n", .{diff});
 }
 
 /// Generic type for executing delay actions.

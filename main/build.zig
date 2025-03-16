@@ -18,17 +18,14 @@ pub fn build(b: *std.Build) !void {
         .abi = .none,
     };
 
-    // const target = b.resolveTargetQuery(esp32s3_target);
     const target = b.standardTargetOptions(.{ .default_target = esp32s3_target });
     const optimize = b.standardOptimizeOption(.{});
 
     std.debug.print("target features: {any}\n", .{target.result.cpu.features});
-    // target.query.fromTarget(std.Target.xtensa.Feature.fp);
 
     // Ensure that Zig can find the necessary ESP-IDF header files.
     const home_directory = std.process.getEnvVarOwned(b.allocator, "HOME") catch "";
     const esp_idf_path = std.process.getEnvVarOwned(b.allocator, "IDF_PATH") catch "";
-    // const src_path = std.fs.path.dirname(@src().file) orelse b.pathResolve(&.{"./src/"});
 
     // generate bindings for the ESP-IDF library
     const bindings = b.addTranslateC(.{
@@ -119,9 +116,6 @@ pub fn build(b: *std.Build) !void {
 
     const installed_bindings = b.addInstallFile(bindings.getOutput(), "../src/bindings.zig");
 
-    // const binding_module = bindings.addModule("esp_idf");
-    // binding_module.root_source_file = b.path("src/bindings.zig");
-
     b.getInstallStep().dependOn(&installed_bindings.step);
 
     const esp_idf = b.createModule(.{
@@ -132,18 +126,30 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("src/esp32s3_utils.zig"),
     });
 
+    const gpio_mod = b.addModule("gpio", .{
+        .root_source_file = b.path("src/gpio.zig"),
+    });
+
+    const ai_mod = b.addModule("ai_model", .{
+        .root_source_file = b.path("model/root.zig"),
+        .target = target,
+    });
+
     utils_mod.addImport("esp_idf", esp_idf);
+    gpio_mod.addImport("esp_idf", esp_idf);
 
-    // esp_idf_lib.root_module.addImport("esp_idf", esp_idf);
     esp_idf_lib.root_module.addImport("esp_idf_utils", utils_mod);
-
-    // esp_idf_lib.step.dependOn(&bindings.step);
+    esp_idf_lib.root_module.addImport("gpio", gpio_mod);
     esp_idf_lib.step.dependOn(bindings.output_file.step);
 
-    // const binding_output_step = bindings.output_file.step;
-    // bindings.output_file.path = b.pathJoin(&.{ src_path, "binding_out.zig" });
+    const exe_check = b.addExecutable(.{
+        .name = "model",
+        .root_module = ai_mod,
+        .target = target,
+    });
 
-    // b.getInstallStep().dependOn(&bindings.step);
+    const check = b.step("chek", "Check if AI model code compiles");
+    check.dependOn(&exe_check.step);
 
     b.installArtifact(esp_idf_lib);
 

@@ -17,6 +17,7 @@ export fn app_main() callconv(.C) void {
         try utils.Delay(esp_idf.TickType_t).init(delay_val).ms();
         std.log.info("Hi from info log ", .{});
         std.log.warn("Hi from warn log", .{});
+        // utils.time_measure(std.log.info, .{ "time measrue test123: {}", 42 });
     }
 }
 
