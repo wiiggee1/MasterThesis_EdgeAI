@@ -8,6 +8,7 @@ const LayerType = layer_types.LayerType;
 const LayerDim = layer_types.LayerDim;
 const common = @import("common_functions.zig");
 const LossType = common.LossType;
+const LossFunction = common.LossFunction;
 const ActivationFunction = common.ActivationFunction;
 const OptimizerType = @import("optimizer.zig").OptimizerType;
 const assert = std.debug.assert;
@@ -17,23 +18,33 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type) type {
      
     return struct {
         const Self = @This();
-        // pub const Field = std.meta.F
-        // const BoundedBuffer = std.BoundedArray(T, capacity);
 
         pub const NumLayers: usize = LayerData.len;
         pub const InputLayer = @TypeOf(LayerData[0]);
-        pub const OutputLayer = @TypeOf(LayerData[LayerData.len - 1]);
         pub const OutputLayerIndex: usize = LayerData.len - 1;
+        const OutputLayer = Layer(T, LayerData[0].Info);
+        const OutputInfo = OutputLayer.Info;
+        const OutputLayerSize = OutputInfo.dim(1); 
+        const OutputLossType: LossType = OutputInfo.output[2];
+        const Loss = LossFunction(T, OutputLossType, OutputLayerSize);
+        
 
         /// This should work as a mutable tuple, for easy access to all the layers, 
-        /// in the neural network. 
+        /// in the neural network. The `cached_prediction` (yhat = σ(W·x + b)) and 
+        /// `cached_z` (z = W·x + b) stores cached values for backpropagation. 
         layers: std.meta.Tuple(LayerData), 
         hypr_params: HyperParameters,
+        cached_prediction: ?[OutputLayerSize]T, 
+        
+        /// The `cached_z` should be the input data to the output layer.
+        cached_z: ?[OutputLayerSize]T,
         
         pub fn init(hyper_params: HyperParameters) Self {
             var self = Self{
                 .layers = undefined,
                 .hypr_params = hyper_params,
+                .cached_prediction = null,
+                .cached_z = null,
             };
 
             inline for (LayerData, 0..) |val, idx| {
@@ -48,7 +59,6 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type) type {
                     // }; 
                 }
             } 
-            // std.debug.print("self.layers tuple: {any}\n", .{self.layers});
             return self; 
             
         }
@@ -89,19 +99,29 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type) type {
         /// This would calculate the already known gradient of the output layer.
         /// By calculating the partial derivatives: 
         /// ∂C/∂Z^[L] = ∂C/∂A^[L] * ∂A^[L]/∂Z^[L]
+        fn backward_loss(self: Self, y_actual: []const T) void {
+            // const last_index: usize = NumLayers - 1;
+            // var jacobian_softmax: [OutputLayerSize][OutputLayerSize]T = undefined; 
+            // var JacobianMatrix = self.get_layer(last_index).LayerMatrix(OutputLayerSize, OutputLayerSize);
+            
+            const s_probs = self.activation().execute_fn(T, OutputLayerSize, self.cached_z[0..], false, null);
 
-        fn backward_loss() void {}
+            // const da_dz = ActivationFunction.softmax_derivative(T, s_probs, OutputLayerSize);
+            const dc_dz: @Vector(OutputLayerSize, T) = LossFunction(T, LossType.CrossEntropy, OutputLayerSize).get(s_probs[0..], y_actual, true); 
 
+        }
+
+        /// The prediction is the same as the feedforward pass. 
         pub fn predict_y(self: Self, input_data: []const T) []const T {
-            // inline for (self.layers, 0..NumLayers) |layer, i| {
-                // const prev_layer: usize = if (idx == 0) null else &self.layer_arr[idx - 1];
-                // const next_layer: usize = if (idx == NumLayers - 1) null else &self.layer_arr[idx + 1];
-            // } 
             var layer_output = input_data;
+            const alpha = self.hypr_params.alpha;
             inline for (0..NumLayers) |i| {
-                layer_output = self.get_layer(i).feedforward(layer_output, null, null);
-                // @as(Layer(T, layer.Info), layer);
+                var z_output = self.get_layer(i).feedforward(layer_output, null, null);
+                const Activation = self.get_layer(i).activation();
+                Activation.execute_fn(T, OutputLayerSize, z_output[0..], false, alpha);
+                layer_output = z_output;
             }
+            self.cached_z = layer_output; 
             return layer_output;
         }
 
@@ -114,7 +134,11 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type) type {
         /// Weights(L) and Biases(L) in each propagated layer in the model.
         /// While the `expression` arg, is what should be derived with regard 
         /// to the `model_variable` arg. 
-        fn backward_grad(self: Self, expression: []const T, layer_id: usize) void{
+        fn backward_grad(self: Self, expression: []const T, layer_id: usize) !void{
+            if (self.cached_z == null or self.cached_prediction == null) {
+                return error.FeedforwardNotRunned;
+            }
+
             _ = expression; 
             const variable = ModelVariable(Layer(T, LayerData[layer_id].Info));
             // variable.get_weight(layer_number: usize, mat_indices: struct{usize, usize})
@@ -127,17 +151,11 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type) type {
             // ---------------------------------------------
             // Remember(!): gradient: ∇C = [∂C/∂w_1 , ∂C/∂w_2 ... ∂C/∂w_l]
          
-            const num_samples = InputLayer;
             var layer_index: usize = NumLayers - 1;
-            while (layer_index != 0) {
+            while (layer_index != 0) : (layer_index -= 1) {
                 if (self.get_layer(layer_index).isOutputLayer()) {
-
-                    // Remember(!): gradient: ∇C = [∂C/∂w_1 , ∂C/∂w_2 ... ∂C/∂w_l].
-                    // And Z^[L] = W^[L]*A^[L-1] + b^[L].
-                    const dCdZ: T = 0.0; //∂C/∂Z^L = ∂C/∂A^L * ∂A^L/∂Z^L = ?  
-                     
+                    const dLdZ = backward_loss(); //∂C/∂Z^L = ∂C/∂A^L * ∂A^L/∂Z^L = ? 
                 } 
-                layer_index -= 1; 
             }
         }
         
@@ -218,6 +236,7 @@ pub const HyperParameters = struct {
     dropout_rate: f16,
     epochs: u32,
     epsilon: f16,
+    alpha: f16,
 };
 
 

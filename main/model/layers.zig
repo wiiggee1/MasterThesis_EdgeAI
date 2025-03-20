@@ -5,6 +5,7 @@ const model = @import("model_builder.zig");
 const common = @import("common_functions.zig");
 const ActivationFunction = common.ActivationFunction;
 const LossType = common.LossType;
+const LossFunction = common.LossFunction;
 const assert = std.debug.assert;
 
 //NOTE: Do *const MyStruct if you don’t want it to be mutable
@@ -76,6 +77,8 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo) type {
         const LayerSize = LayerObject.dim(1); 
         /// Size of the Weight Matrix. 
         const MatrixCapacity = LayerSize*InputSize; 
+
+        // pub const Activation = LayerObject.
         
         /// Meta data and general Info about the Layer. This act as a placeholder, 
         /// for determining what actions to execute for this layer. 
@@ -88,6 +91,13 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo) type {
         /// Biases for a layer is represented by a M x 1 matrix or row vector.
         /// Where M represent the `LayerSize`. 
         bias_vector: [LayerSize]T,
+
+        /// This should cache the input data given by saving the partial derivative of
+        /// δz^[L]/δw^[L] = σ^[L-1](z) = input data from prior layer. 
+        cached_input: [InputSize]T,
+
+        /// δa^[L]/δz^[L] = σ'(z). This should be stored during the forward pass. 
+        cached_z: [LayerSize]T, 
 
         /// This seed id, represent an index that points to a specific layer 
         /// in a collection. It also act as the seed for random initialization 
@@ -158,6 +168,13 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo) type {
             _ = self; 
         }
 
+        /// Return the used activation function type in this layer. 
+        pub fn activation(_: Self) ActivationFunction {
+            if (@hasField(LayerObject, "hidden")){
+                return LayerObject.get_activation(); 
+            }
+        }
+
         pub fn isOutputLayer() bool {
             return @hasField(LayerObject, "output");
         }
@@ -168,15 +185,83 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo) type {
 
         /// The essence of backpropagation is knowing about the chain rule. 
         /// Given by: f(g(x)) = f’(g(x)) * g’(x) or (d/dx)f(g(x)) = (df/dg)*(dg/dx).
-        pub fn backpropagation() void{}
+        /// This function would calculate the backward pass for the local hidden layer. 
+        /// 1. δz = δy ⊗ σ'(z) [element-wise]
+        /// 2. δW = xᵀ·δz
+        /// 3. δb = sum(δz, axis=0)
+        /// 4. δx = δz·Wᵀ
+        /// 5. W = W - η·δW
+        /// 6. b = b - η·δb
+        pub fn backpropagation(self: Self, y_actual: []const T) void{
+            const layerIsOutput = isOutputLayer();
+            if (layerIsOutput) {
+                const isSoftmax: bool = (self.activation() == ActivationFunction.SoftMax);
+                const isCrossEntropy: bool = (LayerObject.loss_kind() == LossType.CrossEntropy);
+                const simplifyDerivative: bool = isSoftmax and isCrossEntropy;
+                const output_activation = self.activation().execute_fn(T, LayerSize, self.cached_z[0..], false, null);
+                if (simplifyDerivative) {
+                    const softmax_probs: @Vector(LayerSize, T) = output_activation; 
+                    const y_vector: @Vector(LayerSize, T) = y_actual[0..].*;
+                    const dl_dz = softmax_probs - y_vector; 
+                    const dz_dw: @Vector(InputSize, T) = self.cached_input; 
+                    // These two should be cached / saved. 
+                    const dl_dw = dz_dw * dl_dz;
+                    const dl_db = dl_dz; 
+
+
+                    //TODO: - Need to cache / save the following: 
+                    // 1. Backward Output: ∂L/∂Z^[L] = ∂L/∂a^[L] * ∂a^[L]/∂Z^[L] = a^[L] - y
+                    // 1.2. For (1), we cache the ∂L/∂W^[L] and ∂L/∂b^[L].
+                    // ------------------
+                    // 2. Previous Layers backward: ∂L/∂a^[L-1] = ∂Z^[L]/∂a^[L-1] * ∂a^[L]/∂Z^[L] * ∂L/∂a^[L]
+                    // 2.1. Were (2) is the same as: ∂Z/∂a^[L-1] * ∂L/∂Z^[L] <=> Wᵀ^[L] * (∂L/∂a^[L] * ∂a^[L]/∂Z^[L])
+                    // 2.2. ∂L/∂W^[L-1] =  
+
+                }
+                //TODO: - Add backward loss, for general case and not simplification. 
+                // Backward Output: ∂L/∂Z^[L] = ∂L/∂a^[L] * ∂a^[L]/∂Z^[L] = f'[last activation] * L'
+                const activation_deriv: @Vector(LayerSize, T) = self.activation().execute_fn(T,  LayerSize, self.cached_z[0..], true, null);
+                const loss_deriv = LossFunction(T, LayerObject.loss_kind(), LayerSize).get(output_activation[0..], y_actual, true);
+                const dldz = loss_deriv * activation_deriv; // This is the element-wise product.  
+                // const grad_matrix = 
+
+                 
+            }
+            // INFO: - Summary (e.g., 3 hidden layers.) 
+            // 1. Cache / Save: ∂L/∂W^[L], ∂L/∂b^[L], and ∂L/∂Z^[L]  [OUTPUT LAYER BACKWARD]
+            // 2. First previous layer: · · Wᵀ[index+1] · ∂L/∂z
+            
+            //
+            // W_trans = self.weight_mats[back_index+1].T        #we use the transpose of the weights in the current layer
+            // d_activ = self.hidden_activation(self.netIns[back_index],derivative=True)  #δl=((wl+1)Tδl+1)⊙σ′(zl)
+            // d_error = np.dot(delta, W_trans)
+            // delta = d_error * d_activ   #this should be the hadamard product, 
+            //
+            // gradient_mat = np.dot(self.netOuts[back_index].T , delta)
+            // bias_grad_mat = 1 * delta
+
+
+        }
+
+        fn backward_loss(self: Self, y_actual: []const T) void {
+            // const last_index: usize = NumLayers - 1;
+            // var jacobian_softmax: [OutputLayerSize][OutputLayerSize]T = undefined; 
+            // var JacobianMatrix = self.get_layer(last_index).LayerMatrix(OutputLayerSize, OutputLayerSize);
+            
+            const s_probs = self.activation().execute_fn(T, LayerSize, self.cached_z[0..], false, null);
+
+            // const da_dz = ActivationFunction.softmax_derivative(T, s_probs, OutputLayerSize);
+            const dc_dz: @Vector(LayerSize, T) = LossFunction(T, LossType.CrossEntropy, LayerSize).get(s_probs[0..], y_actual, true); 
+
+            
+        }
+
 
         /// Computing for the specific layer: z = X*W + B and wrap inside
         /// an activation function.
         /// They pseudo logic is: z = (weight_matrix[i][0..]*x[0..]) + bias_vector[0..]
         pub fn feedforward(self: Self, prior_output: []const T, weights: ?[LayerSize][InputSize]T, bias: ?[LayerSize] T) [LayerSize]T {
-            // const InputSize, const LayerSize = self.get_dimension();
             var z :[LayerSize]T = undefined;
-
           
             //NOTE: - Zig docs state: 
             // To extract a comptime-known length from a runtime-known offset,
@@ -230,10 +315,11 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo) type {
             return @reduce(.Add, product); 
         }
 
-        pub fn WeightMatrix(comptime nrows: usize, comptime ncols: usize) type {
+        pub fn LayerMatrix(comptime nrows: usize, comptime ncols: usize) type {
             return struct {
                 const Rows = nrows;
                 const Cols = ncols;
+                mat: [Rows][Cols]T, 
 
                 pub fn flatten_array(data: *[nrows][ncols]T) [nrows*ncols]T {
                     var item_offset: usize = 0;
@@ -256,6 +342,19 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo) type {
                         data_offset += ncols;
                     }
                     return mat;
+                }
+
+                pub fn transpose(self: @This()) [ncols][nrows]T {
+                    // E.g., from 3x2 |--> 2x3
+                    var mat_transpose: [ncols][nrows]T = undefined; 
+                    for (0..Cols) |j| {
+                        for (0..Rows) |i| {
+                            const element_ji = self.mat[j][i]; // mat[0][i], mat[0][i+1], mat[0][i+2].  
+                            mat_transpose[j][i] = element_ji; 
+                        }
+                    }
+                    return mat_transpose;
+
                 }
             };
         }
@@ -370,6 +469,23 @@ pub const LayerInfo = union(enum){
         return val[i]; 
     }
 
+    pub fn get_activation(self: LayerInfo) ?ActivationFunction {
+         switch (self) { 
+            .hidden => |vals| return vals[2],
+            .input => return null, 
+            .output => return null, 
+        }
+    }
+
+    pub fn loss_kind(self: LayerInfo) ?LossType {
+        switch (self) { 
+            .hidden => return null,
+            .input => return null, 
+            .output => |vals| return vals[2], 
+        }
+
+    }
+
     pub fn into_option(self: LayerInfo) LayerOptions {
         var layer_type: LayerType = undefined; 
         var layer_dim: LayerDim = undefined; 
@@ -476,7 +592,8 @@ test "dot-product SIMD instruction and feedforward logic" {
     std.debug.print("Feedforward output before ReLU:\n\u{2308}{d}\u{2309}\n|{d}|\n\u{230B}{d}\u{230A}\n", .{z_activation[0], z_activation[1], z_activation[2]});
 
     // Pass by slice pointer reference for modification. 
-    ActivationFunction.relu(f16, z_activation[0..]);
+    const ActivationRelu = ActivationFunction.Relu;
+    ActivationRelu.execute_fn(f16, 3, z_activation[0..], false, null); 
     std.debug.print("After ReLU:\n\u{2308}{d}\u{2309}\n|{d}|\n\u{230B}{d}\u{230A}\n", .{z_activation[0], z_activation[1], z_activation[2]}); 
 
 
