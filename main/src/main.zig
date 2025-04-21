@@ -2,6 +2,10 @@ const std = @import("std");
 const builtin = @import("builtin");
 const utils = @import("esp_idf_utils");
 const esp_idf = utils.esp_idf;
+const model = @import("nn_model");
+const NNModel = model.NNModel;
+const Layer = model.Layer; 
+const Matrix = model.Matrix; 
 
 pub const std_options = std.Options{
     // .log_level = std.log.Level.info,
@@ -11,7 +15,8 @@ pub const std_options = std.Options{
 /// This is the main entry point for the embedded firmware to run.
 export fn app_main() callconv(.C) void {
     //Run embedded firmware below:
-
+    const matrix = Matrix(f16, 10, 10);
+    std.log.info("Matrix type: {}", .{@TypeOf(matrix)}); 
     const delay_val = utils.ms_to_tick(500);
     while (true) {
         try utils.Delay(esp_idf.TickType_t).init(delay_val).ms();

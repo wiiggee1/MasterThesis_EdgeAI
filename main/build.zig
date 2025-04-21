@@ -19,6 +19,7 @@ pub fn build(b: *std.Build) !void {
     };
 
     const target = b.standardTargetOptions(.{ .default_target = esp32s3_target });
+
     const optimize = b.standardOptimizeOption(.{});
 
     std.debug.print("target features: {any}\n", .{target.result.cpu.features});
@@ -134,27 +135,69 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("model/root.zig"),
         .target = target,
     });
+    
+    const nn_lib = b.addLibrary(.{
+        // .linkage = .dynamic,
+        .linkage = .static,
+        .name = "nn_model",
+        .root_module = ai_mod,
+    });
+    
+    // const nn_lib = b.addStaticLibrary(.{
+    //     .link_libc = true,
+    //     .name = "zig_nn_model",
+    //     .root_source_file = b.path("model/root.zig"),
+    //     .target = target,
+    //     .optimize = optimize,
+    // });
 
     utils_mod.addImport("esp_idf", esp_idf);
     gpio_mod.addImport("esp_idf", esp_idf);
 
     esp_idf_lib.root_module.addImport("esp_idf_utils", utils_mod);
     esp_idf_lib.root_module.addImport("gpio", gpio_mod);
+    esp_idf_lib.root_module.addImport("nn_model", ai_mod);
     esp_idf_lib.step.dependOn(bindings.output_file.step);
-
-    const exe_check = b.addExecutable(.{
-        .name = "model",
-        .root_module = ai_mod,
-        .target = target,
-    });
-
-    const check = b.step("chek", "Check if AI model code compiles");
-    check.dependOn(&exe_check.step);
+    
+    // const exe_check = b.addExecutable(.{
+    //     .name = "model",
+    //     .root_module = ai_mod,
+    //     .target = target,
+    // });
+    //
+    // const check = b.step("chek", "Check if AI model code compiles");
+    // check.dependOn(&exe_check.step);
 
     b.installArtifact(esp_idf_lib);
+    b.installArtifact(nn_lib);
+
+    const example_step = b.step("examples", "Build and run example");
+    const AddExample = struct {name: []const u8, src: []const u8, description: []const u8 };
+    const host_example = AddExample{
+        .name = "host_app",
+        .src = "examples/host_app.zig",
+        .description = "Running the Neural Network Model on the host computer (native target)",
+    }; 
+
+    const host_exe = b.addExecutable(.{
+        .target =  b.graph.host, 
+        .name = host_example.name,
+        .root_source_file = b.path(host_example.src),
+        .optimize = optimize, 
+    });
+    host_exe.root_module.addImport("nn_model", ai_mod); 
+
+    // Install host example executable
+    b.installArtifact(host_exe);
+
+    // Create a run step for the example
+    const run_cmd = b.addRunArtifact(host_exe);
+    run_cmd.step.dependOn(b.getInstallStep());
+    
+    // Add the example to the examples step
+    example_step.dependOn(&host_exe.step);
 
     // esp_idf_lib.setLinkerScript(b.path("linker.ld"));
-
     const link = b.addSystemCommand(&[_][]const u8{
         "xtensa-esp32-elf-gcc",
         "-T",
@@ -168,8 +211,6 @@ pub fn build(b: *std.Build) !void {
 
     const link_step = b.step("link", "Linking the ELF binary from the .o (object) files.");
     link_step.dependOn(&link.step);
-
-    // b.default_step.dependOn(&esp_file.step);
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish

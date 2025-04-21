@@ -11,3 +11,4 @@ CMakeFiles.txt
 cmake_install*
 Makefile
 compile_commands.json
+/main/log_data/
