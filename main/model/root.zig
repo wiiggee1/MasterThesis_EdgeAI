@@ -4,6 +4,7 @@ const std = @import("std");
 const layers = @import("layers.zig");
 const common = @import("common_functions.zig");
 const model = @import("model_builder.zig");
+const loader = @import("dataloader.zig");
 pub const optimizer = @import("optimizer.zig");
 
 /// How to create a sequential layer model: 
@@ -101,7 +102,8 @@ pub const NNModel = model.NNModel;
 pub const HyperParameters = model.HyperParameters;
 pub const ModelBuffer = model.ModelBuffer; 
 pub const DataManager = model.DataManager;
-pub const DataLoader = model.DataLoader; 
+
+pub const DataLoader = loader.DataLoader; 
 
 pub const LossFunction = common.LossFunction; 
 pub const ActivationFunction = common.ActivationFunction; 
