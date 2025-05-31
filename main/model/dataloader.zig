@@ -18,6 +18,12 @@ pub const AnomalyType = enum(u8) {
     resource = 0b0101,
 };
 
+pub const ParsingStatusCode = enum{
+    Successful, 
+    Failed, 
+    Skipping, 
+};
+
 /// Log severity level, where a lower valued level is more severe, 
 pub const PriorityLevel = enum(u8) {
     emergency = 0b0000, 
@@ -50,12 +56,36 @@ pub const PriorityLevel = enum(u8) {
     }
 };
 
+/// A 'ParseType' is more of a helper, that dictates what type of parsing proceedure,
+/// that should be executed during runtime. It is mainly used when we need to parse 
+/// based on various punctuations variants. 
+pub const ParseType = enum {
+    /// 'Default' parse type, is tokens that have punctuations
+    /// wrapped on both the left-hand-side (LHS) and right-hand-side (RHS).
+    /// Tags (<>) or AngledBracket punctuations, are also of a wrapped kind. 
+    /// It also handles cases when only a single punctuation is found. 
+    Default, 
+
+    /// In special occurences, the parsing logic need to 
+    /// emphazise domain specific log data. 
+    DomainSpecific, 
+
+    /// When the parse type is 'Missing', its missing an opening-
+    /// punctuation or a closing-punctuation. Often this is the case when two tokens, 
+    /// are separated with a whitespace. Which the tokenizer, would treat as two distinct 
+    /// parts. 
+    Missing, 
+    
+};
+
+/// 
 pub const PunctuationToken = struct {
     kind: PunctuationKind, 
-    inner: ?TokenTags = null,
-    /// Represent the inner token value.
+    // inner: ?TokenTags = null,
+    /// Represent the raw token value.
     value: []const u8,
     iteration_started: bool = false,  
+    // parsing_type: ParseType = .Default,  
     metadata: ?Metadata = null, 
 
     ///Separators = help break the input apart (parsing "glue").
@@ -84,25 +114,67 @@ pub const PunctuationToken = struct {
         AngledBracketOpened,
         /// The tokens that can either be: "->", "→" or "=>". 
         ArrowIndicator, 
+        // Grouped,
+        Unknown,
+        // None,
 
+        /// Same as returning a str, or array of const bytes(u8). 
+        /// This is mostly used, for getting the separator, 
+        /// when using std.mem.* functionality when parsing strings. 
+        pub fn as_bytes(self: PunctuationKind) []const u8 {
+            const kind_str: []const u8 = switch (self) {
+                PunctuationKind.Period => return ".", 
+                PunctuationKind.Comma => return ",", 
+                PunctuationKind.Colon => return ":", 
+                PunctuationKind.Semicolon => return ";", 
+                PunctuationKind.Apostrophe => return "’",
+                PunctuationKind.Quotation => return &.{0b00100010}, 
+                PunctuationKind.SingleQuote => return "'", 
+                PunctuationKind.Parenthesis => return "()", 
+                PunctuationKind.ParenthesisOpen => return "(", 
+                PunctuationKind.ParenthesisClose => return ")", 
+                PunctuationKind.Dash => return "-", 
+                PunctuationKind.Ellipsis => return "...", 
+                PunctuationKind.SquareBracket => return "[]", 
+                PunctuationKind.SquareBracketOpen => return "[", 
+                PunctuationKind.SquareBracketClose => return "]", 
+                PunctuationKind.BackSlash => return "/", 
+                PunctuationKind.AngledBracket => return "<>", 
+                PunctuationKind.AngledBracketClosed => return "<", 
+                PunctuationKind.AngledBracketOpened => return ">", 
+                PunctuationKind.ArrowIndicator => return "->", 
+                PunctuationKind.Unknown => return "<Unknown>",
+            };
+            return kind_str; 
+        }
     };
+
 
     pub const Metadata = struct {
         freq_count: usize,
         endsWith: bool, 
-        contain_inequality: bool,
-        // is_dynamic: bool, 
     }; 
-
    
     /// This is a condition for continuing parsing inner token strings within a punctuation. 
     fn is_wrapped(inner_str: []const u8) bool {
     return (inner_str[0] == '[' and inner_str[inner_str.len - 1] == ']') or
            (inner_str[0] == '(' and inner_str[inner_str.len - 1] == ')') or
            (inner_str[0] == 0x27 and inner_str[inner_str.len - 1] == 0x27) or
-           (inner_str[inner_str.len - 1] == ':') or
+
+           // (inner_str[inner_str.len - 1] == ':') or
+           (inner_str[0] == '(' and inner_str[inner_str.len - 1] == ':') or
            (inner_str[inner_str.len - 1] == ')') or
            (inner_str[0] == '<' and inner_str[inner_str.len - 1] == '>');
+    }
+
+    fn still_contain(inner_str: []const u8) bool {
+        const contains = (std.mem.count(u8, inner_str, "[") > 0) or 
+            (std.mem.count(u8, inner_str, "]") > 0) or 
+            (std.mem.count(u8, inner_str, "(") > 0) or 
+            (std.mem.count(u8, inner_str, ")") > 0) or 
+            (std.mem.count(u8, inner_str, "'") > 0) or 
+            (std.mem.count(u8, inner_str, ":") > 0); 
+        return contains; 
     }
 
     pub fn try_into(self: PunctuationToken, comptime T: type) ?T{
@@ -117,20 +189,237 @@ pub const PunctuationToken = struct {
         return null;
     }
 
-    //TODO: - Fix so it handles cases for more nested punctuations. Such as for the token: 
-    //(boot:37e23cab-a2ef-4fbd-9904-b68acea03eda)
+    fn contains_punctuation(token: []const u8, kind: PunctuationKind) bool {
+        if(std.mem.count(u8, token, kind.as_bytes()) > 0){
+            return true;
+        }else {
+            return false; 
+        }
+    }
+
+    pub fn tryFrom(token: []const u8) ?PunctuationToken {
+        // if (@TypeOf(any) == []const u8 or @TypeOf(any) == []u8) {
+        const parsable: bool = parse_flag: {
+            const fields = @typeInfo(PunctuationKind).@"enum".fields; 
+            inline for (fields) |kind| {
+                const punct_kind = std.meta.stringToEnum(PunctuationKind, kind.name);
+                if (punct_kind) |pkind| {
+                    if(contains_punctuation(token, pkind)){
+                        break :parse_flag true; 
+                    }
+                }
+            }
+            break :parse_flag false; 
+        }; 
+
+        if (parsable){
+            std.debug.print("   Trying to Parse Punctuations...\n", .{});
+            if (PunctuationToken.tryParseWrappedCases(token)) |wrapped| {
+                return wrapped; 
+            }
+            else if (PunctuationToken.tryParseAngledVariants(token)) |angled| {
+                return angled; 
+            }
+            else if (PunctuationToken.tryParseSinglePunctuation(token)) |single_punct| {
+                return single_punct; 
+            }
+        } 
+        return null; 
+    }
+
+    fn tryParseWrappedCases(token: []const u8) ?PunctuationToken{
+        if (token.len >= 2 and token[0] == '"' and token[token.len - 1] == '"'){
+            std.debug.print("       → Found Quotation, From: {s}\n", .{token});
+            // return PunctuationToken{.kind = .Quotation, .inner = null, .value = token}; 
+            return PunctuationToken{.kind = .Quotation, .value = token}; 
+        }
+        else if (std.mem.startsWith(u8, token, "'") and std.mem.endsWith(u8, token, "'")){
+            std.debug.print("       → Found Single-Quotations, From: {s}\n", .{token});
+            // return PunctuationToken{.kind = .SingleQuote, .inner = null, .value = token}; 
+            return PunctuationToken{.kind = .SingleQuote, .value = token}; 
+        }
+        else if (token.len >= 2 and token[0] == '[' and token[token.len - 1] == ']'){
+            std.debug.print("       → Found SquareBrackets, From: {s}\n", .{token});
+            // return PunctuationToken{.kind = .SquareBracket, .inner = null, .value = token}; 
+            return PunctuationToken{.kind = .SquareBracket, .value = token}; 
+        }
+        else if (token.len >= 2 and token[0] == '(' and token[token.len - 1] == ')'){
+            std.debug.print("       → Found Parenthesis, From: {s}\n", .{token});
+            // return PunctuationToken{.kind = .Parenthesis, .inner = null, .value = token}; 
+            return PunctuationToken{.kind = .Parenthesis, .value = token}; 
+        } 
+        else if(std.mem.startsWith(u8, token, "(") and std.mem.endsWith(u8, token, ":")){
+            std.debug.print("       → Found ParenthesisOpen + Colon, From: {s}\n", .{token});
+            return PunctuationToken{.kind = .Unknown, .value = token};
+        }
+
+        return null; 
+    }
+
+    fn tryParseAngledVariants(token: []const u8) ?PunctuationToken {
+        if (token.len >= 2 and token[0] == '<' and token[token.len - 1] == '>'){
+            // return PunctuationToken{.kind = .AngledBracket, .inner = null, .value = token}; 
+            return PunctuationToken{.kind = .AngledBracket, .value = token}; 
+        }
+        else if (token.len >= 2 and token[0] == '<'){
+            // return PunctuationToken{.kind = .AngledBracketOpened, .inner = null, .value = token}; 
+            return PunctuationToken{.kind = .AngledBracketOpened, .value = token}; 
+        }
+        else if (token.len >= 2 and token[0] == '>'){
+            // return PunctuationToken{.kind = .AngledBracketClosed, .inner = null, .value = token}; 
+            return PunctuationToken{.kind = .AngledBracketClosed, .value = token}; 
+        }
+        else if (token.len == 2 and (token[0] == '-' or token[0] == '=') and token[1] == '>'){
+            // return PunctuationToken{.kind = .ArrowIndicator, .inner = null, .value = token}; 
+            return PunctuationToken{.kind = .ArrowIndicator, .value = token}; 
+        }
+        return null;
+    }
+
+    fn tryParseSinglePunctuation(token: []const u8) ?PunctuationToken{
+        // if (std.mem.endsWith(u8, token, ":") and std.mem.count(u8, token, ":") == 1){
+        if(std.mem.endsWith(u8, token, ":") or std.mem.count(u8, token, ":") == 1 and token[0] != '('){
+            const punct_count = std.mem.count(u8, token, ":");
+            const info = PunctuationToken.Metadata{.endsWith = std.mem.endsWith(u8, token, ":"), .freq_count = punct_count};
+            std.debug.print("       → Found: Colon, From: {s}\n", .{token});
+            return PunctuationToken{.kind = .Colon, .value = token, .metadata = info}; 
+        }
+        else if (token.len >= 3 and std.mem.endsWith(u8, token, ".")){
+            if (token.len >= 3 and token[token.len - 1] == '.' and token[token.len - 2] == '.'){
+                std.debug.print("       → Found: Ellipsis, From: {s}\n", .{token});
+                // return PunctuationToken{.kind = .Ellipsis, .inner = null, .value = token}; 
+                return PunctuationToken{.kind = .Ellipsis, .value = token}; 
+            }
+        }
+        else if(token.len >= 2 and std.mem.startsWith(u8, token, "-")){
+            if(std.mem.indexOfScalar(u8, token, '-')) |dash_idx|{
+                if (std.ascii.isAlphabetic(token[dash_idx + 1])){
+                    std.debug.print("       → Found: Dash From: {s}\n", .{token});
+                    // return PunctuationToken{.kind = .Dash, .inner = .ALPHABETIC, .value = token};
+                    return PunctuationToken{.kind = .Dash, .value = token};
+                }
+                if (std.ascii.isDigit(token[dash_idx + 1])){
+                    std.debug.print("       → Found: Dash From: {s}\n", .{token});
+                    // return PunctuationToken{.kind = .Dash, .inner = .NUMERIC, .value = token};
+                    return PunctuationToken{.kind = .Dash, .value = token};
+                } 
+            }
+            // return PunctuationToken{.kind = .Dash, .inner = null, .value = token};
+            return PunctuationToken{.kind = .Dash, .value = token};
+        }
+
+        if (std.mem.startsWith(u8, token, "(") and !std.mem.endsWith(u8, token, ")")){
+            std.debug.print("       → Found: ParenthesisOpen, From: {s}\n", .{token});
+            // return PunctuationToken{.kind = .ParenthesisOpen, .inner = null, .value = token};
+            return PunctuationToken{.kind = .ParenthesisOpen, .value = token};
+        }
+        else if (!std.mem.startsWith(u8, token, "(") and std.mem.endsWith(u8, token, ")")){
+            std.debug.print("       → Found: ParenthesisClose, From: {s}\n", .{token});
+            // return PunctuationToken{.kind = .ParenthesisClose, .inner = null, .value = token};
+            return PunctuationToken{.kind = .ParenthesisClose, .value = token};
+        }
+        return null; 
+    }
+
+    pub fn getMissingPunctuation(self: PunctuationToken) !PunctuationKind {
+        switch(self.kind){
+            .ParenthesisOpen => blk_p: {
+                if (!std.mem.endsWith(u8, self.value, ")")){
+                    break :blk_p PunctuationKind.ParenthesisClose;  
+                }else{
+                    const punct_str: []const u8 = self.value[self.value[self.value.len - 1]]; 
+                    break :blk_p std.meta.stringToEnum(PunctuationKind, punct_str);
+                }
+            },
+            .SquareBracketOpen => {},
+            .AngledBracketOpened => {},
+
+            .ParenthesisClose => {},
+            .SquareBracketClose => {},
+            .AngledBracketClosed => {},
+
+            else => return error.NoMissingPunctuationFound,  
+        }
+    }
+   
+    /// This essentially fetch or gets the inner slice value and its token type. 
+    /// By splitting or trimming away the punctuations. 
+    fn getParseSlice(self: PunctuationToken) []const u8{
+        const slice = self.value; 
+        switch(self.parsing_type){
+            .Wrapped => return slice[1..slice.len - 1],
+            .Single => {
+                const token_slice: []const u8 = strip_blk: {
+                    if (self.kind == .Ellipsis) {
+                        break :strip_blk slice[0..slice.len - 3]; 
+                    }
+                    else if(self.kind == .Colon and std.mem.count(u8, slice, ":") == 1 and std.mem.endsWith(u8, slice, ":")){
+                        if(std.mem.startsWith(u8, slice, "(")){
+                            break :strip_blk slice[1..slice.len - 1]; 
+                        }else{
+                            break :strip_blk slice[0..slice.len - 1]; 
+                        }
+                    }
+                    else if(slice[slice.len - 1] == ')' and slice[0] != '('){
+                        break :strip_blk slice[0..slice.len - 1]; 
+                    }
+                    else if(slice[0] == '(' and slice[slice.len - 1] != ')'){
+                        break :strip_blk slice[1..]; 
+                    }
+                    break :strip_blk slice; 
+                }; 
+                return token_slice; 
+            }
+        }
+    }
+
+    fn getInnerSlice(self: PunctuationToken) []const u8{
+        const token_part: []const u8 = slice_blk: { 
+            const token = self.value; 
+            const scalar_idx = if(std.mem.indexOfScalar(u8, token, '(')) |index| index else 0;
+            if(self.kind == .Colon and std.mem.count(u8, token, ":") == 1 and std.mem.endsWith(u8, token, ":")){
+                if(std.mem.startsWith(u8, token, "(")){
+                    break :slice_blk token[1..token.len - 1]; 
+                }else{
+                    break :slice_blk token[0..token.len - 1]; 
+                }
+            }
+            switch (self.kind) {
+                .ParenthesisOpen => break :slice_blk token[scalar_idx + 1..token.len],
+                .ParenthesisClose => break :slice_blk token[scalar_idx..token.len - 1],
+                // Case when a token is wrapped between an opening- and closing parenthesis. 
+                .Parenthesis => break :slice_blk token[1..token.len - 1],
+                .SquareBracketOpen => break :slice_blk token[1..token.len],
+                .SquareBracketClose => break :slice_blk token[0..token.len - 1],
+                .SquareBracket => break :slice_blk token[1..token.len - 1],
+                .SingleQuote => break :slice_blk token[1..token.len - 1],
+                .Quotation => break :slice_blk token[1..token.len - 1],
+                .Ellipsis => {
+                    if(std.mem.indexOfScalar(u8, token, '.')) |idx| {
+                        // break :slice_blk token[0..token.len - 3]; 
+                        break :slice_blk token[0..idx];
+                    }
+                },
+                else => break :slice_blk token,
+            }
+            break :slice_blk token; 
+        };
+        return token_part; 
+    }
+
+    /// Check if last char is either ':' or ')' and first char is not '('
+    /// Parsing inner can be done either by moving from outer indices to inner.
+    /// By continously check if the smaller slice contains a punctuation. Or
+    /// the parsing could be one directional, if it is not wrapped. Meaning it
+    /// will check indices from left-to-right for opening punctuations. And
+    /// right-to-left for closing punctuations. 
     pub fn parse_inner(self: *PunctuationToken) ?TokenTags {
         self.iteration_started = true; 
         var slice = self.value; 
-        
+
         while (slice.len >= 2 and is_wrapped(slice)) {
-            // const inner_value = slice[1..slice.len - 1];
-            const inner_value: []const u8 = inner_str: {
-                if (slice[slice.len - 1] == ':' or (slice[slice.len - 1] == ')' and slice[0] != '(')){
-                    break :inner_str slice[0..slice.len - 1]; 
-                }
-                break :inner_str slice[1..slice.len - 1]; 
-            };
+            const inner_value: []const u8 = self.getParseSlice(); 
+                
             const inner_tokentype = TokenType.from(inner_value);
             if (inner_tokentype) |inner|{
                 if (@as(TokenTags, inner) != TokenTags.PUNCTUATION){
@@ -141,14 +430,13 @@ pub const PunctuationToken = struct {
                     switch (inner) {
                         .ASSOCIATION => |val| {
                             const final_str = val.into_str();
-                            std.debug.print("Found Final Inner Token({s}) Value: {s}\n", .{@tagName(@as(TokenTags, inner)), final_str});
+                            std.debug.print("       The Inner Token Tag Is <{s}>, Value: {s}\n", .{@tagName(@as(TokenTags, inner)), final_str});
                         },
-                        else => std.debug.print("Found Final Inner Token({s}) \n", .{@tagName(@as(TokenTags, inner))}),
+                        else => std.debug.print("       The Inner Token Tag Is: <{s}>\n", .{@tagName(@as(TokenTags, inner))}),
                     }
                     return @as(TokenTags, inner); 
                 }else if(@as(TokenTags, inner) == TokenTags.PUNCTUATION and (inner.PUNCTUATION.kind == .Colon)){
                     slice = slice[0..slice.len - 1]; 
-                    
                 }
                 slice = inner_value; 
             }else {
@@ -156,11 +444,13 @@ pub const PunctuationToken = struct {
             }
             
         }
-        return self.*.inner; 
+        // return std.meta.stringToEnum(TokenTags, @tagName(self.*)); 
+        // return self.*.inner; 
+        return null; 
     }
    
     /// Should obtain the inner token type of  a punctuation token. 
-    pub fn inner_token(self: PunctuationToken) ?TokenTags {
+    pub fn into_inner_token(self: PunctuationToken) ?TokenTags {
         // const inner_tokentype = TokenType.from(inner_value);
         // self.iteration_started = true; 
         var new_self = self;         
@@ -179,12 +469,21 @@ pub const PunctuationToken = struct {
         return null;              
     }
 
-    fn to_str(self: PunctuationToken) []const u8{
-        if (self.inner) |inner_type|{
-            const inner_tag: []const u8 = switch (inner_type) {
+   
+    //FIX: - Fix the 'to_str', and if it  should belong to the PunctuationToken type or not...
+
+    // fn to_str(self: PunctuationToken) []const u8{
+    fn to_str(self: PunctuationToken, token_type: TokenType) []const u8{
+        // if (self.inner) |inner_type|{
+            const inner_tag: []const u8 = switch (token_type.into_tag()) {
                 TokenTags.PATH => "<PATH>",
                 TokenTags.NETWORKINTERFACE => "<INET>",
-                TokenTags.ADDRESS => "<IP>", 
+                TokenTags.ADDRESS => addr_blk: {
+                    if (TokenType.is_ip_addr(self.value[1..self.value.len - 1])) break :addr_blk "<IP>";
+                    if (TokenType.is_mac_addr(self.value[1..self.value.len - 1])) break :addr_blk "<MAC>";
+                    if (true) @panic("to_str, attempting to get ADDRESS TAG!");
+                }, 
+            
                 TokenTags.DYNAMIC => "<DYN>", 
                 TokenTags.DEVICE => "<DEVICE_PATH>", 
                 TokenTags.FILE => file_blk: {
@@ -221,6 +520,7 @@ pub const PunctuationToken = struct {
                     if(std.mem.eql(u8, inner_tag, "<PATH>") == true){return "[<PATH>]";}
                     else if(std.mem.eql(u8, inner_tag, "<INET>") == true){return "[<INET>]";}
                     else if(std.mem.eql(u8, inner_tag, "<IP>") == true){return "[<IP>]";}
+                    else if(std.mem.eql(u8, inner_tag, "<MAC>") == true){return "[<MAC>]";}
                     else if(std.mem.eql(u8, inner_tag, "<DYN>") == true){return "[<DYN>]";}
                     else if(std.mem.eql(u8, inner_tag, "<DEVICE_PATH>") == true){return "[<DEVICE_PATH>]";}
                     else {
@@ -239,6 +539,7 @@ pub const PunctuationToken = struct {
                     if(std.mem.eql(u8, inner_tag, "<PATH>") == true){return "(<PATH>)";}
                     else if(std.mem.eql(u8, inner_tag, "<INET>") == true){return "(<INET>)";}
                     else if(std.mem.eql(u8, inner_tag, "<IP>") == true){return "(<IP>)";}
+                    else if(std.mem.eql(u8, inner_tag, "<MAC>") == true){return "(<MAC>)";}
                     else if(std.mem.eql(u8, inner_tag, "<DYN>") == true){return "(<DYN>)";}
                     else if(std.mem.eql(u8, inner_tag, "<DEVICE_PATH>") == true){return "(<DEVICE_PATH>)";}
                     else {
@@ -257,6 +558,7 @@ pub const PunctuationToken = struct {
                     if(std.mem.eql(u8, inner_tag, "<PATH>") == true){return "(<PATH>";}
                     else if(std.mem.eql(u8, inner_tag, "<INET>") == true){return "(<INET>";}
                     else if(std.mem.eql(u8, inner_tag, "<IP>") == true){return "(<IP>";}
+                    else if(std.mem.eql(u8, inner_tag, "<MAC>") == true){return "(<MAC>";}
                     else if(std.mem.eql(u8, inner_tag, "<DYN>") == true){return "(<DYN>";}
                     else if(std.mem.eql(u8, inner_tag, "<DEVICE_PATH>") == true){return "(<DEVICE_PATH>";}
                     else {
@@ -275,6 +577,7 @@ pub const PunctuationToken = struct {
                     if(std.mem.eql(u8, inner_tag, "<PATH>") == true){return "<PATH>)";}
                     else if(std.mem.eql(u8, inner_tag, "<INET>") == true){return "<INET>)";}
                     else if(std.mem.eql(u8, inner_tag, "<IP>") == true){return "<IP>)";}
+                    else if(std.mem.eql(u8, inner_tag, "<MAC>") == true){return "<MAC>)";}
                     else if(std.mem.eql(u8, inner_tag, "<DYN>") == true){return "<DYN>)";}
                     else if(std.mem.eql(u8, inner_tag, "<DEVICE_PATH>") == true){return "<DEVICE_PATH>)";}
                     else {
@@ -293,6 +596,7 @@ pub const PunctuationToken = struct {
                     if(std.mem.eql(u8, inner_tag, "<PATH>") == true){return "<PATH>:";}
                     else if(std.mem.eql(u8, inner_tag, "<INET>") == true){return "<INET>:";}
                     else if(std.mem.eql(u8, inner_tag, "<IP>") == true){return "<IP>:";}
+                    else if(std.mem.eql(u8, inner_tag, "<MAC>") == true){return "<MAC>:";}
                     else if(std.mem.eql(u8, inner_tag, "<DYN>") == true){return "<DYN>:";}
                     else if(std.mem.eql(u8, inner_tag, "<DEVICE_PATH>") == true){return "<DEVICE_PATH>:";}
                     else {
@@ -312,6 +616,7 @@ pub const PunctuationToken = struct {
                     if(std.mem.eql(u8, inner_tag, "<PATH>") == true){return "'<PATH>'";}
                     else if(std.mem.eql(u8, inner_tag, "<INET>") == true){return "'<INET>'";}
                     else if(std.mem.eql(u8, inner_tag, "<IP>") == true){return "'<IP>'";}
+                    else if(std.mem.eql(u8, inner_tag, "<MAC>") == true){return "'<MAC>'";}
                     else if(std.mem.eql(u8, inner_tag, "<DYN>") == true){return "'<DYN>'";}
                     else if(std.mem.eql(u8, inner_tag, "<DEVICE_PATH>") == true){return "'<DEVICE_PATH>'";}
                     else {
@@ -329,33 +634,8 @@ pub const PunctuationToken = struct {
                 else => inner_tag, // angle brackets are already included in `middle`
             };
             return replace_str; 
-        }
-        return self.value; 
-    }
-
-    pub fn get_kind_symbol(self: PunctuationToken) []const u8{
-        const kind_symbol: []const u8 = switch (self.kind) {
-            PunctuationKind.Period => return ".", 
-            PunctuationKind.Comma => return ",", 
-            PunctuationKind.Colon => return ":", 
-            PunctuationKind.Semicolon => return ";", 
-            PunctuationKind.Quotation => return &.{0b00100010}, 
-            PunctuationKind.SingleQuote => return "'", 
-            PunctuationKind.ParenthesisOpen => return "()", 
-            PunctuationKind.ParenthesisOpen => return "(", 
-            PunctuationKind.ParenthesisClose => return ")", 
-            PunctuationKind.Dash => return "-", 
-            PunctuationKind.Ellipsis => return "...", 
-            PunctuationKind.SquareBracket => return "[]", 
-            PunctuationKind.SquareBracketOpen => return "[", 
-            PunctuationKind.SquareBracketClose => return "]", 
-            PunctuationKind.BackSlash => return "/", 
-            PunctuationKind.AngledBracket => return "<>", 
-            PunctuationKind.AngledBracketClosed => return "<", 
-            PunctuationKind.AngledBracketOpened => return ">", 
-            PunctuationKind.ArrowIndicator => return "->", 
-        };
-        return kind_symbol; 
+        // }
+        // return self.value; 
     }
 
 };
@@ -385,6 +665,116 @@ pub const FileToken = enum {
     Config,
     Service,
     Default,
+};
+
+/// Represent nested and grouped tokens. E.g., when 
+/// we have many punctuations, or that is wrapped within
+/// parenthesis and contains whitespace...
+pub const PairedToken = struct {
+    // kind: TokenTags,
+    kind: PunctuationToken.PunctuationKind,
+    /// The inner sequence
+    tokens: []TokenType, 
+    // replacement_str: ?[]u8 = null,
+    is_partial_grouped: bool = false,
+
+    pub fn deinit(self: PairedToken, allocator: std.mem.Allocator) void{
+        const many_item_slice_ptr = self.tokens.ptr[0..];
+        //return self.items.ptr[0..self.capacity]; // Would return the slice 
+        //const t = self.tokens.ptr[0..]; // This would create a "Many-Item-Pointer"
+        // if(self.replacement_str != null) allocator.free(self.replacement_str.?); 
+
+        for (many_item_slice_ptr) |token_ptr| {
+            allocator.free(token_ptr);
+        }
+    }
+
+    pub fn new(kind: PunctuationToken.PunctuationKind, partial_grouped: bool) PairedToken{
+        return PairedToken{.kind = kind, .tokens = undefined, .is_partial_grouped = partial_grouped}; 
+    }
+
+    pub fn getOwnedReplacement(self: *PairedToken, allocator: std.mem.Allocator) ![]u8 {
+        var local_arr = std.ArrayList(u8).init(allocator);
+        defer local_arr.deinit(); 
+
+        for(self.tokens) |token| {
+            if(token.try_get_punctuation()) |punct|{
+                try local_arr.appendSlice(punct.kind.as_bytes()); 
+            }else {
+                try local_arr.appendSlice(token.toReplacementStr());
+            }
+        }
+        return try local_arr.toOwnedSlice(); 
+    }
+
+    /// This would merge two associated PairedToken. 
+    /// Meaning it would, concat or extend the current self.tokens with the other_pair.tokens. 
+    /// Then returning the updated TokenType. 
+    /// This logic works similar to how `toOwnedSlice` and `appendSlice` would work: 
+    /// // const new_memory = try allocator.alloc(TokenType, new_len); 
+    /// // @memcpy(new_memory, src_items);
+    /// // self.clearAndFree(allocator);
+    /// // return new_memory;
+    pub fn merge(self: *PairedToken, other_pair: *PairedToken, allocator: std.mem.Allocator) PairedToken{
+        // const merged_slice = std.mem.concat(allocator, TokenType, &[_][]const TokenType{
+        //     self.tokens, 
+        //     other_pair.tokens
+        // });
+
+        // Append to current slice in self:  
+        const new_len = self.tokens.len + other_pair.tokens.len;
+        const is_opening: bool = condition_blk: {
+            break :condition_blk (
+                other_pair.tokens[0].PUNCTUATION.kind == PunctuationToken.PunctuationKind.ParenthesisOpen or
+                other_pair.tokens[0].PUNCTUATION.kind == PunctuationToken.PunctuationKind.AngledBracketOpened or
+                other_pair.tokens[0].PUNCTUATION.kind == PunctuationToken.PunctuationKind.SquareBracketOpen
+            );
+        };
+        const new_kind: PunctuationToken.PunctuationKind = kind_blk: {
+            const PunctuationKind = PunctuationToken.PunctuationKind; 
+            for(self.tokens) |tok| {
+                const self_kind = tok.PUNCTUATION.kind; 
+                if(is_opening and self_kind == .ParenthesisClose){
+                    break :kind_blk PunctuationKind.Parenthesis; 
+                }
+                else if(is_opening and self_kind == .AngledBracketClosed){
+                    break :kind_blk PunctuationKind.AngledBracket; 
+                }
+                else if(is_opening and self_kind == .SquareBracketClose){
+                    break :kind_blk PunctuationKind.SquareBracket; 
+                }else {
+                    break :kind_blk PunctuationKind.Unknown; 
+                }
+            }
+             
+        };
+
+        const new_memory = try allocator.alloc(TokenType, new_len); 
+        defer self.deinit(allocator);
+        defer other_pair.deinit(allocator);
+
+        if (is_opening){
+            const old_len = other_pair.len; 
+            self.other_pair.len = new_len;
+            // @memcpy(other_pair[old_len..][0..self.tokens.len], self.tokens.ptr[0..]);
+            @memcpy(new_memory[0..old_len], other_pair.tokens.ptr[0..]);
+            @memcpy(new_memory[old_len..][0..self.tokens.len], self.tokens.ptr[0..]);
+            
+        }else {
+            const old_len = self.tokens.len; 
+            self.tokens.len = new_len;
+            // @memcpy(self.tokens[old_len..][0..other_pair.tokens.len], other_pair.tokens.ptr[0..]);
+            @memcpy(new_memory[0..old_len], self.tokens.ptr[0..]);
+            @memcpy(new_memory[old_len..][0..other_pair.tokens.len], other_pair.tokens.ptr[0..]);
+        }
+
+        return PairedToken{
+            .kind = new_kind,
+            .tokens = new_memory,
+            .is_partial_grouped = false, 
+        }; 
+    }
+
 };
 
 pub const AssociationTagType = enum {
@@ -553,9 +943,7 @@ pub const AssociationToken = union(AssociationTagType) {
         }
     };
 
-    //TODO: - Fix AssociationToken Parsing... For words that ends with colon. 
     pub fn try_from(token: []const u8) ?AssociationToken{
-        // const punct = TokenType.intoPunctuation(token);
         if (token.len == 2 and (token[0] == '=' or token[0] == '-') and token[1] == '>'){
             return AssociationToken{.DirectedAssociation = .{.head = null, .tail = null}}; 
         }
@@ -678,6 +1066,7 @@ pub const TokenTags = enum {
     DYNAMIC,
     FILE,
     DEVICE,
+    PAIRED,
 };
 
 pub const TokenType = union(TokenTags) {
@@ -697,6 +1086,7 @@ pub const TokenType = union(TokenTags) {
     DYNAMIC: []const u8, 
     FILE: FileToken,
     DEVICE: []const u8,
+    PAIRED: PairedToken, 
 
     pub const OperatorToken = enum(u8) {
         const is_relational: bool = true; 
@@ -707,66 +1097,45 @@ pub const TokenType = union(TokenTags) {
         subtract = '-', 
     }; 
 
-    pub const SeparatorToken = enum(u8) {
-        Comma = ',',
-        Semicolon = ';',
-        Colon = ':',
-        BackSlash = '/', 
-        /// 0b0010_0111 represent the ascii value of 39 as the token(')
-        SingleQuote = 0b0010_0111,
+    //TODO: - Can I use TokenTypeError as event types, that we 
+    // handle during runtime? Or should I define a new enum with 
+    // different parsing events? 
+    pub const TokenTypeError = error {
+        UnexpectedPunctuationKind,
+        TokenIsNotAPairedToken,
+        TokenTypeIsNotPunctuation,
+        FailedParsingGroupedToken, 
+        ParsingInnerRequireSliceLengthOfAtleastThree,
+        NoInnerPunctuationFound,
+        FailedParsingSinglePunctuationToken,
+        TokenMissingClosingPunctuation,
+        TokenMissingOpeningPunctuation,
+        RequireDomainSpecificParsing,
+        OnlyPunctuationTypesMapsToPairedToken,
+        ProvidedTypeNotSupported, 
+    } || std.mem.Allocator.Error;
 
-        pub fn tryIntoPunctuationToken(self: SeparatorToken) ?PunctuationToken {
-            const punct_fields = @typeInfo(PunctuationToken).@"enum".fields; 
-            const self_name = @tagName(self); 
-            inline for (punct_fields) |punct| {
-                if (std.mem.eql(u8, self_name, punct.name)){
-                    return std.meta.stringToEnum(PunctuationToken, punct.name);
-                }
-            }
-            return null; 
-        }
-    };
+    pub fn into_tag(self: TokenType) TokenTags{
+        // const tag_type = std.meta.stringToEnum(TokenTags, @tagName(self));
+        const tag_type = @as(TokenTags, self); 
+        return tag_type; 
+    }
 
     /// Maps from a token string based on a pattern, into a valid TokenType.
-    /// This creates a new TokenType union type. 
+    /// This tries to create a new TokenType union type. 
     pub fn from(token: []const u8) ?TokenType{
-        // inline for (token_fields) |token_type| {
-            // if (std.mem.startsWith(u8, token, token_type.name and std.mem.containsAtLeast(u8, token, 1, "="))){
-            // return std.meta.stringToEnum(TokenType, token_type.name);
-
         // Checks if token association was found, check for both outer and inner tokens.
         if (AssociationToken.try_from(token)) |assoc| {
-        // if (AssociationToken.AssignmentPairType.try_from(token)) |pair| {
-            // const pair_val = assoc.get_values(); 
             std.debug.print("   → Found ASSOCIATION Token: {s} with Value({s})\n", .{@tagName(assoc), assoc.into_str()});
-            // std.debug.print("   → Found ASSOCIATION Token: {s} with Value({s})\n", .{@tagName(pair), pair.to_str()});
             return TokenType{.ASSOCIATION = assoc}; 
         }
-        if(intoPunctuation(token)) |punct| {
+        if(PunctuationToken.tryFrom(token)) |punct| {
             // parse the inner token, if it is null. 
             if (punct.iteration_started == false){
-                std.debug.print("   Found Punctuation Kind: {s} with inner value: {s}\n", .{@tagName(punct.kind), punct.value}); 
-
-                if(punct.inner_token()) |inner| {
-                    if (punct.kind == .ParenthesisOpen) return TokenType{.PUNCTUATION = .{.kind = punct.kind, .inner = inner, .value = punct.value}};
-                    if (punct.kind == .ParenthesisClose) return TokenType{.PUNCTUATION = .{.kind = punct.kind, .inner = inner, .value = punct.value}};
-                    if(punct.kind == .Colon){
-                        // TokenType{.PUNCTUATION = .{.kind = .Colon, .inner = inner, .value = punct.value}};
-                    }
-                    if(punct.kind == .Ellipsis){
-                        @panic("Found Ellipsis!");
-                    }
-
-                    return TokenType{
-                        .PUNCTUATION = .{
-                            .kind = punct.kind, 
-                            .inner = inner, 
-                            .value = punct.value,
-                        }
-                    }; 
-                } 
-            }
+                // std.debug.print("   Found Punctuation Kind: {s} with inner value: {s}\n", .{@tagName(punct.kind), punct.value}); 
+            } 
             return TokenType{.PUNCTUATION = punct}; 
+            
         }else if(is_path(token)){
             return TokenType{.PATH = "<PATH>"}; 
         }else if(is_network_interface(token)){
@@ -775,19 +1144,22 @@ pub const TokenType = union(TokenTags) {
             return TokenType{.DEVICE = "<DEVICE_PATH>"};
         }else if(is_ip_addr(token)){
             return TokenType{.ADDRESS = "<IP>"};
+        }else if(is_mac_addr(token)){
+            return TokenType{.ADDRESS = "<MAC>"};
         }else if(is_stopword(token)){
             std.debug.print("   → Found STOPWORD Token!\n", .{});
             //TODO: - How do we handle stopwords, should be remove them? 
             return TokenType{.STOPWORD = token}; 
-        }else if(is_separator(token)){
-            // Do something... 
         }else if(token.len == 1 and std.ascii.isAlphabetic(token[0])){
             std.debug.print("Found a token of length 1 [CHARACTER = {s}]\n", .{token});
             @panic("Found a Single character!");
-        }else if(std.ascii.isAlphabetic(token[0]) and is_alphabetic_only(token)){
-            // COMMAND=<BIN_PATH> <CLI_FLAG> <USER_KEY>
-            // get_alphabetic_token(token)
-            std.debug.print("   → Found ALPHABETIC Token!\n", .{});
+        }else if((is_alphabetic_only(token)) or (std.mem.endsWith(u8, token, ".") and is_alphabetic_only(token[0..token.len - 1]))){
+            if(std.mem.endsWith(u8, token, ".")){
+                std.debug.print("   → Found ALPHABETIC Token With Ending Dot!\n", .{});
+            }else {
+                std.debug.print("   → Found ALPHABETIC Token!\n", .{});
+            }
+            std.debug.print("   ----------------------------------------\n", .{});
             return TokenType{.ALPHABETIC = token}; 
         }else if(is_numeric(token)){
             const numeric_type = into_numeric(token);
@@ -795,11 +1167,21 @@ pub const TokenType = union(TokenTags) {
             return TokenType{.NUMERIC = numeric_type.?};
         }else if (is_filetype(token)) |filetype|{
             std.debug.print("   → Found {s} Token: {s}\n", .{@tagName(filetype), token});
+            std.debug.print("   ----------------------------------------\n", .{});
             return TokenType{.FILE = filetype};
         }else if(is_dynamic_token(token)){
-            std.debug.print("   → Found Non-Static, Dynamic Token!\n", .{});
+            std.debug.print("   → Token is Non-Static, Dynamic Token!\n", .{});
+            std.debug.print("   ----------------------------------------\n", .{});
             // TODO: - Handle Dynamic Log Tokens, maybe add a new tag: <DYN>, <STRING>, <NAME>, <*>, ...
             return TokenType{.DYNAMIC = token};
+        }
+        return null; 
+    }
+
+    fn tryGetReplacement(self: TokenType, original_token: []const u8) ?[]const u8 {
+        const replacement_tok = self.toReplacementStr(); 
+        if(std.mem.eql(u8, replacement_tok, original_token) != true){
+            return replacement_tok; 
         }
         return null; 
     }
@@ -826,7 +1208,7 @@ pub const TokenType = union(TokenTags) {
             },
             .PUNCTUATION => |punct| {
                 // var pair_str: []u8 = &[_]u8{};  
-                const result = punct.to_str(); 
+                const result = punct.to_str(self); 
                 // std.debug.print("\ntoReplacementStr, punct.to_str(): {s}\n", .{result});
                 return result;
             },
@@ -843,7 +1225,218 @@ pub const TokenType = union(TokenTags) {
                 else {return "<FILE>";}
             },
             .DEVICE => |device| return device, 
+            .PAIRED => |pair| {
+                if(pair.replacement_str) |replacement| {
+                    const pair_str: []const u8 = replacement; 
+                    return pair_str; 
+                }else {
+                    return  "<PAIR>";
+                }
+            }
         }
+    }
+
+    fn generic_into(self: anytype) void {
+        if (@TypeOf(self) == PunctuationToken) {
+            const punctuation = @as(PunctuationToken, self);
+            _ = punctuation; 
+        }
+        if (@TypeOf(self) == TokenType) {
+            const token_type = @as(TokenType, self);
+            const token_tag = token_type.into_tag(); 
+            const FieldTokenType = @FieldType(TokenType, @tagName(token_tag)); 
+            _ = FieldTokenType; 
+        }
+    }
+
+    /// Wrapper functionality for trying to map or casting anytype into PairedToken type.
+    fn tryIntoPairedToken(self: TokenType, allocator: std.mem.Allocator) TokenTypeError!PairedToken {
+        switch (self) {
+            .PUNCTUATION => |punct| {
+                const inner_slice = punct.getParseSlice(); 
+                if (parseInnerToken(inner_slice, allocator)) |inner_tokens| {
+                    return TokenType{.PAIRED = PairedToken{.kind = punct.kind, .tokens = inner_tokens}}; 
+                } else |err| {
+                    std.debug.print("Failed parsing into PairedToken, from: {s}\n", .{punct.value}); 
+                    return err; 
+                }
+                
+            },
+            else => return TokenTypeError.OnlyPunctuationTypesMapsToPairedToken,
+            
+        }
+        return TokenTypeError.ProvidedTypeNotSupported; 
+    }
+
+    /// This would return a mutable slice, so caller owns the memory. 
+    fn parseInnerToken(inner_slice: []const u8, allocator: std.mem.Allocator) ![]TokenType{
+        // Iterate over the individual given slice, and successivelly remove the punctuations. 
+        var distinct_tokens = std.ArrayList(TokenType).init(allocator);
+        defer distinct_tokens.deinit();
+        const PunctuationKind = PunctuationToken.PunctuationKind; 
+        const fields = @typeInfo(PunctuationKind).@"enum".fields; 
+        // for (inner_slice, 0..) |token_byte, tok_idx| {
+        //     if(std.mem.indexOfScalar(u8, slice: []const T, value: T))    
+        // }
+
+        inline for (fields) |kind| {
+            const punct_kind = std.meta.stringToEnum(PunctuationKind, kind.name);
+            if (punct_kind) |pkind| {
+                // Check if we find the index of the punctuation else null:
+                if(std.mem.indexOf(u8, inner_slice, pkind.as_bytes())) |punct_idx| {
+                    var iter = std.mem.splitScalar(u8, inner_slice, inner_slice[punct_idx]);
+                    const first_str = iter.first();
+                    const tok_type = if(TokenType.from(first_str) != null) TokenType.from(first_str).?; 
+
+                    try distinct_tokens.append(tok_type); 
+                    try distinct_tokens.append(TokenType{.PUNCTUATION = .{.kind = pkind, .value = pkind.as_bytes()}});
+
+                    // We are done here, reached end of string, 
+                    if(iter.peek() == null){}
+                    
+                    while(iter.next()) |tok_str| {
+                        if(TokenType.from(tok_str)) |next_tok| {
+                            try distinct_tokens.append(next_tok); 
+                        }
+                    }
+                }
+            }
+        }
+        return try distinct_tokens.toOwnedSlice();
+    }
+                    
+
+    /// Should handle and execute different proceedure depending on the 
+    /// current TokenType. If the TokenType is a PunctuationToken, 
+    /// then it will check what `parsing_type` → parsing logic to run. 
+    pub fn parsePunctuationToken(self: TokenType, allocator: std.mem.Allocator) TokenTypeError!TokenType {
+        if(self.try_get_punctuation()) |punctuation| {
+            const parsing_type = self.getPunctuationParsingType(allocator) catch |err| {
+                switch (err) {
+                    error.TokenMissingClosingPunctuation => ParseType.Missing,
+                    error.TokenMissingOpeningPunctuation => ParseType.Missing,
+                    else => return err, 
+                }
+            }; 
+            switch(parsing_type){
+                .Default => {
+                    const paired_token = try self.tryIntoPairedToken(allocator);
+                    return TokenType{.PAIRED = paired_token}; 
+                    // try group_token.PAIRED.getOwnedReplacement(allocator); 
+                },
+                .DomainSpecific => return TokenTypeError.RequireDomainSpecificParsing,
+                .Missing => {
+                    // Handle Missing logic below: 
+                    const token_slice = punctuation.getParseSlice();
+                    const raw_token = punctuation.value; 
+                    if(TokenType.from(token_slice)) |parsed_token| {
+                        if(PunctuationToken.still_contain(token_slice)){
+                            std.debug.print("       (!): Inner Sub-Slice still have punctuations: {s}, compared to raw slice: {s}\n", .{token_slice, raw_token});
+                            @panic("Inner slice still contain Punctuations!"); 
+                        }
+                        return parsed_token; 
+                    }else {
+                        return TokenTypeError.FailedParsingSinglePunctuationToken; 
+                    }
+                },
+            }
+        }
+        return TokenTypeError.TokenTypeIsNotPunctuation;
+    }
+
+    /// The current self same as the TokenType instance, lives in the scope where TokenType.from() is called. 
+    /// If the TokenType union is of PairedToken type, the PairedToken owns an allocated slice of TokenType's. 
+    /// Meaning it owns that memory (slice). 
+    /// ---------------------------------
+    /// (!) Remember: 
+    /// Structs, unions, and arrays can sometimes be more efficiently passed as a reference, 
+    /// since a copy could be arbitrarily expensive depending on the size
+    pub fn mergePairedTokens(self: *TokenType, prev_token: ?*TokenType, allocator: std.mem.Allocator) TokenType {
+        if (self.into_tag() == TokenTags.PAIRED){
+            if (prev_token != null and prev_token.?.* == TokenTags.PAIRED){
+                const other_pair = prev_token.?.PAIRED; 
+                const merged_pair = self.PAIRED.merge(&other_pair, allocator); 
+                prev_token = null; 
+                return TokenType{.PAIRED = merged_pair}; 
+            }
+        }
+        return self; 
+    }
+   
+    /// We want to split by the punctuation mark, 
+    /// and run 'TokenType.from()' on the two distinct token values. 
+    /// -------------
+    /// --------- PARSE BY INNER PUNCTUATION:
+    /// Start by checking if the token has both opening and closing punctuations. 
+    /// → Split by the punctuation: 
+    ///    1. Take first(). 
+    ///    2. Take peak().
+    /// 3. Perform TokenType.from() on both (1) and (2)
+    /// ... Which should result in the desired tokens: "Result(1)", "Punctuation Symbol", "Result(2)"
+    /// ... Or result in: "Result(2)", "Punctuation Symbol", "NULL" where NULL indicate its missing. 
+    pub fn getPunctuationParsingType(self: TokenType) TokenTypeError!ParseType {
+    // pub fn getPunctuationParsingType(self: TokenType, allocator: std.mem.Allocator) TokenTypeError!ParseType {
+        const PunctuationKind = PunctuationToken.PunctuationKind; 
+
+        const parse_type: ParseType = kind_blk: {
+            if(self.try_get_punctuation()) |punct| {
+                const raw_token = punct.value; 
+                const cond = std.mem.startsWith(u8, raw_token, "(") and std.mem.endsWith(u8, raw_token, ":"); 
+                if (punct.kind == .Unknown and cond == true){
+                    return TokenTypeError.TokenMissingClosingPunctuation;
+                }
+                else if(punct.kind == .ParenthesisClose and raw_token[0] != '('){
+                    return TokenTypeError.TokenMissingOpeningPunctuation;  
+                }
+                else if (punct.kind == .ParenthesisOpen and raw_token[raw_token.len - 1] != ')'){
+                    return TokenTypeError.TokenMissingClosingPunctuation;
+                }
+                const acceptable_kind: ?PunctuationKind = switch (punct.kind) {
+                    .Parenthesis => PunctuationKind.Parenthesis,
+                    .Colon => PunctuationKind.Colon,
+                    .Ellipsis => PunctuationKind.Ellipsis, 
+                    .SquareBracket => PunctuationKind.SquareBracket,
+                    .Quotation => PunctuationKind.Quotation,
+                    .SingleQuote => PunctuationKind.SingleQuote,
+                    .Unknown => PunctuationKind.Unknown,
+                    else => null,
+                };
+
+                if (acceptable_kind != null) {
+                    break :kind_blk ParseType.Default; 
+                    // break :kind_blk punct; 
+                }
+                return TokenTypeError.UnexpectedPunctuationKind; 
+            }
+            return TokenTypeError.TokenTypeIsNotPunctuation; 
+        };
+        return parse_type;  
+
+        // const inner_slice = raw_token[1 .. raw_token.len - 1];
+        // const inner_slice = punctuation.getParseSlice();
+        // std.debug.print("   Wrapped Punctuation Kind found: {s}, Checking Inner Now...\n", .{@tagName(punctuation.kind)});
+        // const parsed_pair = try parseInnerToken(inner_slice, allocator);
+        // return TokenType{.PAIRED = PairedToken{.kind = punctuation.kind, .tokens = parsed_pair}}; 
+
+        // if (tryParseInner(inner_slice, allocator)) |inner_tokens| {
+        //     return TokenType{.PAIRED = PairedToken{.kind = punctuation.kind, .tokens = inner_tokens}}; 
+        // } else |err| {
+        //     // This is whenever, "NoInnerPunctuationFound" error was encountered. 
+        //     std.debug.print("Error: {}\n", .{err});
+        //     const inner_token = TokenType.from(inner_slice); 
+        //     if (inner_token) |result_tok| {
+        //         const tok_arr = try allocator.alloc(TokenType, 1);
+        //         tok_arr[0] = result_tok; 
+        //         return TokenType{.PAIRED = PairedToken{
+        //             .kind = punctuation.kind, 
+        //             .tokens = tok_arr,
+        //         }}; 
+        //         // return result_tok; 
+        //     }
+        //     return err;
+        // }
+
+        // return TokenTypeError.FailedParsingGroupedToken;  
     }
 
     fn is_path(token: []const u8) bool {
@@ -886,11 +1479,12 @@ pub const TokenType = union(TokenTags) {
     /// in a log message. This would dictate if we need to parse group of 
     /// tokens as n-grams using a window size > 1. 
     pub fn try_domain_keyword(token: []const u8) bool {
-        const stopword_map: []const []const u8 = &.{
+        const domain_specific_map: []const []const u8 = &.{
             "COMMAND", "command", "STATE", "state",
+            "PID", "PID:", "UID", "UID:", "CPU", "CPU:"
         };
-        for (stopword_map) |stopword| {
-            if (std.mem.eql(u8, stopword, token)){
+        for (domain_specific_map) |domain| {
+            if (std.mem.eql(u8, domain, token)){
                 return true; 
             }
         }
@@ -904,31 +1498,44 @@ pub const TokenType = union(TokenTags) {
     /// E.g., "COMMAND=<BIN_PATH> <CLI_FLAG> <USER_KEY>". 
     /// This tries to identify context pair (semantically) in a log message. 
     fn get_context_tag(self: TokenType, token: []const u8, ctx_option: FilterOptions) []const u8{
-        // if (token.len >= 2 and std.mem.startsWith(u8, token, "-"))
         if(try_domain_keyword()) {}
-        if (self.get_punctuation()) |punctuation| {
-            // punctuation.inner
-            if (punctuation.kind == .Comma){
-                // TODO: - Add punctuation metadata such as the count of the punctuation. 
+
+        // const association_token = AssociationToken.AssignmentPairType.try_from(token);
+
+        switch (self) {
+            .ASSOCIATION => |val|{
+                val.try_from(token);
+            },
+            .PUNCTUATION => |punct| {
+                if(punct.kind == .ArrowIndicator){
+                    // This branch indicate that we have a temporal or order-based 
+                    // context between tokens. 
+                }
+            },
+            .PAIRED => |paired| {
+                // PunctuationToken.tryParseGroupedTokens(token: TokenType)
+                _ = paired;  
             }
-            _ = token;
         }
+
         _ = ctx_option; 
     }
 
-
-    //FIX: - dynamic tag
     fn is_dynamic_token(token: []const u8) bool {
         const is_dynamic: bool = dyn_blk: {
             var non_alphabetic: bool = false;  
             var non_alphabetic_count: usize = 0;  
             var digit_count: usize = 0;  
+            var alphabetic_count: usize = 0;  
             const is_wrapped = if (std.mem.startsWith(u8, token, "'") and std.mem.endsWith(u8, token, "'")) true else false; 
             for (token) |char|{
                 if(!std.ascii.isAlphabetic(char)){
-                    std.debug.print("Not all chars in tokens are alphabetic, found: {c}\n", .{char});
+                    // std.debug.print("Not all chars in tokens are alphabetic, found: {c}\n", .{char});
                     non_alphabetic_count += 1; 
                     non_alphabetic = true;
+                }
+                if(std.ascii.isAlphabetic(char)){
+                    alphabetic_count += 1; 
                 }
 
                 if(std.ascii.isDigit(char)){
@@ -936,12 +1543,13 @@ pub const TokenType = union(TokenTags) {
                 }
             }
             const other_token_count = non_alphabetic_count - digit_count; 
-            std.debug.print("In is_dynamic_token, other_token_count: {d}, digit_count: {d}\n", .{other_token_count, digit_count});
+            std.debug.print("   Evaluating if Token is <DYNAMIC>:\n", .{});
+            std.debug.print("       Non-Alphanumeric Count: {d}, Digit Count: {d}, Alphabetic Count: {d}\n", .{other_token_count, digit_count, alphabetic_count});
 
             // For the case when the token is wrapped around single quotes 
             // and the inner value contains at least one dash 
             if (is_wrapped and non_alphabetic and std.mem.containsAtLeast(u8, token, 1, "-")) {
-                std.debug.print("Token wrapped in single quotes and contain '-': {s}", .{token});
+                // std.debug.print("Token wrapped in single quotes and contain '-': {s}", .{token});
                 if (true) @panic("Inside 'is_dynamic_token' check!");
                 break :dyn_blk true; 
             }
@@ -950,13 +1558,13 @@ pub const TokenType = union(TokenTags) {
             if (!std.mem.containsAtLeast(u8, token, 1, "/") and other_token_count >= 1){
                 if (std.mem.indexOfScalar(u8, token, '_')) |underscore_idx| {
                     if (token.len > 2 and std.ascii.isAlphanumeric(token[underscore_idx - 1]) and std.ascii.isAlphanumeric(token[underscore_idx + 1])){
-                        std.debug.print("Found token that use name with underscore: {s}\n", .{token});
+                        // std.debug.print("Found token that use name with underscore: {s}\n", .{token});
                         // if (true) @panic("Inside 'is_dynamic_token' check underscore!");
                         break :dyn_blk true; 
                     }
                 }else if (std.mem.indexOfScalar(u8, token, '-')) |dash_idx| {
                     if (token.len > 2 and std.ascii.isAlphanumeric(token[dash_idx - 1]) and std.ascii.isAlphanumeric(token[dash_idx + 1])){
-                        std.debug.print("Found token that is separated with dash('-'): {s}\n", .{token});
+                        // std.debug.print("Found token that is separated with dash('-'): {s}\n", .{token});
                         break :dyn_blk true; 
                     }
                 }
@@ -970,26 +1578,143 @@ pub const TokenType = union(TokenTags) {
     }
 
     /// This checks if a log message is a stackframe log type. 
-    fn is_stackframe(token: []const u8) bool {
-        // const tokenizer = std.mem.tokenizeAny(u8, token, " ");
-        const is_stackline = (token.len > 0 and token[0] == '#' and std.ascii.isDigit(token[1]));
+    fn is_stackframe(log_message: []const u8) bool {
+        // var tokens = std.mem.tokenizeAny(u8, log_message, "\n\n \n");
+
+        const is_stackline = (log_message.len > 0 and log_message[0] == '#' and std.ascii.isDigit(log_message[1]));
         // const stack_trace_msg = std.mem.containsAtLeast(u8, token, 1, "Stack trace of thread");
-        const have_newline = std.mem.containsAtLeast(u8, token, 1, "\n");
-        const have_symbol = std.mem.eql(u8, token, "n/a");
-        if (is_stackline and have_newline and have_symbol){
-        // if (is_stackline){
+        const have_multiple_newline = std.mem.containsAtLeast(u8, log_message, 1, "\n");
+        // const have_symbol = std.mem.eql(u8, log_message, "n/a");
+
+        if(std.mem.containsAtLeast(u8, log_message, 4, "\n") and std.mem.containsAtLeast(u8, log_message, 4, "#")){
             return true; 
-        }else {
-            return false; 
         }
+
+        if (is_stackline and have_multiple_newline){
+            return true; 
+        }
+
+        return false; 
     }
 
-    fn is_ip_addr(token: []const u8) bool {
-        if (std.mem.startsWith(u8, token, "192.") and std.mem.containsAtLeast(u8, token, 2, ".")) {
-            return true; 
-        }else {
-            return false; 
+    fn is_mac_addr(token: []const u8) bool {
+        var parts = std.mem.splitAny(u8, token, ":");
+        var part_count: usize = 0;
+        var hex_count: usize = 0; 
+        while (parts.next()) |part| {
+            if (part.len != 2) return false;
+            if (std.ascii.isHex(part[0]) or std.ascii.isHex(part[1])){
+                hex_count += 1; 
+            }
+            part_count += 1; 
         }
+        // if (part_count == 6 or part_count == 12){
+        if (part_count == 6 or part_count == 12 and hex_count > 0){
+            return true; 
+        }
+        return false; 
+        
+    }
+
+    /// In most cases, UUIDs are represented as hexadecimal values. The most used
+    /// format is the 8-4-4-4-12 format, xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx, where
+    /// every x represents 4 bits. 
+    /// - Example format: `00112233-4455-6677-8899-aabbccddeeff`
+    /// UUIDs are sequentially encoded using `big-endian` starting with the bytes: 
+    /// `00, 11, 22, 33` - `44, 55` - `...`
+    /// --------------------------------
+    fn is_uuid(token: []const u8) bool {
+        // var uuid_part: ?[]const u8 = null; 
+        var subpart_len: [5]usize = undefined; 
+           
+        //FIX: - When we parse the punctuations, always check for wrapped cases first. 
+        // So check if the token has both opening and closing punctuations. 
+        // --------- PARSE BY INNER PUNCTUATION:
+        // 1. Check if "is_wrapped()" → slice[1..slice.len - 1]. 
+        // 2. Else if not wrapped but punctuation was found Then: 
+        //    → Split by the punctuation: 
+        //    2.1. Take first(). 
+        //    2.2. Take peak().
+        // 3. Perform TokenType.from() on both (2.1) and (2.2)
+        // ... Which should result in the desired tokens: "Result(2.1)", "Punctuation Symbol", "Result(2.2)"
+        // ... Or result in: "Result(2.1)", "Punctuation Symbol", "NULL" where NULL indicate its missing. 
+
+        // Another approach: "(boot:37e23cab-a2ef-4fbd-9904-b68acea03eda)"
+        // 1. First we check if it is wrapped (opening and closing punctuation).
+        // 2. Split by the inner PunctuationKind.Colon, which yields: 
+        //    → "boot" , "37e23cab-a2ef-4fbd-9904-b68acea03eda"
+        // 3. Then perform TokenType check via "from()" on the two splitted tokens.   
+        // Which should result in the desired tokens: "boot", ":", "<UUID>"
+         
+        // if(std.mem.indexOf(u8, token, ":") != null and std.mem.endsWith(u8, token, ":") == false){
+        //     // Assuming test example: "(boot:37e23cab-a2ef-4fbd-9904-b68acea03eda)"
+        //     // parts.first() = "boot" and parts.peak() = 37e23cab-a2ef-4fbd-9904-b68acea03eda
+        //     var parts = std.mem.splitAny(u8, token, ":"); 
+        //     const object_name = parts.first(); 
+        //     const numeric_part = parts.peek(); 
+        // }
+
+        var hex_parts = std.mem.splitAny(u8, token, "-"); 
+        var i: usize = 0; 
+        if(hex_parts.buffer.len != 5) return false; 
+        while(hex_parts.next()) |hex| {
+            subpart_len[i] = hex.len; 
+            i += 1; 
+        }
+        // Expected format is the 8-4-4-4-12 format, xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+        const expected_format: bool = ((
+            subpart_len[0] == 8 and 
+            subpart_len[1] == 4 and 
+            subpart_len[2] == 4 and 
+            subpart_len[3] == 4 and 
+            subpart_len[4] == 12
+            ));
+
+        if (expected_format == true){
+            return true; 
+        }
+        return false; 
+    }
+
+    /// IPv4 Address without port: "192.168.1.1"
+    /// IPv4 with port "10.0.0.1:8080"
+    fn is_ip_addr(token: []const u8) bool {
+        var v4_parts = std.mem.splitAny(u8, token, "."); 
+        var block_count: usize = 0; 
+        while (v4_parts.next()) |part| {
+            // std.debug.print("Part: {s} and length of part: {d}\n", .{part, part.len});
+            if (part.len > 3) {
+                // When the length exceed the length limit. We need to handle the following:  
+                // E.g., the last part would parse into: "1:8080" with a length of 6. 
+                // Meaning when it split by the last '.' dot-decimal, 
+                // we would get the str "1:8080" with the included port.
+                if (std.mem.indexOf(u8, part, ":") != null){
+                    var port_part = std.mem.splitAny(u8, part, ":"); 
+                    const last_octet = port_part.first(); // Last dot-decimal in the IPv4 address.
+                    const port = port_part.peek(); 
+                    if (last_octet.len > 3 and port == null) return false;
+                    block_count += 1; 
+                    // std.debug.print("Last dot-decimal and port part: {s} and {s}\n", .{last_octet, port.?});
+                }else {
+                    return false; 
+                }
+            }else {
+                const block_value = std.fmt.parseInt(u32, part, 0b0) catch |err|{
+                    std.debug.print("Received Error: {s} - is_ip_addr() = false\n", .{@errorName(err)});
+                    return false; 
+                };
+                if (block_value >= 0 and block_value <= 255){
+                    block_count += 1; 
+                }else {
+                    return false; 
+                }
+            }
+        }
+
+        if (block_count == 4){
+            return true; 
+        }
+        return false; 
     }
 
     //TODO: - Look over this bloated code, for how to assing the pairs to 'lhs' and 'rhs' respectively.
@@ -1047,97 +1772,14 @@ pub const TokenType = union(TokenTags) {
         }
     }
 
-    pub fn get_punctuation(self: TokenType) ?PunctuationToken{
+    // pub fn get_punctuation(self: TokenType) ?PunctuationToken{
+    pub fn try_get_punctuation(self: TokenType) ?PunctuationToken{
         switch (self) {
             .PUNCTUATION => |punct| {
                 return punct;  
             },
             else => return null, 
         }
-    }
-
-    pub fn intoPunctuation(token: []const u8) ?PunctuationToken {
-        if (token.len >= 2 and token[0] == '"' and token[token.len - 1] == '"'){
-            return PunctuationToken{.kind = .Quotation, .inner = null, .value = token}; 
-        }
-        else if (std.mem.startsWith(u8, token, "'") and std.mem.endsWith(u8, token, "'")){
-            return PunctuationToken{.kind = .SingleQuote, .inner = null, .value = token}; 
-        }
-        else if (token.len >= 2 and token[0] == '[' and token[token.len - 1] == ']'){
-            return PunctuationToken{.kind = .SquareBracket, .inner = null, .value = token}; 
-        }
-        else if (token.len >= 2 and token[0] == '(' and token[token.len - 1] == ')'){
-            return PunctuationToken{.kind = .Parenthesis, .inner = null, .value = token}; 
-        }else if (token.len >= 2 and token[0] == '<' and token[token.len - 1] == '>'){
-            return PunctuationToken{.kind = .AngledBracket, .inner = null, .value = token}; 
-        }else if (token.len >= 2 and token[0] == '<'){
-            return PunctuationToken{.kind = .AngledBracketOpened, .inner = null, .value = token}; 
-        }
-        else if (token.len >= 2 and token[0] == '>'){
-            return PunctuationToken{.kind = .AngledBracketClosed, .inner = null, .value = token}; 
-        }else if (token.len == 2 and token[0] == '-' and token[1] == '>'){
-            return PunctuationToken{.kind = .ArrowIndicator, .inner = null, .value = token}; 
-        }else if (std.mem.endsWith(u8, token, ":") or std.mem.containsAtLeast(u8, token, 1, ":") and std.mem.count(u8, token, ":") <= 1){
-            // const colon_count = std.mem.count(u8, token, ":");
-            // Current word and next word act as a word pair.  
-            const punct_count = std.mem.count(u8, token, ":");
-            const info = PunctuationToken.Metadata{.endsWith = std.mem.endsWith(u8, token, ":"), .contain_inequality = false, .freq_count = punct_count};
-            return PunctuationToken{.kind = .Colon, .inner = null, .value = token, .metadata = info}; 
-        }else if (token.len >= 3 and std.mem.endsWith(u8, token, ".")){
-            // Should I use std.mem.endsWith(u8, token, "...") instead?
-            if (token.len >= 3 and token[token.len - 1] == '.' and token[token.len - 2] == '.'){
-                return PunctuationToken{.kind = .Ellipsis, .inner = null, .value = token}; 
-            }
-        }else if(token.len >= 2 and std.mem.startsWith(u8, token, "-")){
-            // return PunctuationToken{.kind = .Dash, .inner = null, .value = token};
-            if(std.mem.indexOfScalar(u8, token, '-')) |dash_idx|{
-                if (std.ascii.isAlphabetic(token[dash_idx + 1])){
-                    return PunctuationToken{.kind = .Dash, .inner = .ALPHABETIC, .value = token};
-                }
-                if (std.ascii.isDigit(token{dash_idx + 1})){
-                    return PunctuationToken{.kind = .Dash, .inner = .NUMERIC, .value = token};
-                }
-                
-            }
-            return PunctuationToken{.kind = .Dash, .inner = null, .value = token};
-        }
-
-        if (std.mem.startsWith(u8, token, "(") and !std.mem.endsWith(u8, token, ")")){
-            std.debug.print("Found ParenthesisOpen but not ParenthesisClose!\n", .{});
-            return PunctuationToken{.kind = .ParenthesisOpen, .inner = null, .value = token};
-        }else if (!std.mem.startsWith(u8, token, "(") and std.mem.endsWith(u8, token, ")")){
-            return PunctuationToken{.kind = .ParenthesisClose, .inner = null, .value = token};
-        }
-
-        // PunctuationToken.PunctuationKind.ParenthesisOpen and !ParenthesisClose
-        //(version 1.50.1-2)
-
-        // Add <DURATION> tag for log that contains: "1.062ms", by checking ms, µs, s...
-
-        return null; 
-    }
-
-    fn is_separator(token: []const u8) bool {
-        const have_separator: bool = separators: {
-            const separator_fields = @typeInfo(SeparatorToken).@"enum".fields; 
-            inline for (separator_fields) |sep| {
-                if (token.len == 1 and token[0] == sep.value){
-                    break :separators true; 
-                }
-            }
-            break :separators false; 
-        }; 
-        return have_separator; 
-    }
-    
-    fn get_separator(token: []const u8) ?SeparatorToken {
-        const separator_fields = @typeInfo(SeparatorToken).@"enum".fields; 
-        inline for (separator_fields) |sep| {
-            if (token.len == 1 and token[0] == sep.value){
-                return @as(SeparatorToken, @enumFromInt(sep.value)); 
-            }
-        }
-        return null; 
     }
 
     fn is_network_interface(token: []const u8) bool {
@@ -1214,9 +1856,6 @@ pub const TokenType = union(TokenTags) {
     }
 
     fn is_time(token: []const u8) bool {
-        // This is checked for either pure time token, or stripped from any punctuation tokens.
-        // std.debug.print("is_time token received: {s}\n", .{token});
-        // if (token.len >= 2 and token[0] != '[' and token[token.len - 1] != ']'){
         if (token.len >= 2){
             if (std.ascii.isDigit(token[1])){
                 if (std.mem.containsAtLeast(u8, token, 1, ".") and std.ascii.isDigit(token[token.len - 2])) {
@@ -1224,7 +1863,6 @@ pub const TokenType = union(TokenTags) {
                     if (std.mem.count(u8, token, ":") < 2){
                         return true;
                     }
-                    // return true; 
                 }                    
             }
         }
@@ -1364,18 +2002,18 @@ pub const TokenType = union(TokenTags) {
 
         // const have_colon = std.mem.endsWith(u8, token, ":"); 
         if (is_time(token)){
-            std.debug.print("       → Found <TIME> token: {s}\n", .{token});
+            std.debug.print("\n       → Found <TIME> token: {s}\n", .{token});
             return true;  
         }else if (is_device_id(token)){
             return true;  
         }else if (is_version(token)){
-            std.debug.print("       → Found <VERSION> number token: {s}\n", .{token});
+            std.debug.print("\n       → Found <VERSION> number token: {s}\n", .{token});
             return true; 
         } else if (token.len > 0 and std.ascii.isDigit(token[0]) and contain_digits_only(token) and !have_dots and !have_bracket and !have_end_parenthesis){
             //20-connectivity.conf
-            std.debug.print("contain_digits_only = {any}\n", .{contain_digits_only(token)});
+            // std.debug.print("contain_digits_only = {any}\n", .{contain_digits_only(token)});
             if (std.mem.count(u8, token, ":") < 2){
-                std.debug.print("       → Found  RAW DIGIT token: {s}\n", .{token});
+                std.debug.print("\n       → Found RAW DIGIT token: {s}\n", .{token});
                 return true;
             }
             // std.debug.print("NOT RAW DIGIT GOT: {s}\n", .{token});
@@ -1385,23 +2023,24 @@ pub const TokenType = union(TokenTags) {
     }
 
     pub fn into_numeric(token: []const u8) ?NumericToken{
-        if (intoPunctuation(token)) |punctuation| {
+        if (PunctuationToken.tryFrom(token)) |punctuation| {
             // When inner value of a punctuation is a digit. 
             var punct = punctuation; 
-            var inner_tag = punct.inner_token(); 
+            // var inner_tag = punct.inner_token(); 
+            var inner_tag = punct.into_inner_token(); 
             _ = &inner_tag; 
             const inner_value = punct.value[0..punct.value.len - 1]; // Strip the punctuations 
             const punct_type = punct.kind;
-            std.debug.print("into_numeric() → punct.inner_token(): {any}\n", .{inner_tag.?});
+            // std.debug.print("into_numeric() → punct.inner_token(): {any}\n", .{inner_tag.?});
             if (inner_tag != null and inner_tag.? == .NUMERIC){
                 if (is_time(inner_value)){
-                    std.debug.print("       → Found punctuation: {s} + {s} token\n", .{@tagName(punct_type), "TIME"});
+                    // std.debug.print("       → Found punctuation: {s} + {s} token\n", .{@tagName(punct_type), "TIME"});
                     return NumericToken.Time; 
                 }else if(is_device_id(inner_value)){
                     // [bus]:[vendor_id]:[product_id].[instance]
                     return NumericToken.DeviceID;
                 }else if (is_version(inner_value)){
-                    std.debug.print("       → Found punctuation: {s} + {s} token\n", .{@tagName(punct_type), "VersionNumber"});
+                    // std.debug.print("       → Found punctuation: {s} + {s} token\n", .{@tagName(punct_type), "VersionNumber"});
                     return NumericToken.VersionNumber;
                 }else if (inner_value.len > 0 and std.ascii.isDigit(inner_value[0]) and std.ascii.isDigit(inner_value[inner_value.len - 1]) and contain_digits_only(inner_value)){
                     std.debug.print("       → Found punctuation: {s} + {s} token\n", .{@tagName(punct_type), "RAW DIGIT"});
@@ -1409,7 +2048,7 @@ pub const TokenType = union(TokenTags) {
                 }
             }
         }
-        std.debug.print("No Punctuation Token found inside (into_numeric): {s}\n", .{token});
+        // std.debug.print("No Punctuation Token found inside (into_numeric): {s}\n", .{token});
         // When no punctuation was found. 
         if (is_time(token)){
             return NumericToken.Time; 
@@ -1523,7 +2162,8 @@ pub const ProcessedLog = struct {
     /// E.g., Δt = timestamp[n] - timestamp[n-1], to extract temporal feature. 
     monotonic_time: u64, 
     // monotonic_time: f32, 
-    message: []const u8, 
+    message: []const u8, //TODO: - Change to []u8, for mutability!
+    // message: []u8,
     priority: PriorityLevel, 
     syslog_id: []const u8, 
     /// The uuid, is a unique ID, for a certain service of the targeted log. 
@@ -1537,12 +2177,6 @@ pub const ProcessedLog = struct {
     /// stdout
     /// driver
     transport: []const u8, 
-
-    /// The positional encoding, is meant to define a feature vector, 
-    /// that describe the ordering of the words in a log sample. 
-    /// The vector should have same dimension as the embedding features,
-    /// that describe a word. 
-    positional_encoding: ?[]f16 = null,
 
     /// Bigram Token pair of adjacent tokens (["authenticating", "->"], ["->", "associating"]). 
     /// Where e.g., a pair, could be a relationship of state events. In other words, 
@@ -1570,11 +2204,6 @@ pub const ProcessedLog = struct {
         }else {
             writer.print("  UUID: {s: <3}\n", .{"null"}) catch unreachable;
         }
-        if (self.positional_encoding != null){
-            writer.print("  Positional Encoding: {any: <3}\n", .{self.positional_encoding.?}) catch unreachable;
-        }else {
-            writer.print("  Positional Encoding: {s: <3}\n", .{"null"}) catch unreachable;
-        }
         if (self.adjacent_pair != null){
             writer.print("  Adjacent Pair: {s: <3} -> {s: <3}\n", .{self.adjacent_pair.?.event, self.adjacent_pair.?.response}) catch unreachable;
         }else {
@@ -1596,9 +2225,6 @@ pub const ProcessedLog = struct {
         if (self.uuid) |uuid|{
             if (uuid.len > 0) allocator.free(self.uuid.?);
         } 
-        if (self.positional_encoding) |pos_encode|{
-            if (pos_encode.len > 0) allocator.free(self.positional_encoding.?);
-        } 
         if (self.adjacent_pair) |pair|{
             if (pair.event.len > 0) allocator.free(self.adjacent_pair.?.event);
             if (pair.response.len > 0) allocator.free(self.adjacent_pair.?.response);
@@ -1611,7 +2237,6 @@ pub const ProcessedLog = struct {
         self.uuid      = &[_]u8{};
         self.syslog_id = &[_]u8{};
         self.transport = &[_]u8{};
-        self.positional_encoding = null;
         self.adjacent_pair = null;
         self.log_params = null;
     }
@@ -1650,9 +2275,7 @@ pub const FilterOptions = struct {
 pub fn DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureSize: usize, comptime NumClasses: usize, comptime Convention: InputShapeConvention) type {
     return struct {
         // Represent the raw data before cleaned and pre-processed. 
-        // input_data: [][]const u8,
         input_data: std.ArrayList(ProcessedLog),
-        // std.MultiArrayList(ProcessedLog)
         // input_data: std.json.Parsed([]DataLog),
         sample_count: usize = 0, 
         vocabulary: std.AutoHashMap(u16, []const T),
@@ -1863,6 +2486,108 @@ pub fn DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureS
             _ = self;
         }
 
+        fn normalize_format(log_message: []const u8, allocator: std.mem.Allocator) ![]u8{
+            const normalization_buf = try std.ascii.allocLowerString(allocator, log_message); 
+            defer allocator.free(normalization_buf); // Return owned memory, or free? 
+            return normalization_buf; 
+        }
+
+        fn parse_process(log_message: []const u8, allocator: std.mem.Allocator) !void{
+            var tokens = std.mem.tokenizeAny(u8, log_message, "  \n");
+            var buf_modified: bool = false; 
+            var temp_buffer: [150]u8 = undefined;
+            // @memcpy(new_memory[old_len..][0..other_pair.tokens.len], other_pair.tokens.ptr[0..]);
+            // var temp_buf = try allocator.alloc(u8, log_message.len); 
+
+            while(tokens.next()) |token| {
+                if(TokenType.from(token)) |token_type| {
+                    std.debug.print("Token Received: {s}\n", .{token});
+                    const parsed = token_type.parsePunctuationToken(allocator) catch |err| {
+                        switch (err) {
+                            error.FailedParsingGroupedToken => return err, 
+                            error.OutOfMemory => return err, 
+                            error.TokenMissingClosingPunctuation => {
+                                // Execute handler for when token is missing closing punctuation
+                                // merge_tag = token_tag; 
+                                std.debug.print("Token Received before error: {s}\n", .{token});
+                                return err; 
+                            },
+                            error.TokenMissingOpeningPunctuation => {
+                                // Execute handler for when opening punctuation is missing. 
+                                // token_type.mergePairedTokens(merge_tag, allocator); 
+                                std.debug.print("Token Received before error: {s}\n", .{token});
+                                return err; 
+                            },
+                            error.TokenTypeIsNotPunctuation => {
+                                // Execute handle for Token types that are not punctuation. 
+                                if (token_type.tryGetReplacement(token)) |replacement| {
+                                    const owned_message = try std.mem.replaceOwned(u8, allocator, log_message, token, replacement);
+                                    const new_len = std.mem.replace(u8, log_message, token, replacement, &temp_buffer); 
+                                    std.debug.print("Token Before: {s}\n", .{log_message});
+                                    std.debug.print("Token After: {s}\n", .{log_message[0..new_len]});
+                                    buf_modified = true; 
+                                    return owned_message; 
+                                } 
+                            }, 
+                            else => token_type, 
+                        }
+                    
+                    };
+                    const replacement = parsed.toReplacementStr();
+                    std.debug.print("Token Replacement: {s}\n", .{replacement});
+                    
+                }
+            }
+            // return temp_buf; 
+        }
+
+        /// During the variable_masking preprocess step, replacement of dynamic variables 
+        /// and changing log variables are performed. 
+        /// E.g., number replacement, would replace numeric values with placeholder: "code 404" → "code <num>".
+        /// The purpose of the variable masking is to reduce the corpus size by representing text log messages 
+        /// in a standardized format. Often logs can be grouped into event templates.
+        /// Meaning logs that are similar in a textual-semantic sense often share the same tokens / words. 
+        pub fn variable_masking(self: *Self, allocator: std.mem.Allocator) !void {
+            if (self.input_data.items.len == 0) return error.LogDataIsEmpty;
+            
+            const user_env = try std.process.getEnvVarOwned(allocator, "USER");
+            defer allocator.free(user_env);
+
+            for(self.input_data.items, 0..) |log, i| {
+                if (log.message.len == 0) {
+                    _ = self.input_data.orderedRemove(i);
+                    continue;
+                }
+                // const log_message = log.message; 
+                // var tokens = std.mem.tokenizeAny(u8, log.message, "  \n");
+
+
+                // ==================================================
+                // 1. Normalize message format: 
+                // • Wrapped Punctuation should be treated as one token (contain whitespace). 
+                //   E.g., splitting on whitespace: "(version 1.50.1-2)" → TokenMissingClosingPunctuation
+                // •
+
+
+                // ==================================================
+                // 2. Next step we iterate over the distinct tokens in the normalized message format.
+                //    This is done, by using the std.mem.tokenizeAny(u8, log.message, split_delim)
+
+                // ==================================================
+                // 3. Obtain the TokenType from the raw message, and execute parse_process.
+                const parsed_owned = try parse_process(log.message, allocator); 
+                                
+                // var tokens = std.mem.tokenizeAny(u8, lowercase_msg, " ![]():;=,'\"");
+                var tokens = std.mem.tokenizeAny(u8, lowercase_msg, " !;,'\"");
+                // ==================================================
+
+                // 3. Replace the variable with masked value (pre-defined tag). 
+
+                // 4. Replace the ProcessedLog with the updated values for all log messages. 
+                
+            }
+        }
+
         /// During the replace pre-process step, replacement of common numeric values and log variables are done. 
         /// E.g., number replacement, would replace numeric values with placeholder: "code 404" → "code <num>".
         fn replace_process(self: *Self, allocator: std.mem.Allocator) !void {
@@ -1899,26 +2624,19 @@ pub fn DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureS
                     @panic("Found StackFrame Log Type!");
                 }
 
-                while (tokens.next()) |tok| {
-                    std.debug.print("   Token({d}) - {s}\n", .{token_idx, tok});
+                while (tokens.next()) |token| {
+                    std.debug.print("\nToken({d}) - {s}\n", .{token_idx, token});
                     var tag: ?TokenType = null;
-
-                    const token: []const u8 = tok_blk: {
-                        if (std.mem.endsWith(u8, tok, ".")){
-                            if (TokenType.intoPunctuation(tok)) |p| {
-                                if(p.kind != .Ellipsis){
-                                    break :tok_blk tok[0..tok.len - 1]; 
-                                }
-                            }
-                        }
-                        break :tok_blk tok;
-                    };
+               
+                    // If stackframe just continue for now! 
+                    if (TokenType.is_stackframe(tokens.buffer)){
+                        continue; 
+                    }
 
                     //"<USER_NAME> : TTY=<TTY> ; PWD=<PATH> ; USER=<RUNAS> ; COMMAND=<CMD>"
                     if (std.mem.startsWith(u8, token, user_env)) {
                         std.debug.print("FOUND ENV!\n", .{});
                         tag = TokenType{.HOST = "<USERNAME>"};
-                        // tag = "<USERNAME>";
                     }else if (TokenType.from(token)) |token_tag| {
                         if (@as(TokenTags, token_tag) == TokenTags.ASSOCIATION) {
                             var token_tag_copy = token_tag; 
@@ -1928,18 +2646,39 @@ pub fn DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureS
                             statePair = AdjacentPair{.event = assoc_val.lhs, .response = assoc_val.rhs}; 
                             std.debug.print("AdjacentPair: {s}→{s}\n", .{statePair.?.event, statePair.?.response});
                         }
-                        tag = token_tag; 
-        
-                    }else if (TokenType.is_separator(token)){
-                        std.debug.print("   → Found separator: '{s}'\n", .{token});
+                        const parsed_token: TokenType = parsing_blk: {
+                            // const grouped_token = token_tag.tryParseGroupedTokens(token, allocator) catch |err| {
+                            const parsed = token_tag.parsePunctuationToken(allocator) catch |err| {
+                                switch (err) {
+                                    error.FailedParsingGroupedToken => return err, 
+                                    error.OutOfMemory => return err, 
+                                    error.TokenTypeIsNotPunctuation => break :parsing_blk token_tag, 
+                                    error.TokenMissingClosingPunctuation => {
+                                        merge_tag = token_tag; 
+                                        // Run merge function → That would take the current token, 
+                                        // and merge with the next token. 
+                                        // return err; 
+                                    },
+                                    error.TokenMissingOpeningPunctuation => {
+                                        // Run merge function → This time we take the current token
+                                        // and merge with the previous token. 
+                                        token_tag.mergePairedTokens(merge_tag, allocator); 
+                                        // return err; 
+                                    },
+                                    else => break :parsing_blk token_tag, 
+                                }
+                                break :parsing_blk token_tag; // Return self as token_tag. 
+                            };
+                            break :parsing_blk parsed; // Return TokenType as PairedToken.  
+
+                        };
+                        tag = parsed_token; 
+                        // tag = token_tag; 
                     }
 
                     // var replacement_str: []u8 = &[_]u8{};  
-                    // var replacement_buf: [150]u8 = undefined; 
                     // defer if (replacement_str.len > 0) allocator.free(replacement_str);
-                    // defer allocator.free(replacement_buf);
                     // const punctuation_tokens: []const u8 = "  []():;<>->...";
-                    
 
                     const punctuation_tokens: []const u8 = ";,";
                     const trimmed_token = std.mem.trim(u8, token, punctuation_tokens);
@@ -1947,31 +2686,14 @@ pub fn DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureS
                     if (tag) |token_type| {
                         // This branch would replace certain tokens based on the parser logic. 
                         const replacement_val = token_type.toReplacementStr(); 
-                        if (std.mem.eql(u8, replacement_val, "<FIX>")){
-                            if (@as(TokenTags, token_type) == TokenTags.ASSOCIATION) {
+                        if (@as(TokenTags, token_type) == TokenTags.ASSOCIATION) {
                                 const assoc_val = token_type.ASSOCIATION.get_values(); 
                                 const fmt_replace = try std.fmt.allocPrint(allocator, "{s} {s}", .{assoc_val.lhs, assoc_val.rhs});
                                 defer allocator.free(fmt_replace); 
                                 std.debug.print("       Mutable Replacement String: {s}\n", .{fmt_replace});
-                            }
-                        } 
+                        }
                         
-                        if (@as(TokenTags, token_type) == TokenTags.PUNCTUATION and token_type.PUNCTUATION.kind == .ParenthesisOpen) {
-                            // var merged_token = TokenType{.PUNCTUATION = .{.value = replacement_val}}; 
-                            // merged_token.PUNCTUATION.value 
-                            merge_tag = token_type; 
-                        }else if(@as(TokenTags, token_type) == TokenTags.PUNCTUATION and token_type.PUNCTUATION.kind == .ParenthesisClose and merge_tag != null){
-                            // const str = try std.mem.concat(allocator, u8, &[_][]const u8{ merge_tag.?.PUNCTUATION.value, token_type.PUNCTUATION.value });
-                            const str = try std.mem.join(allocator, " ", &[_][]const u8{ merge_tag.?.PUNCTUATION.value, replacement_val });
-                            defer allocator.free(str);
-                            try msg_builder.appendSlice(str); 
-                            try msg_builder.appendSlice(" ");
-                            std.debug.print("       Tokens To Merge: {s}, With Token: {s} → {s}\n", .{merge_tag.?.PUNCTUATION.value, replacement_val, str});
-                            std.debug.print("       Token Have Replacement: {s}\n", .{replacement_val});
-                            std.debug.print("       Token To Replace: {s}\n", .{token});
-                            replacement_found = true;
-                            merge_tag = null; 
-                        }else if (!std.mem.eql(u8, replacement_val, "<REMOVE>")){
+                        if (!std.mem.eql(u8, replacement_val, "<REMOVE>")){
                             try msg_builder.appendSlice(replacement_val); 
                             try msg_builder.appendSlice(" ");
                             if (std.mem.eql(u8, replacement_val, "<FIX>")){
@@ -2065,32 +2787,9 @@ pub fn DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureS
                     std.debug.print("Found Stop-Word: '{s}' - Removing!\n", .{token});
                     continue; 
                 }
-                if (TokenType.intoPunctuation(token)) |p| {
-                    const token_part: []const u8 = slice_blk: { 
-                        const scalar_idx = if(std.mem.indexOfScalar(u8, token, '(')) |index| index else 0;
-                        switch (p.kind) {
-                            .ParenthesisOpen => break :slice_blk token[scalar_idx + 1..token.len],
-                            .ParenthesisClose => break :slice_blk token[scalar_idx..token.len - 1],
-                            // Case when a token is wrapped between an opening- and closing parenthesis. 
-                            .Parenthesis => break :slice_blk token[1..token.len - 1],
-                            .SquareBracketOpen => break :slice_blk token[1..token.len],
-                            .SquareBracketClose => break :slice_blk token[0..token.len - 1],
-                            .SquareBracket => break :slice_blk token[1..token.len - 1],
-                            .SingleQuote => break :slice_blk token[1..token.len - 1],
-                            .Quotation => break :slice_blk token[1..token.len - 1],
-                            .Ellipsis => {
-                                if(std.mem.indexOfScalar(u8, token, '.')) |idx| {
-                                    // std.debug.print("Ellipsis Slice: {s}\n", .{token[0..token.len - 3]}); 
-                                    break :slice_blk token[0..idx];
-                                }
-                            },
-                            else => break :slice_blk token,
-                        }
-                        // }
-                        break :slice_blk token; 
-                    };
+                if(PunctuationToken.tryFrom(token)) |p| {
+                    const token_part = p.getInnerSlice(); 
                     const closing_scalar: ?[]u8 = scalar_blk: {
-                        // if(std.mem.lastIndexOfScalar(u8, token, ')') != null){
                         if(p.kind == .ParenthesisClose){
                             break :scalar_blk try allocator.dupe(u8, ")");
                         }else if(p.kind == .Ellipsis){
@@ -2111,11 +2810,6 @@ pub fn DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureS
                         if (p.kind == .SingleQuote) break :wrapped_blk .{.opening = try allocator.dupe(u8, "'"), .closing = try allocator.dupe(u8, "'")};
                         break :wrapped_blk null;
                     };
-
-                    // TODO: - Add handling for tokens: '=', '!=', 'stack-frames', '(boot:37e23cab-a2ef-4fbd-9904-b68acea03eda)'
-                    //
-                    // 1. (ConditionVirtualization=!container), example parsing: "<VALUE> <CONDITION> <VALUE>"
-                    // 2. PrivateNetwork=yes is configured, but the kernel does not support or we lack privileges for network namespace, proceeding without.
 
                     if(opening_scalar) |scalar_open| {
                         try tokens_arr.append(scalar_open);
@@ -2407,16 +3101,16 @@ test "dataloader-read-test" {
     // var DataLoaderType = try DataLoader(f16, num_samples, input_dim, output_dim, .RowSampleOrdering).init(test_allocator, "log_data/log_testdata.json", null); 
     defer DataLoaderType.input_data.deinit();
 
-    //test case: 
-    // const test_str: []const u8 = "(boot:37e23cab-a2ef-4fbd-9904-b68acea03eda)";
-    // while(PunctuationToken.inner_token_iter(test_str)) |inner| {
-    //     std.debug.print("inner_token_iter: {s}\n", .{@tagName(inner)}); 
-    // }
+    
+    try std.testing.expect(TokenType.is_mac_addr("16:6A:54:F9:6F:9D") == true); 
+    // Example: `192.168.0.1 ` or `127.0.0.1:8080` with port. → IPv4
+    try std.testing.expect(TokenType.is_ip_addr("192.168.0.1") == true); 
+    try std.testing.expect(TokenType.is_ip_addr("127.0.0.1:8080") == true); 
 
     try DataLoaderType.replace_process(test_allocator);
+
     // DataLoaderType.dataset_info(.TimeStamp); 
-    DataLoaderType.groupby(.{1.0, "Hello", false, FilterOptions.SortingOption.TimeStamp}); 
-    // try DataLoaderType.tokenize();
+    // DataLoaderType.groupby(.{1.0, "Hello", false, FilterOptions.SortingOption.TimeStamp}); 
 
     for (DataLoaderType.input_data.items, 0..) |*log, i| {
         std.debug.print("\n======Start of Log({d}) Tokenization======\n", .{i});
@@ -2425,26 +3119,107 @@ test "dataloader-read-test" {
         
         log.*.print(log_header); 
         const tokens = try DataLoaderType.tokenize(log.*.message, test_allocator);
-        // std.debug.print("Number of Tokens in Log: {d}\n", .{tokens.len});
-        // defer {
-        //     for(tokens) |log_tokens| {
-        //         test_allocator.free(log_tokens);
-        //     }
-        //     test_allocator.free(tokens);
-        // }
+        std.debug.print("Number of Tokens in Log: {d}\n", .{tokens.len});
+        defer {
+            for(tokens) |log_tokens| {
+                test_allocator.free(log_tokens);
+            }
+            test_allocator.free(tokens);
+        }
 
-        // const tokens_copy = try test_allocator.dupe([]const u8, tokens);
         _ = try temp_buf.append(tokens);
         
         std.debug.print("\n======End of Log({d}) Tokenization======\n", .{i});
         log.deinit(test_allocator);
     }
-    for (temp_buf.items) |token_list| {
-        for (token_list) |token| {
-            test_allocator.free(token);
-        }
-        test_allocator.free(token_list);
-    }
     temp_buf.deinit();
-    
+
 }
+
+
+test "parsing-test" {
+    // const num_samples: usize = 4;
+    // const input_dim = 3; // input_dim = feature size for one sample. 
+    // const num_classes: usize = 2;
+    // const output_dim = num_classes; // One-hot encoded, for 2 classes. 
+
+    const test_allocator = std.testing.allocator_instance.allocator();  
+
+    // var DataLoaderType = try DataLoader(f16, num_samples, input_dim, output_dim, .RowSampleOrdering).init(test_allocator, "log_data/test_data.json", null); 
+    // var DataLoaderType = try DataLoader(f16, num_samples, input_dim, output_dim, .RowSampleOrdering).init(test_allocator, "log_data/log_testdata.json", null); 
+    // defer DataLoaderType.input_data.deinit();
+    // try DataLoaderType.replace_process(test_allocator);
+     
+    try std.testing.expect(TokenType.is_mac_addr("16:6A:54:F9:6F:9D") == true); 
+
+    // Example: `192.168.0.1 ` or `127.0.0.1:8080` with port. → IPv4
+    try std.testing.expect(TokenType.is_ip_addr("192.168.0.1") == true); 
+    try std.testing.expect(TokenType.is_ip_addr("127.0.0.1:8080") == true); 
+
+    //test case: 
+    const test_cases: []const []const u8 = &.{
+        "(boot:37e23cab-a2ef-4fbd-9904-b68acea03eda)", // Desired: ...? 
+        "(lib: 20-connectivity.conf)" // Desired: ...?
+    }; 
+    // const a = [3]i32{ 1, 2, 3 };
+    // const c: [3]i32 = .{ 7, 8, 9 };
+    // Use: var arr = [_]T{...}; and arr[0..] to get a mutable slice.
+
+    var expected_tokens = [_][3]TokenType{
+        // [_]TokenType{ .{ .x = 3, .y = 3 }, .{ .x = 4, .y = 4 }, .{ .x = 2, .y = 2 } }
+        [_]TokenType{ 
+            TokenType{.DEVICE = "boot"},
+            TokenType{.PUNCTUATION = PunctuationToken{ .kind = .Colon, .value = ":" }},
+            TokenType{.DYNAMIC = "37e23cab-a2ef-4fbd-9904-b68acea03eda"},
+        },
+        [_]TokenType{ 
+            TokenType{.ALPHABETIC = "lib"},
+            TokenType{.PUNCTUATION = PunctuationToken{ .kind = .Colon, .value = ":" }},
+            TokenType{.FILE = .Config},
+        }
+    };
+
+    const expected_result: [2]TokenType = .{
+        TokenType{.PAIRED = .{
+            .kind = .Parenthesis,
+            .tokens = expected_tokens[0][0..],
+        }},
+        TokenType{.PAIRED = .{
+            .kind = .Parenthesis,
+            .tokens = expected_tokens[1][0..],
+        }},
+    };
+
+    _ = expected_result; 
+
+    for (test_cases, 0..) |token, i| {
+        const parsed_token = TokenType.from(token); 
+        std.debug.print("Parsing token: {s}\n", .{token}); 
+        // const parsed_result = try PunctuationToken.tryParseGroupedTokens(token, .Parenthesis, test_allocator); 
+        if (parsed_token) |parsed| {
+            const parsed_result = try parsed.tryParseGroupedTokens(token, test_allocator); 
+            std.debug.print("\nResulting Parsed Token (tryParseGroupedTokens):\n", .{}); 
+            if (@as(TokenTags, parsed_result) == TokenTags.PAIRED){
+                const pair_kind = parsed_result.PAIRED.kind; 
+                const token_slice = parsed_result.PAIRED.tokens; 
+                std.debug.print("Paired Kind: {s}\n", .{@tagName(pair_kind)}); 
+                std.debug.print("-----------------\n", .{});
+                for (token_slice) |tok| {
+                    const output_str = tok.toReplacementStr();     
+                    const output_type = @as(TokenTags, tok); 
+                    std.debug.print("Replacement String: {s}\n", .{output_str}); 
+                    std.debug.print("Tag Type: {s}\n", .{@tagName(output_type)}); 
+                }
+                std.debug.print("-----------------\n", .{});
+            }
+            std.debug.print("====END OF TEST CASE({d})====\n\n", .{i});
+            // try std.testing.expect(@TypeOf(parsed_result) == @TypeOf(expected_result[i])); 
+            test_allocator.free(parsed_result.PAIRED.tokens); 
+        }
+
+    }
+
+}
+
+
+
