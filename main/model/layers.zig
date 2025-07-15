@@ -1064,7 +1064,7 @@ pub const LayerSize = struct { usize };
 
 /// Specific Layer types, which dictate the behavior and logic
 /// towards a specific layer type.
-pub const LayerType = enum {
+pub const LayerType = enum(u8) {
     Norm,
     BatchNorm,
     Linear,
@@ -1077,6 +1077,22 @@ pub const LayerType = enum {
     MultiHeadAttention,
     Transformer,
     Default,
+
+    pub fn tryFrom(any: anytype) !LayerType {
+        // const info = @typeInfo(@TypeOf(any)); 
+        if (@TypeOf(any) == u8){
+            return @enumFromInt(any); 
+        }
+
+        if (@TypeOf(any) == []const u8 or @TypeOf(any) == [:0]const u8){
+            if(std.meta.stringToEnum(LayerType, @tagName(any))) |layer| {
+                return layer;
+            }
+        }
+
+        return error.FailedParsingToLayerType; 
+
+    }
 };
 
 pub const LayerTypeSettings = union(LayerType) {

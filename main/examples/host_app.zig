@@ -24,6 +24,8 @@ pub fn main() !void {
     const BatchSize = 2; 
     const H1_SIZE = 3; 
     const H2_SIZE = 2; 
+
+    // std.compress.gzip.compressor(writer: anytype, options: Options)
     
     const layers = comptime [_]type{
         // Input X dimension → X(2, 3) → X(BatchSize, FeatureSize)

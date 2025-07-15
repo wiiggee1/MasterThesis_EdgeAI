@@ -2,6 +2,7 @@ const std = @import("std");
 const assert = std.debug.assert;
 
 const layer_types = @import("layers.zig");
+
 const Layer = layer_types.Layer;
 const LayerOptions = layer_types.LayerOptions;
 const LayerTest = layer_types.LayerTest;
@@ -69,7 +70,6 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type, comptime Conv
                 wgrad_size += WeightCapacity;
                 bgrad_size += BiasSize; 
             }
-            // break :blk .{@sizeOf(T)*wgrad_size, @sizeOf(T)*bgrad_size}; 
             break :blk .{wgrad_size, bgrad_size}; 
         };
         
@@ -747,6 +747,23 @@ pub const HyperParameters = struct {
     alpha: f16,
 };
 
+/// Standardized config format, for parsing and loading model config 
+/// during setup phase. This config should be able to serialize and deserialize,
+/// from a byte sequence into a `ModelConfig` struct and vice-versa. 
+/// Example compressed model format: 
+/// < (Input Layer Info: {...}), (Hidden Layer N Info: {...}), (Output Layer Info: {...}) >
+/// Further it can be represented as a set of tuple pairs: 
+/// < (kind: []const u8, size: u8) >
+pub const ModelConfig = struct {
+    batchsize: u8,
+    input_features: u8,
+    layer_info: []const LayerMetaInfo,
+
+    // std.fmt.parseIntWithGenericCharacter(comptime Result: type, comptime Character: type, buf: []const Character, base: u8)
+    pub const LayerMetaInfo = struct{kind: []const u8, size: u8};
+    
+};
+
 
 test "ModelBuilderPredict" {
     // This act as our sequential layer model.
@@ -755,7 +772,7 @@ test "ModelBuilderPredict" {
     const FeatureSize = 2; 
     const H1_SIZE = 3; 
     const H2_SIZE = 2; 
-    
+
     const layers = comptime [_]type{
         // Input X dimension → X(3, 2)
         Layer(f16, 

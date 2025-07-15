@@ -1,0 +1,10 @@
+pub const ModelConfig = struct {
+    batchsize: u8,
+    input_features: u8,
+    layer_info: []const LayerMetaInfo,
+
+    // std.fmt.parseIntWithGenericCharacter(comptime Result: type, comptime Character: type, buf: []const Character, base: u8)
+    pub const LayerMetaInfo = struct{kind: []const u8, size: u8};
+
+};
+
