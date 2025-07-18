@@ -69,3 +69,22 @@ We gain access to the python script `idf.py -p /dev/ttyACM0 flash monitor`.
 ### Benchmarks
 
 **TODO** ...
+
+Benchmark dummy summary: 
+
+```zsh
+benchmark           iterations      time (avg ± σ)          memory        operations        optimization
+---------------------------------------------------------------------------------------------------------------
+<function_name>       <num>       <int>ms ± <int>ms       <RAM usage>      <num>/sec            <str>
+```
+
+- `Memory` : RAM and ROM footprint. 
+- `Operations` : FLOPS, Operations per second, Instruction per cycle (IPC) and Cycle per instruction (CPI), 
+
+- **Metrics** : Throughput, Speedup 
+
+```math
+\text{Speedup} = \frac{\text{Time}_{\text{old}}}{\text{Time}_{\text{new}}} 
+```
+
+
