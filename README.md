@@ -2,59 +2,64 @@
 
 >This is some material related to the Master Thesis. Related to AI models, setup and the Zig programming language: 
 
+<em><strong> 
+This is material related to my Master Thesis work. 
+</strong></em>
+The goal is to discover and gain knowledge about the current
+state of **Edge AI** by using the Zig programming langugage. 
+Below follows steps how to setup and run the project, as well 
+as useful [documents] (./docs/). 
 
-#### Setup phase: 
+---
 
->To setup the environment, using ESP-IDF and Zig the following step is conducted: 
+#### Initial Setup: 
 
-1. 
-    ```
+##### Setting up the environment using ESP-IDF run thee steps:
+
+First download the [esp-idf] (https://github.com/espressif/esp-idf.git).
+
+```zsh
     mkdir -p ~/esp
     cd ~/esp
     git clone --recursive https://github.com/espressif/esp-idf.git
-    ```
+```
 
-2. 
-    ```
-    cd ~/esp/esp-idf
-    ./install.sh esp32s3
-    . $HOME/esp/esp-idf/export.sh
-    ```
+Next install by running the following commands: 
 
-3. Build target and Zig setup:
+```zsh
+cd ~/esp/esp-idf
+./install.sh esp32s3
+. $HOME/esp/esp-idf/export.sh
+```
+
+
+##### Build target and Zig setup:
+Building through Zig's build-system and for linking against the C-based APIs 
+from the ESP-IDF framework. Is explained below. 
+
+
+###### Xtensa Target
     `wget https://github.com/kassane/zig-espressif-bootstrap/releases/download/0.14.0-xtensa-dev/zig-relsafe-espressif-x86_64-linux-musl-baseline.tar.xz`
     Next we build with the correct target: 
     `zig build -Dtarget=xtensa-freestanding-none -Dcpu=esp32s3`
 
-4. Linking phase:
-Linking means telling the compiler where to find the compiled implementation of the functions declared in the `.h` files. 
-The ESP-IDF components are precompiled into both `.a` and `.o` files, which contains all the compiled `.c` files for a module.
+###### RISCV-32 Target
 
-- **Linking in Zig**: `addLibraryPath()` + `linkSystemLibrary()` = linking against static libs `.a`. Alternativ to link against object files `.o` = `addObjectFile()`.
+Building, running, flashing the target: 
 
-- Alternative approach:     
-        ```
-        1. `zig translate-c` (convert C headers into Zig bindings/declarations): 
-        2. `-I` flags to tell Zig where to find C headers. 
-        3. Use `@cImport(@cInclude("header.h"))` to include C headers in Zig.
-        4. Finally `build.zig` to compile and link against C code with Zig.
-        ```
-Example:
-    ```sh
-    zig translate-c \
-    -lc \
-    -target xtensa-freestanding-none \
-    -mcpu=esp32s3-fp-s32c1i \
-    -D __xtensa \
-    -D __COUNTER__=0 \
-    -I $HOME/esp-idf/components/freertos/FreeRTOS-Kernel/include \
-    -I $HOME/esp-idf/components/freertos/config/include/freertos/ \
-    -I $HOME/esp-idf/components/freertos/config/xtensa/include \
-    bindings.h > bindings.zig
-    ```
+```zsh
+ zig build run -- --<arg> <value> --<arg2>=<value2>
+```
+
+```zsh
+ zig build flash -- --example <file> --target <str> 
+```
 
 
+Flashing is internally done via `idf.py` command-line tool, which is a wrapper around the 
+`CMAKE` build system. After setting up the ESP-IDF environment and running the `export.sh`
+accessed by the following PATH: `$IDF_PATH/tools/idf.py`.
+We gain access to the python script `idf.py -p /dev/ttyACM0 flash monitor`. 
 
-#### Running and flashing the program: 
+---
 
->Flashing is done via `idf.py` command-line tool, which can be access after running the `export.sh` script by the following path: `$IDF_PATH/tools/idf.py`. E.g., `idf.py -p /dev/ttyACM0 flash monitor` 
