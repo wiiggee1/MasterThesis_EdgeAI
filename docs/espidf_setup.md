@@ -8,8 +8,30 @@ step is refered to as the *Compile Step* below. The second part is
 the *Run Step*, which dictate what should be executed and potentially 
 flashed to the specific embedded target. 
 
-### Installation Artifacts 
 
+- Alternative approach:     
+        ```
+        1. `zig translate-c` (convert C headers into Zig bindings/declarations): 
+        2. `-I` flags to tell Zig where to find C headers. 
+        3. Use `@cImport(@cInclude("header.h"))` to include C headers in Zig.
+        4. Finally `build.zig` to compile and link against C code with Zig.
+        ```
+Example:
+    ```sh
+    zig translate-c \
+    -lc \
+    -target xtensa-freestanding-none \
+    -mcpu=esp32s3-fp-s32c1i \
+    -D __xtensa \
+    -D __COUNTER__=0 \
+    -I $HOME/esp-idf/components/freertos/FreeRTOS-Kernel/include \
+    -I $HOME/esp-idf/components/freertos/config/include/freertos/ \
+    -I $HOME/esp-idf/components/freertos/config/xtensa/include \
+    bindings.h > bindings.zig
+    ```
+
+
+### Installation Artifacts 
 
 *Generated build files*:
 ```
@@ -34,6 +56,7 @@ In our Compile Step we need to define the following options:
 - Target to Build, e.g., RISCV or Xtensa targets.
 - Optimization Profile, e.g., Debug, Safe, or Fast. 
 - Linking against libraries, adding header and source files. 
+
 
 *Run Step*
 "
@@ -105,5 +128,11 @@ mqtt newlib nvs_flash nvs_sec_provider openthread partition_table protobuf-c
 protocomm pthread riscv rt sdmmc soc spi_flash spiffs tcp_transport ulp unity
 usb vfs wear_levelling wifi_provisioning wpa_supplicant
 ```
+
+**Linking phase:**
+Linking means telling the compiler where to find the compiled implementation of the functions declared in the `.h` files. 
+The ESP-IDF components are precompiled into both `.a` and `.o` files, which contains all the compiled `.c` files for a module.
+
+- **Linking in Zig**: `addLibraryPath()` + `linkSystemLibrary()` = linking against static libs `.a`. Alternativ to link against object files `.o` = `addObjectFile()`.
 
 
