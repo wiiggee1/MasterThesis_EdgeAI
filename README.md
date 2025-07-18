@@ -39,12 +39,12 @@ from the ESP-IDF framework. Is explained below.
 
 
 ###### Xtensa Target
+```zsh
     `wget https://github.com/kassane/zig-espressif-bootstrap/releases/download/0.14.0-xtensa-dev/zig-relsafe-espressif-x86_64-linux-musl-baseline.tar.xz`
-    Next we build with the correct target: 
     `zig build -Dtarget=xtensa-freestanding-none -Dcpu=esp32s3`
+```
 
 ###### RISCV-32 Target
-
 Building, running, flashing the target: 
 
 ```zsh
@@ -57,9 +57,15 @@ Building, running, flashing the target:
 
 
 Flashing is internally done via `idf.py` command-line tool, which is a wrapper around the 
-`CMAKE` build system. After setting up the ESP-IDF environment and running the `export.sh`
+`CMAKE` build system. 
+<br>
+<br>
+After setting up the ESP-IDF environment and running the `export.sh`
 accessed by the following PATH: `$IDF_PATH/tools/idf.py`.
 We gain access to the python script `idf.py -p /dev/ttyACM0 flash monitor`. 
 
 ---
 
+### Benchmarks
+
+**TODO** ...
