@@ -78,7 +78,7 @@ benchmark           iterations      time (avg ± σ)          memory        oper
 <function_name>       <num>       <int>ms ± <int>ms       <RAM usage>      <num>/sec            <str>
 ```
 
-- `Memory` : RAM and ROM footprint. 
+- `Memory` : Dynamic Memory (RAM, Heap) and Static Memory (ROM, Flash) footprint. 
 - `Operations` : FLOPS, Operations per second, Instruction per cycle (IPC) and Cycle per instruction (CPI), 
 
 - **Metrics** : Throughput, Speedup 
