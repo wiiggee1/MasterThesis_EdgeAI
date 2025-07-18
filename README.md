@@ -1,6 +1,6 @@
 ### Master Thesis in Computer Science and Engineering, Specialisation Embedded System.
 
->This is some material related to the Master Thesis. Related to AI models, setup and the Zig programming language: 
+---
 
 <em><strong> 
 This is material related to my Master Thesis work. 
@@ -8,7 +8,7 @@ This is material related to my Master Thesis work.
 The goal is to discover and gain knowledge about the current
 state of **Edge AI** by using the Zig programming langugage. 
 Below follows steps how to setup and run the project, as well 
-as useful [documents] (./docs/). 
+as useful [documents](./docs). 
 
 ---
 
@@ -16,7 +16,7 @@ as useful [documents] (./docs/).
 
 ##### Setting up the environment using ESP-IDF run thee steps:
 
-First download the [esp-idf] (https://github.com/espressif/esp-idf.git).
+First download the [esp-idf](https://github.com/espressif/esp-idf.git).
 
 ```zsh
     mkdir -p ~/esp
