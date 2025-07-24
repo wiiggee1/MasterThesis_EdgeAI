@@ -1,20 +1,118 @@
 const std = @import("std");
 const buliltin = @import("builtin");
 
-// pub const TargetProfile = struct{
-//     target: std.Build.ResolvedTarget, 
-//     profile: std.builtin.OptimizeMode,
-//     home_dir: []u8,
-//     toolchain: ?Toolchain,
-        
-    /// Used for applying different settings on various step types. 
-    pub const OptionKind = enum {
-            Includes, 
-            CMacros, 
-            Steps,
-            Scripts,
-            Headers,
-    };
+/// Should track what settings have been applied by the user, 
+/// and what has been run based on the `std.Build.Step.State`.
+/// The default `BuildConfig` is set to null and false. 
+pub const BuildConfig = struct {
+    example_name: ?[]const u8 = null, 
+    /// Same as the --target <value>
+    target_name: ?[]const u8 = null,
+    target: ?std.Build.ResolvedTarget = null, 
+    profile: ?std.builtin.OptimizeMode = null,
+    compile_kind: ?std.Build.Step.Compile.Kind = null, 
+    toolchain: ?Toolchain = null, 
+
+
+    pub fn parseArgs(build_args: anytype) !BuildConfig{
+        var self = BuildConfig{};
+        std.debug.assert(@TypeOf(build_args) == []const []const u8);
+        const args = @as([]const []const u8, build_args);
+
+        var i: usize = 0; 
+        while(i < args.len - 1) : (i += 1) {
+            const arg = args[i];
+            std.debug.print("({d}) arg: {s}, arg value: {s}\n", .{i, arg, args[i+1]}); 
+
+            if (std.mem.eql(u8, arg, "--example")){
+                const src_name = args[i+1];
+                // Check if executable file exist in the "examples" directory.
+                var dir = try std.fs.cwd().openDir("main/examples/", .{.iterate = true});
+                var iter = dir.iterate();
+                while (try iter.next()) |entry| {
+                    if (entry.kind != .file) continue; 
+                    if (std.mem.startsWith(u8, entry.name, src_name)) self.example_name = src_name; 
+
+                }
+                i += 1; 
+            }else if (std.mem.eql(u8, arg, "--target")){
+                const target_type = args[i+1];
+                self.target_name = target_type; 
+                i += 1; 
+            }
+            
+            if (i+1 > args.len) break; 
+        }
+
+        return self; 
+
+    }
+    pub fn print(self: *const BuildConfig) !void {
+        const buildconfig_format = 
+            \\BuildConfig[
+            \\          example_name: {s},
+            \\          target_name: {s},
+            \\          target: {s},
+            \\          profile: {s},
+            \\          compile_kind: {s},
+            \\
+        ;
+
+        const target_name = self.target_name orelse "null";
+        const example_name = self.example_name orelse "null";
+        const target = if(self.target != null) @tagName(self.target.?.result.cpu.arch) else "null";
+        const profile = if(self.profile) |profile| @tagName(profile) else "null";
+        const compile_kind = if(self.compile_kind != null) @tagName(self.compile_kind.?) else "null";
+
+        if(self.toolchain) |toolchain| {
+            const toolchain_format = 
+                \\          ToolChain[
+                \\              include_path: {s},
+                \\              sysroot_path: {s},
+                \\              board_target: {s},
+                \\              code_wrapper.step.state: {s},
+                \\      ],
+                \\];
+            ;
+            const include_path: []const u8 = toolchain.include_path orelse  "''";
+            const sysroot_path: []const u8 = toolchain.sysroot_path orelse "''";
+            const board_target = toolchain.board_target orelse "null";
+            const code_wrapper: []const u8 = @tagName(toolchain.code_wrapper.step.state);
+            
+            const config_fmt = comptime buildconfig_format++toolchain_format;
+            std.debug.print(config_fmt, .{
+                example_name,
+                target_name,
+                target,
+                profile,
+                compile_kind,
+                // ToolChain fmt:
+                include_path,
+                sysroot_path,
+                board_target,
+                code_wrapper,
+            });
+
+
+        }else {
+            const toolchain_null =
+            \\              ToolChain: null,
+            \\];
+            ;
+
+            const format: []const u8 = buildconfig_format++toolchain_null;
+            std.debug.print(format, .{
+                example_name,
+                target_name,
+                target,
+                profile,
+                compile_kind,
+                
+            }); 
+        }
+
+    }
+};
 
 /// Creates a new executable kind. Invoking the `installArtifact` command 
 /// would generate the `zig-out` directory when running `zig build`. It 
@@ -23,90 +121,218 @@ const buliltin = @import("builtin");
 /// └── zig-out
 ///    └── bin → <std.Build.Step.Compile.Kind>
 ///        └── <exe_name>
+///    └── lib → <Static Library>
+///        └── <lib_components_name>.a
 /// --------------------------------------------
-/// Run Step => "Provide a way to run one's application directly from the build command". 
-/// const run_exe = b.addRunArtifact(exe);
-/// const run_step = b.step("run", "Run the application");
-/// run_step.dependOn(&run_exe.step);
 pub const Firmware = struct {
     /// The target to build (compile)
     executable: *std.Build.Step.Compile,
-    toolchain: ?Toolchain = null,
+    pub const CompileKind = std.Build.Step.Compile.Kind; 
     
-    // pub fn new(b: *std.Build, target_kind: ?std.Build.ResolvedTarget, profile: ?std.builtin.OptimizeMode) Toolchain{
-
     /// Creates a new executable that should be compiled.
     /// The target to build can be either: 
     /// - An example zig executable containing a `main` fn entry point. 
     /// - Static library (e.g., by utilizing the ESP IDF toolchain framework). 
-    pub fn new(b: *std.Build, kind: std.Build.Step.Compile.Kind, name: []const u8, toolchain: ?Toolchain) Firmware{
-
+    // pub fn new(b: *std.Build, kind: std.Build.Step.Compile.Kind, name: []const u8, toolchain: ?Toolchain) Firmware{
+    pub fn new(b: *std.Build, build_settings: *BuildConfig, modules: []const std.Build.Module.Import) !Firmware{
+        const name = build_settings.target_name orelse "firmware_mod";
+        try build_settings.print();
+        
         // This module should act as the root module of the 
         // firmware executable. 
-        const firmware_module = b.addModule(name, .{
-            .target = config.target,
-            .optimize = config.profile,
-            .root_source_file = b.path(exe_path),
-        });
-
-        if(std.Build.Step.Id == .translate_c){} // create the TranslateC
-
-        const isExecutableExample: bool = is_example: {
-            // Check if executable file exist in the "examples" directory.
-            var dir = try std.fs.cwd().openDir("main/examples", .{
-                .iterate = true, 
+        const firmware_module: *std.Build.Module = root_mod: {
+            const src_path = if(build_settings.example_name) |src_file| 
+                b.path(b.fmt("main/examples/{s}", .{src_file}))
+            else b.path("main/src/main.zig");
+            
+            break :root_mod b.addModule(name, .{
+                .target = build_settings.target,
+                .optimize = build_settings.profile,
+                .root_source_file = src_path,
+                .link_libc = true,
             });
-            var iter = dir.iterate();
-            while(try iter.next()) |entry| {
-               if (std.mem.eql(u8, entry.name, name)) break :is_example true;
+        };
+
+        const firmware_name = lib_name:{
+            if (build_settings.example_name == null){
+                const mod_target = firmware_module.resolved_target 
+                    orelse b.standardTargetOptions(.{}); 
+
+                const example_name = b.option([]const u8, "example", "Name of target to Build")
+                    orelse switch(mod_target.result.cpu.arch) {
+                            .riscv32 => "firmware_esp32p4_app",
+                            .xtensa => "firmware_esp32s3_app",
+                            else => "",
+                };
+                if (std.mem.eql(u8, example_name, "")) return error.NotAValidTargetKindFound;
+                break :lib_name example_name;
+            }else {
+                break :lib_name build_settings.example_name.?;
             }
-            break :is_example false; 
         };
 
-        if (isExecutableExample) std.debug.print("Building Compilation Example Target: {s}\n", .{name});
+        // Create a static library - main component
+        const firmware_target = b.addLibrary(.{
+            .linkage = .static,
+            .name = firmware_name, 
+            .root_module = firmware_module,
+        }); 
+        firmware_target.linkLibC(); 
 
-        // const config_option = b.option([]const u8, "option_name", "dummy user-specific option description"); 
-        // _ = config_option;
-        // const build_options = b.addOptions();
-
-        const firmware_target = switch (kind) {
-            .exe => exe_blk: {
-                const firmware_exe = b.addExecutable(.{
-                    .name = name,
-                    .root_module = firmware_module, 
-                });
-                break :exe_blk firmware_exe; 
-            },
-            .lib => lib_blk: {
-                const firmware_lib = b.addLibrary(.{
-                    .linkage = .static,
-                    .name = name orelse "app_exe", 
-                    .root_module = firmware_module,
-                });
-                // b.getInstallStep().dependOn(&firmware_lib.step);
-                // esp_idf_lib.step.dependOn(bindings.output_file.step);
-                firmware_lib.step.dependOn(config.toolchain.?.code_wrapper.output_file.step);
-                break :lib_blk firmware_lib;
-            },
-            .obj => obj_blk: {
-                const firmware_obj = b.addObject(.{});
-                break :obj_blk firmware_obj; 
-            },
-            .@"test" => test_blk: {
-                const firmware_testing = b.addTest(.{
-                    .test_runner = null,
-                });
-                break :test_blk firmware_testing; 
-            },
-        };
+        switch (firmware_target.rootModuleTarget().cpu.arch) {
+            inline else => |arch| {
+                if (arch.isRISCV()){
+                    try riscv_setup(b, null, build_settings);
+                }
+                if (arch == .xtensa){
+                    try esp32s3_setup(b, null, build_settings);
+                } 
+            }
+        }
         
-        // const lib = std.Build.Step.Compile.installLibraryHeaders(cs: *Compile, lib: *Compile);
-        // const lib = std.Build.Step.Compile.HeaderInstallation;
+        // firmware_target.addIncludePath(b.path("src"));
+        // install the header
+        // firmware_target.installHeader(b.path("src/em-lib/em-lib.h"), "em-lib/emlib.h");
+
+        // const include_directory = b.pathJoin(&.{ comp, b.dupe(entry.path) });
+        // lib.addIncludePath(.{ .cwd_relative = include_directory });
+        
+        // firmware_target.addLibraryPath(b.path("main/model/"));
+        // firmware_target.addIncludePath(b.path("include/"));
+        // firmware_target.root_module.addIncludePath(b.path("build/config/"));
+        // firmware_target.root_module.addIncludePath(b.path("."));
+        
+
+        for (modules) |module| {
+            firmware_target.root_module.addImport(module.name, module.module);
+        }
+
+        //TODO: 
+        // for(includes) |include_path| {}
+        //const include_path = dependency.include_dir orelse continue;
+        // firmware_target.root_module.addIncludePath(b.path(include_path));
+        // firmware_target.addLibraryPath(b.path(""));
+        // firmware_target.root_module.linkLibrary(library: *Step.Compile)
+
+
+
+        //NOTE: move to app_setup??????????
 
         return Firmware{
            .executable = firmware_target,  
         };
 
+    }
+
+    fn addIncludeRequirments(b: *std.Build, firmware: ?*std.Build.Step.Compile, toolchain: ?*Toolchain) !void {
+        const toolchain_ptr = toolchain orelse return error.ToolChainIsNotInitializedFoundNull;
+        const config_file = toolchain_ptr.config_file orelse return error.ToolChainConfigFileIsNull;
+        const firmware_ptr = firmware orelse return error.FirmwareInstanceWasNull; 
+        
+        const ToolchainInstallStep = struct {
+            step: std.Build.Step,
+            config_file: *const std.Build.Step.InstallFile,
+            firmware_ref: *std.Build.Step.Compile,
+            toolchain_ref: *Toolchain,
+        };
+
+        const config_step = b.allocator.create(ToolchainInstallStep) catch @panic("OOM");
+        config_step.* = .{
+           .step = .init(.{
+                .owner = b,
+                .name = "Loading-Json-Config",
+                .id = std.Build.Step.Id.custom,
+                .makeFn = struct {
+                    fn make(step: *std.Build.Step, _: std.Build.Step.MakeOptions) !void {
+                        const parent: *ToolchainInstallStep = @fieldParentPtr("step", step);
+                        const install_path = step.owner.getInstallPath(parent.config_file.dir, parent.config_file.dest_rel_path);
+                        const input_file = std.fs.cwd().readFileAlloc(step.owner.allocator, install_path, 10*1024) catch |err| {
+                            std.process.fatal("Failed reading '{s}': {s}", .{ install_path, @errorName(err) });
+                        };
+                    
+                        var parsed_config = try std.json.parseFromSlice(Toolchain.JsonConfig, step.owner.allocator, input_file, .{.allocate = .alloc_always});
+                        defer step.owner.allocator.free(input_file);
+                        defer parsed_config.deinit();
+
+                        
+                        const sys_path = step.owner.fmt("{s}/sys", .{parsed_config.value.SYSROOT_PATH});
+                        parent.toolchain_ref.code_wrapper.addIncludePath(.{ .cwd_relative =  parsed_config.value.SYSROOT_PATH});
+                        parent.toolchain_ref.code_wrapper.addSystemIncludePath(.{ .cwd_relative =  sys_path});
+                        // parent.toolchain_ref.code_wrapper.addIncludePath(step.owner.path("build/config"));
+                        parent.toolchain_ref.code_wrapper.addIncludePath(.{ .cwd_relative = "build/config/sdkconfig.h" });
+                        parent.toolchain_ref.code_wrapper.addIncludePath(.{ .cwd_relative = "." });
+
+                        parent.firmware_ref.root_module.addIncludePath(.{ .cwd_relative =  parsed_config.value.SYSROOT_PATH});
+                        parent.firmware_ref.root_module.addSystemIncludePath(.{ .cwd_relative =  sys_path});
+                        parent.firmware_ref.root_module.addIncludePath(step.owner.path("build/config"));
+                        parent.firmware_ref.root_module.addIncludePath(step.owner.path("."));
+                        // ../build/config
+
+                        for (parsed_config.value.COMPONENT_REQS_INCLUDE) |required_comp| {
+                            std.log.debug("Adding the Component '{s}' to the IncludePath [ToolChain & Firmware]:\n", .{required_comp.name});
+                            
+                            for (required_comp.include_dirs) |sub_dir| {
+                                const include_path = step.owner.fmt("{s}/{s}", .{required_comp.dir, sub_dir});
+                                std.log.info("Added the sub-directory include path: {s}\n", .{include_path});
+                                parent.toolchain_ref.code_wrapper.addIncludePath(.{ .cwd_relative =  include_path});
+                                parent.firmware_ref.addIncludePath(.{ .cwd_relative =  include_path});
+                            }
+                            
+                        }
+                        try searched_idf_libs(step.owner, parent.firmware_ref);
+
+                    }
+                }.make,
+            }),
+            .config_file = config_file,
+            .firmware_ref = firmware_ptr,
+            .toolchain_ref = toolchain_ptr,
+        };
+        
+        // config_step.step.dependOn(b.getInstallStep());
+        config_step.step.dependOn(&config_file.step);
+        b.getInstallStep().dependOn(&config_step.step);
+        
+        
+        // Step dependency order: 
+        
+        // b.getInstallStep().dependOn(&config_file.step);
+        // toolchain_ptr.code_wrapper.step.dependOn(&config_file.step);
+        // firmware_ptr.step.dependOn(&config_file.step);
+        //
+        // const install_path = b.getInstallPath(config_file.dir, config_file.dest_rel_path);
+        //
+        // const input_file = std.fs.cwd().readFileAlloc(b.allocator, install_path, 7*1024) catch |err| {
+        //     std.process.fatal("Failed reading '{s}': {s}", .{ install_path, @errorName(err) });
+        // };
+        //
+        // var parsed_config = try std.json.parseFromSlice(Toolchain.JsonConfig, b.allocator, input_file, .{.allocate = .alloc_always});
+        // defer b.allocator.free(input_file);
+        // defer parsed_config.deinit();
+        //
+        // const sys_path = b.fmt("{s}/sys", .{parsed_config.value.SYSROOT_PATH});
+        // toolchain_ptr.code_wrapper.addIncludePath(.{ .cwd_relative =  parsed_config.value.SYSROOT_PATH});
+        // toolchain_ptr.code_wrapper.addSystemIncludePath(.{ .cwd_relative =  sys_path});
+        // toolchain_ptr.code_wrapper.addIncludePath(.{ .cwd_relative = "build/config" });
+        // toolchain_ptr.code_wrapper.addIncludePath(.{ .cwd_relative = "." });
+        //
+        // firmware_ptr.root_module.addIncludePath(.{ .cwd_relative =  parsed_config.value.SYSROOT_PATH});
+        // firmware_ptr.root_module.addSystemIncludePath(.{ .cwd_relative =  sys_path});
+        // firmware_ptr.root_module.addIncludePath(b.path("build/config"));
+        // firmware_ptr.root_module.addIncludePath(b.path("."));
+        //
+        // for (parsed_config.value.COMMON_COMPONENT_REQS_PATH) |required_include| {
+        //     std.log.debug("Adding the IncludePath to ToolChain & Firmware: {s}\n", .{required_include});
+        //     toolchain_ptr.code_wrapper.addIncludePath(.{ .cwd_relative =  required_include});
+        //
+        //     try searched_idf_include(b, toolchain_ptr.code_wrapper, required_include);
+        //
+        //     firmware_ptr.addIncludePath(.{ .cwd_relative =  required_include});
+        // }
+        //
+        // try searched_idf_libs(b, firmware_ptr);
+        // toolchain_ptr.code_wrapper.addIncludePath
+            
     }
 
     pub fn getCompilationTarget(self: Firmware) ?std.Build.ResolvedTarget{
@@ -131,18 +357,8 @@ pub const Firmware = struct {
     /// The resulting file is placed at `zig-out/bin/`. 
     pub fn objcopy(self: *Firmware, b: *std.Build, output_format: std.Build.Step.ObjCopy.RawFormat) void {
         switch (output_format) {
-            .bin => {
-                const bin = b.addObjCopy(self.executable.getEmittedBin(), .{
-                    .format = .bin,
-                });
-                _ = bin; 
-            },
-            .elf => {
-                const elf = b.addObjCopy(self.executable.getEmittedBin(), .{
-                    .format = .elf,
-                });
-                _ = elf; 
-            },
+            .bin => b.addObjCopy(self.executable.getEmittedBin(), .{.format = .bin}),
+            .elf => b.addObjCopy(self.executable.getEmittedBin(), .{.format = .elf }),
             .hex => {},
         }
     }
@@ -151,9 +367,8 @@ pub const Firmware = struct {
     pub fn objdump(self: *Firmware, b: *std.Build) void {
         _ = self; 
         const objdump_cmd = b.addSystemCommand(&.{
-            "riscv32-elf-objdump"
+            "riscv32-esp-elf-objdump -D minimal_app.elf | grep -A 50 '<app_main>'",
         });
-        
         objdump_cmd.addArg("--disassemble-all");
     }
 };
@@ -165,69 +380,104 @@ pub const Firmware = struct {
 pub const Toolchain = struct {
     /// Path to the toolchain directoy. In this case, the path
     /// to the ESP IDF toolchain and its components.  
-    path: []u8, 
+    include_path: ?[]u8 = null, 
+    /// Path to the board specific API header files for the 
+    /// specific espressif board (e.g., esp32, esp32-s3, esp32p4).
+    sysroot_path: ?[]u8 = null,
+    /// File to the generated config file.
+    config_file: ?*std.Build.Step.InstallFile = null,
 
-    board_target: []const u8,
+    board_target: ?[]const u8,
    
     /// This would generate bindings declaration for the ESP-IDF library. 
     /// Defined in the `bindings.h` header file. `TranslateC` would 
     /// translate C code into Zig code. 
     code_wrapper: *std.Build.Step.TranslateC,
 
+    pub const JsonConfig = struct { 
+        TOOLCHAIN_VERSION: []const u8,  
+        SYSROOT_PATH: []const u8,
+        COMPONENT_DIR: [][]const u8, 
+        COMMON_COMPONENT_REQS: [][]const u8,
+        COMMON_COMPONENT_REQS_PATH: [][]const u8,
+        COMPONENT_REQS_INCLUDE: []Component,
+            
+        pub const COMPONENTS = std.ArrayList(Component);
+    
+        pub const Component = struct {
+            name: []const u8,
+            dir: []const u8,
+            include_dirs: [][]const u8, 
+        };
+
+    };
+
     pub fn deinit(self: *Toolchain, b: *std.Build) void {
         b.allocator.free(self.path);
     }
 
-    pub fn new(b: *std.Build, target_kind: ?std.Build.ResolvedTarget, profile: ?std.builtin.OptimizeMode) Toolchain{
-        // const user_option = b.option(comptime T: type, name_raw: []const u8, description_raw: []const u8)
-        // const target_options = b.addOptions();
-
-        //TODO: - Define a centralized module for the created bindings.zig file.
-        // That was generated by the Steps: TranslateC and InstallFile 
-
-        // const esp_idf = b.createModule(.{
-        //     .root_source_file = b.path("src/bindings.zig"),
-        // });
-
-        // esp_idf.owner.getInstallStep().dependOn(b.top_level_steps)
-        // const wrapper = b.addTranslateC(binding_options);
-        // const idf_bindings = b.addInstallFile(wrapper.getOutput(), "src/bindings.zig"); 
-
-        // const option_description = 
-        //     \\Usage: source 
-        //     \\
-        // ; 
-
-
-        const board_target = b.option([]const u8, "ESP-Target", 
+    pub fn new(b: *std.Build, build_settings: *BuildConfig) !Toolchain{
+        const board_target = b.option([]const u8, "board-target", 
             "Defines the ESP board target, e.g., esp32p4 or esp32s3") 
-        orelse @tagName(b.graph.host.result.cpu.arch);
+        orelse build_settings.target_name orelse "esp32p4";
+
+        const esp_idf = b.createModule(.{
+            .root_source_file = b.path("src/bindings.zig"),
+        });
+        esp_idf.addIncludePath(b.path("include/")); 
         
+        // ######################################## Pre-Setup Toolchain
+        const toolchain_setup = b.addExecutable(.{
+            .name = "ToolChain-Pre-Setup",
+            .target = b.graph.host,
+            .root_source_file = b.path("scripts/toolchain_setup.zig"),
+        });
+
+        const toolchain_run = b.addRunArtifact(toolchain_setup);
+        toolchain_run.setName("config-setup");
+        // toolchain_run.captureStdOut()
+
+        if (b.args) |args| {
+            toolchain_run.addArgs(args); // e.g., --target or --example 
+        }
+        b.getInstallStep().dependOn(&toolchain_run.step);
+        // b.getInstallStep().dependOn(&toolchain_run.step); // REMOVE??? 
+
+        // By providing and using `addOutputFileArg`, we can define in 
+        // advance what and where a future generated file will be located. 
+        toolchain_run.addArg("--output-file");
+        const output = toolchain_run.addOutputFileArg("toolchain_config.json"); 
+        const config_install = b.addInstallFileWithDir(output, .prefix, "toolchain_config.json");
+        config_install.step.name = "config-install";
+
+        // const config_install_path = b.getInstallPath(.prefix, config_install.dest_rel_path);
+        // try b.addUserInputOption("config-file", config_install.source);
+        // const gop = try b.user_input_options.getOrPut(name);
+
+        b.getInstallStep().dependOn(&config_install.step);
+
+
+        // ######################################## Pre-Setup End...
+
         const binding_options: std.Build.Step.TranslateC.Options = .{
             .link_libc = true, 
-            .optimize = profile orelse b.standardOptimizeOption(.{}),
-            .target = target_kind orelse b.standardTargetOptions(.{}),
+            .optimize = build_settings.profile orelse b.standardOptimizeOption(.{}),
+            .target = build_settings.target orelse b.standardTargetOptions(.{}),
             .root_source_file = b.path("include/bindings.h"),
         };
-
-        //TODO: - HEHEHEHEHEHHEHEH
-        const pre_setup = b.addSystemCommand(&.{"source ./scripts/pre_setup.sh"});
-        pre_setup.addArgs(&.{ "--target ", board_target});
-        // pre_setup.addFileArg(lp: std.Build.LazyPath)
-        const cmd_output = pre_setup.captureStdOut();
-        // pre_setup.captured_stdout.?.generated_file.step;
-        _ = cmd_output; 
-
-        // if (pre_setup.captured_stdout) |output| {
-        //     const output_path = output.generated_file.getPath();
-        //     b.getInstallStep().dependOn(&b.addInstallFile(cmd_output, output_path));
-        // }
-        b.getInstallStep().dependOn(&pre_setup.step);
-
-        return Toolchain{
-            .path = std.process.getEnvVarOwned(b.allocator, "IDF_PATH") catch "",
+        
+        var toolchain = Toolchain{
+            .include_path = std.process.getEnvVarOwned(b.allocator, "IDF_PATH") catch "",
+            // .sysroot_path = std.process.getEnvVarOwned(b.allocator, "SYSROOT_PATH") catch "",
+            .config_file = config_install,
+            .board_target = board_target,
             .code_wrapper = b.addTranslateC(binding_options), 
         };
+
+        // b.getInstallStep().dependOn(&toolchain.code_wrapper.step);
+        toolchain.code_wrapper.step.dependOn(&toolchain_run.step);
+
+        return toolchain; 
     }
 
     /// Convert C headers into Zig bindings/declarations
@@ -235,9 +485,6 @@ pub const Toolchain = struct {
         self.code_wrapper.output_file;
     }
 
-    pub fn setup(self: *Toolchain) !void {
-        _ = self; 
-    }
 };
 
 
@@ -249,15 +496,27 @@ pub fn build(b: *std.Build) !void {
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
     // for restricting supported target set are available.
-    const esp32s3_target = std.Target.Query{
-        .cpu_arch = .xtensa,
-        .cpu_model = .{
-            .explicit = &std.Target.xtensa.cpu.esp32s3,
-        },
-        .os_tag = .freestanding,
-        .abi = .none,
+
+    const xtensa_target: ?std.Target.Query = xtensa:{
+        if (std.mem.containsAtLeast(u8, buliltin.zig_version_string, 1, "xtensa")){
+            const esp32s3_target = std.Target.Query{
+                .cpu_arch = .xtensa,
+                .cpu_model = .{
+                    .explicit = &std.Target.xtensa.cpu.generic
+                    // .explicit = &std.Target.xtensa.cpu.esp32s3
+                },
+                .os_tag = .freestanding,
+                .abi = .none,
+            };
+            break :xtensa esp32s3_target;
+
+        }else {
+            // The esp32s3 target require Zig toolchain with LLVM backend support. 
+            const details: []const u8 = "https://deepwiki.com/kassane/zig-esp-idf-sample/3.2-target-platform-support";
+            std.log.err("Zig version {s} has no Xtensa support need LLVM fork!\nMore details here: {s}\n", .{buliltin.zig_version_string, details}); 
+            break :xtensa null;
+        }
     };
-    
 
     const riscv_target = std.Target.Query{
         .cpu_arch = .riscv32,
@@ -276,41 +535,59 @@ pub fn build(b: *std.Build) !void {
         // `.cpu_features_sub`=> Removes RISC-V extensions!
         .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp }),
     };
-
-    const targets: []const std.Target.Query = &.{
-        esp32s3_target,
-        riscv_target,
+    // ===================================== Supported Targets.
+    const supported_targets: []const std.Target.Query = supported:{
+        if (xtensa_target) |xtensa| {
+            const support: []const std.Target.Query = &.{
+                xtensa,
+                riscv_target,
+            };
+            break :supported support;
+        }
+        const support: []const std.Target.Query = &.{ riscv_target, };
+        break :supported support; 
     };
 
     const target = b.standardTargetOptions(.{ 
-        .default_target = esp32s3_target,
-        .whitelist = targets,
+        .default_target = riscv_target,
+        .whitelist = supported_targets,
     });
 
+    const optimization_profile = b.option(std.builtin.OptimizeMode, "profile", 
+        \\ Supported Optimization Profiles:
+        \\                                  Debug
+        \\                                  ReleaseSafe
+        \\                                  ReleaseFast
+        \\                                  ReleaseSmall
+        \\
+    ) orelse std.builtin.OptimizeMode.Debug;
+
     const optimize = b.standardOptimizeOption(.{});
-    std.debug.print("target features: {any}\n", .{target.result.cpu.features});
+    if (b.getInstallStep().state == .success){
+        std.debug.print("target features: {any}\n", .{target.result.cpu.features});
+    }
+    // =====================================
 
     // Ensure that Zig can find the necessary ESP-IDF header files.
     const home_directory = std.process.getEnvVarOwned(b.allocator, "HOME") catch "";
     const esp_idf_path = std.process.getEnvVarOwned(b.allocator, "IDF_PATH") catch "";
-
-    // b.addInstallArtifact(artifact: *Step.Compile, options: Step.InstallArtifact.Options) → *Step.InstallArtifact
-    // const installed_bindings = b.addInstallFile(bindings.getOutput(), "../src/bindings.zig");
-    // b.getInstallStep().dependOn(&installed_bindings.step);
+    _ = home_directory; 
+    _ = esp_idf_path; 
 
     // generate bindings for the ESP-IDF library
-    const bindings = b.addTranslateC(.{
-        .link_libc = true,
-        .optimize = optimize,
-        .target = target,
-        .root_source_file = b.path("include/bindings.h"),
-    });
-    bindings.defineCMacro("__xtensa", "");
-    bindings.defineCMacro("__COUNTER__", "0");
-    bindings.defineCMacro("CONFIG_IDF_TARGET_ESP32S3", "1");
-    bindings.defineCMacro("XCHAL_NUM_AREGS", "64");
-    bindings.defineCMacro("XCHAL_HAVE_s32c1I", "1");
-    bindings.defineCMacro("LOG_LOCAL_LEVEL", "ESP_LOG_VERBOSE");
+    // const bindings = b.addTranslateC(.{
+    //     .link_libc = true,
+    //     .optimize = optimize,
+    //     .target = target,
+    //     .root_source_file = b.path("include/bindings.h"),
+    // });
+    //
+    // bindings.defineCMacro("__xtensa", "");
+    // bindings.defineCMacro("__COUNTER__", "0");
+    // bindings.defineCMacro("CONFIG_IDF_TARGET_ESP32S3", "1");
+    // bindings.defineCMacro("XCHAL_NUM_AREGS", "64");
+    // bindings.defineCMacro("XCHAL_HAVE_s32c1I", "1");
+    // bindings.defineCMacro("LOG_LOCAL_LEVEL", "ESP_LOG_VERBOSE");
 
     //Here goes a static library to be linked with c / c++ app.
     const esp_idf_lib = b.addStaticLibrary(.{
@@ -321,9 +598,7 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimize,
     });
 
-    const include_components = std.process.getEnvVarOwned(b.allocator, "INCLUDE_DIRS") catch "";
-    defer b.allocator.free(include_components);
-
+    // Located at absolute path: $HOME/esp/esp-idf/components
     const include_paths = [_][]const u8{
         "components/freertos/FreeRTOS-Kernel/include",
         "components/freertos/config/include/freertos",
@@ -360,114 +635,106 @@ pub fn build(b: *std.Build) !void {
         "components/esp_partition/include",
         "components/esp_event/include",
     };
+    _ = esp_idf_lib; 
+    _ = include_paths; 
 
-    if (!std.mem.eql(u8, esp_idf_path, "")) {
-        const archtools = b.fmt("{s}-esp-elf", .{
-            @tagName(esp_idf_lib.rootModuleTarget().cpu.arch),
-        });
+    // if (!std.mem.eql(u8, esp_idf_path, "")) {
+    //     const archtools = b.fmt("{s}-esp-elf", .{
+    //         @tagName(esp_idf_lib.rootModuleTarget().cpu.arch),
+    //     });
+    //
+    //     bindings.addIncludePath(.{ .cwd_relative = b.pathJoin(&.{
+    //         home_directory,
+    //         ".espressif",
+    //         "tools",
+    //         archtools,
+    //         "esp-14.2.0_20241119",
+    //         archtools,
+    //         archtools,
+    //         "include",
+    //     }) });
+    //
+    //     for (include_paths) |path| {
+    //         const esp_components = std.fmt.allocPrint(b.allocator, "{s}/{s}", .{ esp_idf_path, path }) catch @panic("Out of Memory");
+    //         bindings.addIncludePath(.{ .cwd_relative = esp_components });
+    //     }
+    //
+    //     // bindings.addIncludePath(b.path("build/config/sdkconfig.h"));
+    //     bindings.addIncludePath(.{ .cwd_relative = "build/config/" });
+    //     bindings.addIncludePath(.{ .cwd_relative = "." });
+    //     try searched_idf_libs(b, esp_idf_lib);
+    //     // try add_c_includes(b, esp_idf_lib);
+    //     // try searched_idf_include(b, lib: *std.Build.Step.TranslateC, idf_path: []const u8)
+    // }else {
+    //     @panic("Missing env to .espressif toolchain!");
+    // }
+    // const installed_bindings = b.addInstallFile(bindings.getOutput(), "main/src/bindings.zig");
+    // b.getInstallStep().dependOn(&installed_bindings.step);
 
-        // Final include path depend on the target board:
-        // "$HOME/.espressif/tools/"++archtools
-        // $HOME/.espressif/tools/riscv32-esp-elf/esp-14.2.0_20241119/riscv32-esp-elf/riscv32-esp-elf/
-
-        const espressif_include: []const u8 = espressif: {
-            var espressif_path = b.fmt("{s}/.espressif/tools", .{home_directory});
-            const target_board = switch(esp_idf_lib.rootModuleTarget().cpu.arch) {
-                .riscv32 => "esp32p4",
-                .xtensa => "esp32s3",
-            };
-            var espressif_dir = try std.fs.cwd().openDir(espressif_path, .{.iterate = true});
-            defer espressif_dir.close();
-            var walker = try espressif_dir.walk(b.allocator);
-            defer walker.deinit();
-
-            while (try walker.next()) |entry| {
-                const ext = std.fs.path.extension(entry.basename);
-                _ = ext; 
-                if(entry.kind == .directory){
-                    if(std.mem.startsWith(u8, entry.basename, "esp-")) continue; 
-                    // if (std.mem.cont)
-                    
-                }
-            }        
-
-        };
-        // bindings.addIncludePath(.{ .cwd_relative = b.pathJoin(&.{
-        //     espressif_path,
-        //     archtools,
-        //     "esp-13.2.0_20240530",
-        //     archtools,
-        //     archtools,
-        //     "include",
-        // }) });
-
-        bindings.addIncludePath(.{ .cwd_relative = b.pathJoin(&.{
-            home_directory,
-            ".espressif",
-            "tools",
-            archtools,
-            "esp-13.2.0_20240530",
-            archtools,
-            archtools,
-            "include",
-        }) });
-
-        for (include_paths) |path| {
-            const esp_components = std.fmt.allocPrint(b.allocator, "{s}/{s}", .{ esp_idf_path, path }) catch @panic("Out of Memory");
-            bindings.addIncludePath(.{ .cwd_relative = esp_components });
-        }
-
-        // bindings.addIncludePath(.{ .cwd_relative = "../build/config/" });
-        bindings.addIncludePath(.{ .cwd_relative = "build/config/" });
-        bindings.addIncludePath(.{ .cwd_relative = "." });
-        // try searched_idf_include(b, bindings, esp_idf_path);
-        try searched_idf_libs(b, esp_idf_lib);
-        //try add_c_includes(b, esp_idf_lib);
-    }
-
-    const installed_bindings = b.addInstallFile(bindings.getOutput(), "../src/bindings.zig");
-    b.getInstallStep().dependOn(&installed_bindings.step);
-   
-    // b.top_level_steps
-    // const step_id = b.getInstallStep().id;
-    // step_id.Type().base_id == .install_artifact
-
-    //TODO: - Go here!
     const esp_idf = b.createModule(.{
-        .root_source_file = b.path("src/bindings.zig"),
+        .root_source_file = b.path("main/src/bindings.zig"),
     });
 
     const utils_mod = b.addModule("esp32s3_utils", .{
-        .root_source_file = b.path("src/esp32s3_utils.zig"),
+        .root_source_file = b.path("main/src/esp32s3_utils.zig"),
     });
 
     const gpio_mod = b.addModule("gpio", .{
-        .root_source_file = b.path("src/gpio.zig"),
+        .root_source_file = b.path("main/src/gpio.zig"),
     });
 
-    const ai_mod = b.addModule("ai_model", .{
-        .root_source_file = b.path("model/root.zig"),
-        .target = target,
-    });
-    
     const nn_lib = b.addLibrary(.{
-        // .linkage = .dynamic,
         .linkage = .static,
         .name = "nn_model",
-        .root_module = ai_mod,
+        .root_module = b.createModule(.{
+            .target = target,
+            .optimize = optimize,
+            .root_source_file = b.path("main/model/root.zig"),
+            .link_libc = true,
+        }),
     });
 
     // Driver modules, that need access to the esp idf API components.
     // Created by the generated bindings.zig (InstallFile)
     // ---------------------- 
+
     utils_mod.addImport("esp_idf", esp_idf);
     gpio_mod.addImport("esp_idf", esp_idf);
 
     // -------------------------- Imports that should be added to the Main Firmware.
-    esp_idf_lib.root_module.addImport("esp_idf_utils", utils_mod);
-    esp_idf_lib.root_module.addImport("gpio", gpio_mod);
-    esp_idf_lib.root_module.addImport("nn_model", ai_mod);
-    esp_idf_lib.step.dependOn(bindings.output_file.step);
+    // esp_idf_lib.root_module.addImport("esp_idf_utils", utils_mod);
+    // esp_idf_lib.root_module.addImport("gpio", gpio_mod);
+    //
+    // esp_idf_lib.root_module.linkLibrary(nn_lib);
+    // esp_idf_lib.addLibraryPath(b.path("main/model/"));
+    // esp_idf_lib.root_module.addImport("nn_model", nn_lib.root_module);
+    // esp_idf_lib.step.dependOn(bindings.output_file.step);
+    // b.installArtifact(esp_idf_lib);
+    // b.installArtifact(nn_lib);
+
+    // -------------------------- Imports that should be added to the Main Firmware.
+    
+
+        
+    var build_config: BuildConfig = conf:{
+        if (b.args) |args| {
+            break :conf try BuildConfig.parseArgs(args);
+        }else {
+            break :conf BuildConfig{}; 
+        }
+    };
+
+    // zig build run -- --example <str> --target <str>
+    // This allows the user to pass arguments to the application in the build
+    // command itself, like this: `zig build run -- arg1 arg2 etc`.
+
+    try target_setup(b, supported_targets, optimization_profile, &build_config);
+    try app_setup(b, &build_config, &.{
+        std.Build.Module.Import{.name = "esp_idf_utils", .module = utils_mod},
+        std.Build.Module.Import{.name = "gpio", .module = gpio_mod},
+        std.Build.Module.Import{.name = "nn_model", .module = nn_lib.root_module},
+    });
+
     
     // const exe_check = b.addExecutable(.{
     //     .name = "model",
@@ -478,50 +745,14 @@ pub fn build(b: *std.Build) !void {
     // const check = b.step("check", "Check if AI model code compiles");
     // check.dependOn(&exe_check.step);
 
-    b.installArtifact(esp_idf_lib);
-    b.installArtifact(nn_lib);
-    // b.addInstallArtifact(artifact: *Step.Compile, options: Step.InstallArtifact.Options)
 
-    const example_step = b.step("examples", "Build and run example");
-    const AddExample = struct {name: []const u8, src: []const u8, description: []const u8 };
-    const host_example = AddExample{
-        .name = "host_app",
-        .src = "examples/host_app.zig",
-        .description = "Running the Neural Network Model on the host computer (native target)",
-    }; 
-
-    const host_exe = b.addExecutable(.{
-        .target =  b.graph.host, 
-        .name = host_example.name,
-        .root_source_file = b.path(host_example.src),
-        .optimize = optimize, 
-    });
-    host_exe.root_module.addImport("nn_model", ai_mod); 
-
-    // Install host example executable
-    b.installArtifact(host_exe);
 
     // Create a run step for the example
-    const run_cmd = b.addRunArtifact(host_exe);
-    run_cmd.step.dependOn(b.getInstallStep());
+    // const run_cmd = b.addRunArtifact(host_exe);
+    // run_cmd.step.dependOn(b.getInstallStep());
     
     // Add the example to the examples step
-    example_step.dependOn(&host_exe.step);
-
-    // esp_idf_lib.setLinkerScript(b.path("linker.ld"));
-    const link = b.addSystemCommand(&[_][]const u8{
-        "xtensa-esp32-elf-gcc",
-        "-T",
-        "linker.ld",
-        "-o",
-        "esp32_s3_app",
-        "main.o",
-    });
-
-    link.step.dependOn(&esp_idf_lib.step);
-
-    const link_step = b.step("link", "Linking the ELF binary from the .o (object) files.");
-    link_step.dependOn(&link.step);
+    // example_step.dependOn(&host_exe.step);
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish
@@ -547,102 +778,125 @@ pub fn build(b: *std.Build) !void {
     // run_step.dependOn(&run_cmd.step);
 }
 
-fn target_setup(b: *std.Build, targets: []const std.Target.Query, optimization: []const ?std.builtin.OptimizeMode) !void {
-    if (optimization.len != targets.len) return error.OptimizationAndTargetsDifferentLength; 
-
-    for (targets, 0..) |query_target, i| {
+fn target_setup(b: *std.Build, targets: []const std.Target.Query, optimization: std.builtin.OptimizeMode, build_settings: *BuildConfig) !void {
+    // if (optimization.len != targets.len) return error.OptimizationAndTargetsDifferentLength; 
+    for (targets) |query_target| {
         const target = b.resolveTargetQuery(query_target);
-        const optim_mode = optimization[i];
-        const firmware = Firmware.new(b, .lib, "dummy_app", Toolchain.new(b, target, optim_mode));
-        // std.Build.Step.Id == .compile;
-        // std.Build.Step.Compile.Kind == .lib;
+        build_settings.target = target;
+        build_settings.profile = optimization; 
+        if(build_settings.toolchain == null){
+            build_settings.toolchain = try Toolchain.new(b, build_settings);
+        }  
+    
+        // switch(esp_idf_lib.rootModuleTarget().cpu.arch) {
+        //         .riscv32 => break :board "esp32p4",
+        //         .xtensa => break :board "esp32s3",
+        //         else => break :board "",
+        // }
 
-        const compile_options = b.step("dummy", "dummy step...");
-        compile_options.init(.{
-            .id = .translate_c,
-        });
 
-        // std.Build.Step.Run.addArgs(run: *Run, args: []const []const u8)
-        const run_cmd = b.addRunArtifact(firmware.executable);
-        
-        run_cmd.addArgs(&.{
-            "--example=", "--arg2=", "--arg3=",
-        });
-        
-        run_cmd.step.dependOn(b.getInstallStep());
-
-        // if (b.addUserInputFlag(name_raw: []const u8))
-        if (b.args) |args| {
-            _ = args;  
+        // if (sysroot_components.len != 0){
+        //     var iter = std.mem.tokenizeAny(u8, sysroot_components, " ");
+        //     while(iter.next()) |comp_include|{
+        //         build_settings.toolchain.?.code_wrapper.addIncludePath(.{ .cwd_relative = comp_include});
+        //
+        //     }
+        // }
+        // ################################ Target Specific Setup
+        switch (target.result.cpu.arch) {
+            inline else => |arch| {
+                // std.debug.print("Target ({s}) Features: {any}\n", .{arch.genericName(), target.result.cpu.features});
+                if (arch.isRISCV()){
+                    try riscv_setup(b, null, build_settings);
+                }
+                if (arch == .xtensa){
+                    try esp32s3_setup(b, null, build_settings);
+                } 
+            }
         }
-        
-        try app_setup(b, target_profile); 
+        // ################################
     }
 }
 
-pub fn app_setup(b: *std.Build, target: std.Build.ResolvedTarget, profile: std.builtin.OptimizeMode) !void {
+/// The app setup, should take in the parsed `BuildConfig` and the `Firmware`
+/// representing the target to build as *Compile.
+pub fn app_setup(b: *std.Build, build_settings: *BuildConfig, modules: []const std.Build.Module.Import) !void {
+    var toolchain = build_settings.toolchain orelse return error.FailedObtainingToolChainStruct;
+
+    const firmware = try Firmware.new(b, build_settings, modules);
+    try Firmware.addIncludeRequirments(b, firmware.executable, &toolchain);
+    
+    if (toolchain.code_wrapper.include_dirs.items.len == 0) {
+        std.log.err("Target Board: {?s}\n", .{toolchain.board_target});
+        std.log.err("ToolChain (CTranslate) bindings, error.{s}\n", .{@errorName(error.ToolChainMissingNeccessaryIncludes)});
+    }else {
+        std.debug.print("ToolChain Dependencies:\n", .{});
+        for (toolchain.code_wrapper.include_dirs.items) |dirs| {
+            const include_path = dirs.path.cwd_relative;
+            std.debug.print("Include dir: {s}\n", .{include_path});
+        }
+    }
+
+    const target = build_settings.target orelse return error.TargetIsNotDefined;
     switch (target.result.cpu.arch) {
         inline else => |arch| {
             std.debug.print("Target ({s}) Features: {any}\n", .{arch.genericName(), target.result.cpu.features});
-
-            const library_name: ?[]const u8 = lib_name:{
-                if(arch.isRISCV()) break :lib_name "riscv_app"; 
-                if(std.mem.eql(u8, arch.genericName(), "xtensa")) break: lib_name "xtensa_app";
-                if(std.mem.endsWith(u8, target.result.cpu.model.name, "esp32s3")) break: lib_name "esp32s3_app";
-                
-                break: lib_name switch (arch) {
-                    .xtensa => "xtensa_app",
-                    .riscv32 => "riscv32_app",
-                    .arm => "arm_app",
-                    else => null,
-                };
-            };
-
-            if (arch.isRISCV()){
-                try riscv_setup(b, null, target_lib, info);
-            }
-
-            if (arch == .xtensa){
-                try esp32s3_setup(b, null, target_lib, info);
-            } 
-            
-            const toolchain = info.toolchain orelse return error.FailedObtainingToolChainStruct;
-            toolchain.code_wrapper.getOutput();
-            
-            target_lib.linkLibC();
-            const target_output = b.addInstallArtifact(target_lib, .{}); // *InstallArtifact
-            b.getInstallStep().dependOn(&target_output.step); 
-
-            // Add step for dissasembly the code: 
-            const assemblyfile_name = b.fmt("{s}_{s}_exe", .{@tagName(info.profile), @tagName(arch)});
-            _ = assemblyfile_name; 
-            // target_lib.root_module.addAssemblyFile(source: LazyPath)
-            
-            // Add step for diff files: 
-
-            // Add test runner step: 
         }
     }
+
+    //WARN: - The two lines below, cause it to fail building. 
+    // According to forum, you need to provide the cFlag -lc
+    // for cTranslate to proper finding the include headers. 
+
+    // const installed_bindings = b.addInstallFile(toolchain.code_wrapper.getOutput(), "main/src/bindings.zig"); 
+    // b.getInstallStep().dependOn(&installed_bindings.step);
+    
+    b.installArtifact(firmware.executable);
+
+    // ######################## Flash Run step 
+    const flash_cmd = b.addSystemCommand(&.{"source ./scripts/flash_target.sh"}); 
+    flash_cmd.step.dependOn(b.getInstallStep());
+    const flash_step = b.step("flash", "Flashing the provided <target board>");
+    flash_step.dependOn(&flash_cmd.step);
+
+    // Add step for dissasembly the code: 
+    // target_lib.root_module.addAssemblyFile(source: LazyPath)
+            
+    // Add step for diff files: 
+
+    // Add test runner step: 
+
      
 }
-fn riscv_setup(b: *std.Build, imports: ?[]const std.Build.Module.Import,  main_mod: *std.Build.Step.Compile, target: *TargetProfile) !void {
-    var toolchain = target.toolchain orelse return error.FailedObtainingToolChainStruct; 
+fn riscv_setup(b: *std.Build, imports: ?[]const std.Build.Module.Import, build_settings: *BuildConfig) !void {
+    // var toolchain = build_settings.toolchain orelse return error.FailedObtainingToolChainStruct; 
+    var toolchain = build_settings.toolchain orelse
+        std.debug.panic("Failed With Error: {s}", .{@errorName(error.FailedObtainingToolChainStruct)});
+
+    const sysroot_path = toolchain.sysroot_path; 
+    _ = sysroot_path; 
     // -------------------------------- Target Specific Setup
     toolchain.code_wrapper.defineCMacro("LOG_LOCAL_LEVEL", "ESP_LOG_VERBOSE");
-    toolchain.code_wrapper.addIncludePath(.{});
+    // toolchain.code_wrapper.addIncludePath(.{});
     // -------------------------------- Target Specific Setup
 
     // -------------------------------- Obtain TranslateC zig bindings
-    const installed_bindings = b.addInstallFile(toolchain.code_wrapper.getOutput(), "../src/bindings.zig");
-    b.getInstallStep().dependOn(&installed_bindings);
-    // -------------------------------- Obtain TranslateC zig bindings
+    // const installed_bindings = b.addInstallFile(toolchain.code_wrapper.getOutput(), "main/src/bindings.zig");
 
+    // b.getInstallStep().dependOn(&installed_bindings.step);
+    // -------------------------------- Obtain TranslateC zig bindings
     // const headers = target_lib.installed_headers.items;
+    _ = imports; 
+    _ = b; 
 
 }
 
-fn esp32s3_setup(b: *std.Build, imports: ?[]const std.Build.Module.Import,  main_mod: *std.Build.Step.Compile, target: *TargetProfile) !void {
-    var toolchain = target.toolchain orelse return error.FailedObtainingToolChainStruct; 
+fn esp32s3_setup(b: *std.Build, imports: ?[]const std.Build.Module.Import, build_settings: *BuildConfig) !void {
+    var toolchain = build_settings.toolchain orelse
+        std.debug.panic("Failed With Error: {s}", .{@errorName(error.FailedObtainingToolChainStruct)});
+
+    _ = b; 
+    _ = imports; 
 
     toolchain.code_wrapper.defineCMacro("__xtensa", "");
     toolchain.code_wrapper.defineCMacro("__COUNTER__", "0");
@@ -655,19 +909,15 @@ fn esp32s3_setup(b: *std.Build, imports: ?[]const std.Build.Module.Import,  main
 pub fn add_c_includes(b: *std.Build, lib: *std.Build.Step.TranslateC) !void {
     const esp_idf_path = std.process.getEnvVarOwned(b.allocator, "IDF_PATH") catch "/home/wiiggee1/esp-idf/";
     const esp_components = std.fmt.allocPrint(b.allocator, "{s}/components", .{esp_idf_path}) catch @panic("Out of Memory");
-
     var comp_dir = std.fs.openDirAbsolute(esp_components, .{ .iterate = true }) catch @panic("Failed to open dir!");
+
     std.debug.print("component iterator buffer: {s}\n", .{comp_dir.iterate().buf});
 
     var dir_it = comp_dir.iterate();
     while (dir_it.next()) |dir| {
         const comp = dir orelse break;
         const comp_name: []const u8 = comp.name;
-        //const esp_comp_lib = std.fmt.allocPrint(b.allocator, "lib{s}", .{comp_name}) catch @panic("Out of Memory");
-
         const esp_comp = std.fmt.allocPrint(b.allocator, "{s}/{s}/include/", .{ esp_components, comp_name }) catch @panic("Out of Memory");
-
-        // const esp_comp_src = std.fmt.allocPrint(b.allocator, "{s}/{s}/", .{ esp_components, comp_name }) catch @panic("Out of Memory");
 
         if (comp.kind != .directory) {
             continue;
@@ -678,13 +928,12 @@ pub fn add_c_includes(b: *std.Build, lib: *std.Build.Step.TranslateC) !void {
         return;
     }
     comp_dir.close();
-    //lib.linkLibC();
 }
 
-pub fn searched_idf_include(b: *std.Build, lib: *std.Build.Step.TranslateC, idf_path: []const u8) !void {
+pub fn searched_idf_include(b: *std.Build, lib: *std.Build.Step.TranslateC, comp_path: []const u8) !void {
     // var includes = std.ArrayList([]const u8).init(b.allocator);
-    const comp = b.pathJoin(&.{ idf_path, "components" });
-    var dir = try std.fs.cwd().openDir(comp, .{
+    // const comp = b.pathJoin(&.{ idf_path, "components" });
+    var dir = try std.fs.cwd().openDir(comp_path, .{
         .iterate = true,
     });
     defer dir.close();
@@ -692,35 +941,36 @@ pub fn searched_idf_include(b: *std.Build, lib: *std.Build.Step.TranslateC, idf_
     defer walker.deinit();
 
     const exclude = [_][]const u8{
-        "/esp32c1",
-        "/esp32c2",
-        "/esp32c3",
-        "/esp32c4",
-        "/esp32c5",
-        "/esp32c6",
-        "/esp32h1",
-        "/esp32h2",
-        "/esp32h3",
-        "/esp32h4",
-        "/esp32p4",
-        "/esp32s1",
-        "/esp32s2",
-        "/esp32/",
+        "esp32c1",
+        "esp32c2",
+        "esp32c3",
+        "esp32c4",
+        "esp32c5",
+        "esp32c6",
+        "esp32h1",
+        "esp32h2",
+        "esp32h3",
+        "esp32h4",
+        "esp32p4",
+        "esp32s1",
+        "esp32s2",
+        "esp32s3",
+        "esp32",
     };
 
+
     while (try walker.next()) |entry| {
-        const target_dir = b.pathJoin(&.{ comp, b.dupe(entry.path) });
+        const target_dir = b.pathJoin(&.{ comp_path, b.dupe(entry.path) });
 
         if (entry.kind == .directory and exclude_dir(target_dir, &exclude)) {
             // std.debug.print("Skipping: {s}\n", .{target_dir});
             continue;
         }
         if (entry.kind == .directory and std.mem.endsWith(u8, entry.path, "/include")) {
-            //const include_directory = b.pathJoin(&.{ comp, std.fs.path.dirname(b.dupe(entry.path)).? });
-            const include_directory = b.pathJoin(&.{ comp, b.dupe(entry.path) });
-            // std.debug.print("Adding include path: {s}\n", .{include_directory});
+            const include_directory = b.pathJoin(&.{ comp_path, b.dupe(entry.path) });
+            // if (std.mem.containsAtLeast())
+            std.debug.print("Adding include path: {s}\n", .{include_directory});
             // lib.addSystemIncludePath(.{ .cwd_relative = include_directory });
-            // try includes.append(include_directory);
             lib.addIncludePath(.{ .cwd_relative = include_directory });
         } else {
             // const ext = std.fs.path.extension(entry.basename);
@@ -752,12 +1002,13 @@ pub fn searched_idf_libs(b: *std.Build, lib: *std.Build.Step.Compile) !void {
     while (try walker.next()) |entry| {
         const ext = std.fs.path.extension(entry.basename);
         const lib_ext = inline for (&.{".obj"}) |e| {
-            if (std.mem.eql(u8, ext, e))
-                break true;
+            if (std.mem.eql(u8, ext, e)) break true;
         } else false;
+
         if (lib_ext) {
             const src_path = std.fs.path.dirname(@src().file) orelse b.pathResolve(&.{".."});
             const cwd_path = b.pathJoin(&.{ src_path, "build", b.dupe(entry.path) });
+            std.log.debug("(searched_idf_libs): cwd_path: {s}\n", .{cwd_path});
             const lib_file: std.Build.LazyPath = .{ .cwd_relative = cwd_path };
             lib.addObjectFile(lib_file);
         }
