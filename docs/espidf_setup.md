@@ -123,16 +123,42 @@ esp_hid esp_http_client esp_http_server esp_https_ota esp_https_server
 esp_hw_support esp_lcd esp_local_ctrl esp_mm esp_netif esp_netif_stack
 esp_partition esp_phy esp_pm esp_psram esp_ringbuf esp_rom esp_security
 esp_system esp_timer esp_vfs_console esp_wifi espcoredump esptool_py fatfs
-freertos hal heap http_parser idf_test ieee802154 json log lwip main mbedtls
+freertos hal heap http_parser idf_test ieee802154 json log lwip *main* mbedtls
 mqtt newlib nvs_flash nvs_sec_provider openthread partition_table protobuf-c
 protocomm pthread riscv rt sdmmc soc spi_flash spiffs tcp_transport ulp unity
 usb vfs wear_levelling wifi_provisioning wpa_supplicant
 ```
 
+Observe the `main` components above, which is our app firmware. 
+
 **Linking phase:**
 Linking means telling the compiler where to find the compiled implementation of the functions declared in the `.h` files. 
 The ESP-IDF components are precompiled into both `.a` and `.o` files, which contains all the compiled `.c` files for a module.
 
+- ROM (Read-Only Memory) is what holds our firmware and boot (bootloader) code. 
+
+- While Flash memory retains and used for storing our application code. 
+
+
+```zsh
+-- App "hello_world" version: 1
+-- Adding linker script /home/wiiggee1/esp/hello_world/build/esp-idf/esp_system/ld/memory.ld
+-- Adding linker script /home/wiiggee1/esp/hello_world/build/esp-idf/esp_system/ld/sections.ld.in
+-- Adding linker script /home/wiiggee1/esp/esp-idf/components/esp_rom/esp32p4/ld/esp32p4.rom.ld
+-- Adding linker script /home/wiiggee1/esp/esp-idf/components/esp_rom/esp32p4/ld/esp32p4.rom.api.ld
+-- Adding linker script /home/wiiggee1/esp/esp-idf/components/esp_rom/esp32p4/ld/esp32p4.rom.rvfp.ld
+-- Adding linker script /home/wiiggee1/esp/esp-idf/components/esp_rom/esp32p4/ld/esp32p4.rom.wdt.ld
+-- Adding linker script /home/wiiggee1/esp/esp-idf/components/esp_rom/esp32p4/ld/esp32p4.rom.systimer.ld
+-- Adding linker script /home/wiiggee1/esp/esp-idf/components/esp_rom/esp32p4/ld/esp32p4.rom.version.ld
+-- Adding linker script /home/wiiggee1/esp/esp-idf/components/esp_rom/esp32p4/ld/esp32p4.rom.newlib.ld
+-- Adding linker script /home/wiiggee1/esp/esp-idf/components/soc/esp32p4/ld/esp32p4.peripherals.ld
+```
+
+
 - **Linking in Zig**: `addLibraryPath()` + `linkSystemLibrary()` = linking against static libs `.a`. Alternativ to link against object files `.o` = `addObjectFile()`.
 
+
+-  Common components requirments is: 
+    - cxx, newlib, freertos, esp_hw_support, heap, log, soc, hal, esp_rom,
+    - esp_common, esp_system, xtensa/riscv.
 

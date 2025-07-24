@@ -94,3 +94,68 @@ addRunArtifact, which establishes a dependency edge between these two steps,
 the unit tests will not be executed. "
 
 
+### ESP IDF components using Zig's build-system: 
+
+When interacting with ESP IDF using Zig, and for creating `Components`. 
+It requires to define a `Components` as a `static library`. For it to 
+work with other languages such as Zig and Rust, we need to define an 
+empty `placeholder.c` file as the source. The following json config 
+generated during the esp-idf configuration phase. Have the following
+`"main"` entry: 
+
+```json
+    "main": {
+        "alias": "idf::main",
+        "target": "___idf_main",
+        "prefix": "idf",
+        "dir": "/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/main",
+        "type": "LIBRARY",
+        "lib": "__idf_main",
+        "reqs": [],
+        "priv_reqs": [],
+        "managed_reqs": [],
+        "managed_priv_reqs": [],
+        "file": "/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/build/esp-idf/main/libmain.a",
+        "sources": [ "/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/main/linker_placeholder.c" ],
+        "include_dirs": [ "." ]
+    },
+```
+
+
+In CMake the `REQUIRES` and `PRIV_REQUIRES` are wrappers around 
+the CMake functions `target_link_libraries(... PUBLIC ...)` and 
+`target_link_libraries(... PRIVATE ...)`. 
+
+
+- The `INCLUDE_DIRS` belonging to all other components listed in the `REQUIRES` and `PRIV_REQUIRES` parameters (ie all the current component's public and private dependencies).
+
+- Recursively, all of the `INCLUDE_DIRS` of those components `REQUIRES` lists (ie all public dependencies of this component's dependencies, recursively expanded).
+
+##### Common Component Requirments
+The component named main is special because it automatically requires all other
+components in the build. So it's not necessary to pass REQUIRES or
+PRIV_REQUIRES to this component
+
+To avoid duplication, every component automatically requires some "common" IDF
+components even if they are not mentioned explicitly. Headers from these
+components can always be included.
+
+The list of common components is: cxx, newlib, freertos, esp_hw_support, heap,
+log, soc, hal, esp_rom, esp_common, esp_system, xtensa/riscv
+
+The MINIMAL_BUILD build property can be set to ON, which acts as a shortcut to
+configure the COMPONENTS variable to include only the main component. This
+means that the build will include only the common components, the main
+component, and all dependencies associated with it, both direct and indirect
+
+
+
+
+
+
+
+
+
+
+
+
