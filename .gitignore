@@ -2,6 +2,7 @@
 zig-out/
 /build 
 /sdkconfig
+/sdkconfig.old
 /managed_components
 cmake-build-*/
 .cache/
@@ -13,3 +14,6 @@ Makefile
 compile_commands.json
 /log_data
 /esp32s3_build
+main/src/c_wrapper.zig
+dependencies.lock
+scripts/pre_setup.sh

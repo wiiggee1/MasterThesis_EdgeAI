@@ -2575,10 +2575,10 @@ pub fn DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureS
 
                 // ==================================================
                 // 3. Obtain the TokenType from the raw message, and execute parse_process.
-                const parsed_owned = try parse_process(log.message, allocator); 
+                // const parsed_owned = try parse_process(log.message, allocator); 
                                 
                 // var tokens = std.mem.tokenizeAny(u8, lowercase_msg, " ![]():;=,'\"");
-                var tokens = std.mem.tokenizeAny(u8, lowercase_msg, " !;,'\"");
+                // var tokens = std.mem.tokenizeAny(u8, lowercase_msg, " !;,'\"");
                 // ==================================================
 
                 // 3. Replace the variable with masked value (pre-defined tag). 
