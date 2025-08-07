@@ -1,0 +1,302 @@
+### Retreiving the ISR from the Vector Table
+
+After an `IRQ` - Interrupt Request, the current context is saved, the next step is to determine 
+what ISR - Interrupt Service Routine, to call. This is done by looking in the 
+`interrupt vector table` (IVT). Which is located at a specific area of memory on your processor. 
+
+1. IRQ triggered.
+2. Save context. 
+3. Lookup in the IVT - *Interrupt Vector Table* (list of callback functions one for each interrupt).
+4. Call the appropriate ISR callback from the IVT list. 
+
+#### Interrupt Vector Table (IVT):
+The IVT, is a list of callback functions, where a callback function being a function pointer. 
+This list of function pointers are often implemented in assembly. The vector table is 
+located at a specific address in memory, set by the linker script. Usally in a section 
+or linker variable named something like `.isr_vector`. 
+
+In the ISR startup code, you often have the following: 
+
+- _estack → The initial stack pointer, pointing to the beginning of the stack. 
+- A `Reset Vector` → address of the code that is called during system boots up or resets. 
+- Later in the table, are often the peripheral interrupts, such as timers etc...
+
+Each interrupt has an associated interrupt number. So whenever an interrupt occur, 
+it is signaled by this specific number. Hence, the part of the processor that 
+generates the IRQ sends it to the part of the processor that looks up the handler 
+in the vector table as the number. The processor uses the interrupt number and 
+the structure of the vector table to look up the address to call (callback 
+or function pointer) when the interrupt arrives. 
+
+#### Restore the Context:
+After an ISR has finished, you need to return to normal execution. The program counter points 
+to the machine instruction you are are about to run. Whenever, you call a function, 
+the address of the next instruction (program counter + 1 instruction) is put on the stack
+as the return address. When you return from the function (rts or rti), the program counter 
+is set to that address. 
+
+- Interrupt, have a special call (rti); its a jump to the instruction handler, 
+that restores the context to its state prior to the function call. 
+
+### Configuring Interrupts: 
+First you have to *disable* interrupts. Setting up the interrupts uses memory mapped registers. 
+After disabling, you can configure it to trigger an IRQ when the timer has expired. 
+All the operations made use the structure (struct) that points to the memory map 
+of the processors registers for this peripheral (TIMER). 
+
+- The `CSR` - Control and Status Registers are registers in CPUs and microcontrollers
+that are used for reading status and changing configuration. Its a special-purpose 
+registers used to control and monitor various aspects of the RISC-V operation. 
+
+## Interrupts and Exceptions (ESP32-P4, RISCV):
+
+Simplified Interupt Flow: 
+
+Peripheral's internal interrupt → 126 interrupt signals → Interrupt Matrix Controller → ...
+... → 32 HP CPU0 / HP CPU1 peripheral interrupt signal → HP CPU Interrupt Controller. 
+
+##### Interrupt Control and Status Registers (CSRs)
+Some interrupt related registers for the "Machine mode" are: 
+- `mstatus` - Status register containing interrupt enables for all previlege modes. 
+- `mcause` - Status register indicating if an exception or interrupt occured + code type.
+
+- `mie` - Interrupt enable register for local interrupts when using *CLINT*. While in 
+          *CLIC* mode this is set to 0 and enabling interrupt are handled in the memory 
+          mapped register `clicintie[i]`.
+
+- `mtvec` - Machine Trap Vector register that holds the base address of the interrupt
+            vector table, as well as the interrupt mode configuration as either 
+            *direct mode* or *vectored mode* for CLINT and CLIC controllers. 
+            All synchronous exceptions also use the `mtvec`. 
+
+- `mtvt` - Used only in *CLIC* modes of operation. It contains the base address of 
+           the interrupt vector table for selecting the vectored interrupt in CLIC
+           *direct mode*, and for all vectored interrupts in CLIC vectored mode. 
+
+##### Common Registers to both CLIC and CLINT
+- `msip` - Machine mode software interrupt pending register. 
+- `mtime` - Machine mode timer register, running at a constant frequency. 
+
+- `mtimecmp` - Memory mapped machine mode timer compare register, used to trigger 
+               an interrupt when `mtimecmp` is greater than or eqaul to `mtime`.
+
+#### Early Boot Setup `mtvec` Register
+Early in the boot flow sequence the `mtvec` register is required to be setup. 
+The interrupts are not fully configured early in the boot flow, but exception 
+handling is important to setup early. This is important in order to catch 
+anything that goes wrong early during the boot process. 
+This is referred to as setting up *trap vector*. 
+
+**NOTE**: A *trap* is referred to as the *synchronous transfer of control* 
+          to a *trap handler* caused by an exception condition occuring. 
+
+Example in assembly: 
+
+```asm
+la t0, early_trap_vector
+csrw mtvec, t0
+```
+
+Below is an early trap vector that does nothing. More sophisticated 
+trap handlers are often required, after the initial bootup is completed.
+That can be written in your programming language using inline assembly. 
+
+**NOTE**: Disable interrupts globally using `mstatus.mie` prior changing
+          the `mtvec` register. 
+```asm
+    .section .text.init.trapvec
+    .align 2
+early_trap_vector: 
+    .cfi startproc
+    csrr t0, mcause
+    csrr t1, mepc
+    csrr t2, mtval
+    j early_trap_vector
+    .cfi_endproc
+```
+
+#### Entry and Exit steps for Interrupt Handlers: 
+Whenever interrupt occurs, the hardware automatically save and restore 
+important registers. The following steps are conducted when an interrupt 
+handler is entered: 
+
+1. Save `pc` to `mepc`.
+2. Save *Previlege* level to `mstatus.mpp`.
+3. Save `mie` to `mstatus.mpie`.
+4. Set `pc` to interrupt handler address, based on mode of operation. 
+5. Disable interrupts by setting `mstatus.mie` = 0.
+
+After these 5 steps, the control is transfered over to the software 
+where the interrupt processing can begin. At the end of the interrupt 
+handler the `mret` instruction will perform the following: 
+
+1. Restore `mepc` to *pc*
+2. Restore `mstatus.mpp` to the current privilege level (Machine = 3, Supervisor = 1, User = 0).
+3. Restore `mstatus.mpie` to `mie`.
+
+In the `mcause` register the bit at [bit 31] or the MSB if [bit 31] = 1 then its an interrupt 
+else if [bit 31] = 0 then its an exception. While the lower bits show the `mcause.code`
+value, basically the type and what to do with it. 
+    
+- *mcause\_value* is given by the assembly: 
+```asm
+csrr t0, mcause
+```
+
+**Lower bits that shows MCAUSE code:**
+- MCAUSE\_CODE\_MASK: 0111\_1111\_1111\_1111\_1111\_1111\_1111\_1111 = 0x7FFFFFFF
+
+Where the MSB at the 31-bit is set to exception mode since [bit 31] = 0.
+Branching to the interrupt handler address function (callback) can be done by: 
+
+interrupt\_handler = mcause\_value & MCAUSE\_CODE\_MASK
+
+**IMPORTANT NOTE** - Using Vectored mode introduces a method to create a vector 
+table that hardware uses for *lower interrupt handling latency*. Compared to 
+the *direct mode* that handles it in software.
+
+#### Vector Mode Interrupts: 
+Whenever, an interrupt occurs in vectored mode, the *pc* will get assigned 
+by the hardware to the address of the vector table index corresponding to
+the interrupt ID. Next and from the vector table index, a jump will occur 
+to service the interrupt via the ISR. 
+
+The interrupt handler offset is calculated by: `mtvec.base + (mtvec.code * 4)`. 
+E.g., a software interrupt with ID = 3 would trap to the offset: `mtvec.base + 0xC`
+or as binary: `mtvec.base + 0b1100`. Since `mtvec.base + (3 * 4) → mtvec.base + 0xC`. 
+
+##### Core Local Interrupt Controller (CLIC)
+To configure CLIC as vectored mode we assign `mtvec.mode = 0x03`. Again 
+as in CLINT, an interrupt vector table is used for specific interrupts. 
+However, in CLIC vectored mode, the handler table contains the address
+of the interrupt handler instead of an opcode containing a jump instruction. 
+
+When an interrupt occurs in the CLIC vectored mode, the address of the handler 
+entry from the vector table is loaded and then jumped to in hardware. CLIC 
+vectored mode uses `mtvec` exclusively for exception handling, since the 
+`mtvt` is used to define the base address for all vectored interrupts. 
+
+**NOTE:** To access the `mtvt`sometimes you need to do it directly 
+using the CSR number = 0x307 instead of the `mtvt` keyword. E.g., 
+```asm
+csrr %0, 0x307 : "=r(mtvt_read_value)"
+```
+
+***SUMMRARY:***
+
+**NOTE:** When using `CLINT` vectored mode offset is given by: `mtvec + (4 * X)`
+
+**NOTE:** While `CLIC` vectored mode offset: `mtvt + (Interrupt ID * XLEN/8)`
+
+- Local Interrupts, Id: 16..X → `mtvec + (4 * X) ... mtvec + 0x40`
+- CLIC s/w Interrupt, ID: 12 → `mtvec + 0x30`.
+- External Interrupt, ID: 11 → `mtvec + 0x2C`,
+- Timer Interrupt, ID: 7 → `mtvec + 0x1C`,
+- Software Interrupt, ID: 3 → `mtvec + 0x0C`.
+
+**CLIC:**
+1. Vectored interrupts jumps directly to their vector table offset. 
+2. ISR, interrupt handler address is given by: `mtvt + (Interrupt ID * XLEN/8)`. 
+
+**Enabling Preemption in CLIC:** `mstatus.mie` (machine interrupt enable) 
+needs to be enabled (non zero) within the handler. Prior re-enabling 
+interrupts via `mstatus.mie`, first `mepc` and `mcause`must be saved 
+and restored before executing `mret` at the end of the handler. 
+
+**Registers within the CLIC:**
+- `cliccfg` - Memory mapped CLIC configuration register. E.g., setting 
+the mode to *direct mode* or *vectored mode*. 
+
+- `clicintcfg[i]` - Memory mapped CLIC interrupt configuration register. 
+This register sets the *pre-emption level* and *priority* of a given interrupt. 
+
+- `clicintie[i]` - Memory mapped CLIC interrupt *enable* register. 
+- `clicintip[i]` - Memory mapped CLIC interrupt *pending* register
+
+- `mtvt` - CSR which holds the Machine Trap Vector Table base address 
+for CLIC vectored interrupts. The `mtvt.base` require a minimum of 
+64-byte alignment. 
+
+- `mnxti` - CSR containing the *Machine Next Interrupt Handler* and *Interrupt-Enable*. 
+A read to this CSR returns the address of an entry in the vector table `mtvt`.
+
+- `mintstatus` - Read only CSR which holds the *Active Machine Mode Interrupt Level*. 
+
+In *CLIC Mode* the following CSRs changes is made: 
+- `mstatus.mpp` and `mstatus.mpie` are now accessible via fields in the `mcause` register.
+- `mie` and `mip` are hardwired to zero and replaced with `clicintie[i]` and `clicintip[i]`.
+- `mtvec` is replaced with `mtvt` register for CLIC modes, with CSR number for `mtvt` = 0x307.
+
+#### CLIC Pseudo Code to Setup Interrupt:
+
+1. Write to `mtvt` to configure the interrupt mode and base address for interrupt vector table.
+
+2. Enable interrupts via the memory mapped CLIC register space: `clicintie`
+
+3. Write to `clicintie[i]` to enable the software, timer and external interrupt enables for 
+each CLIC modes of operation. 
+
+4. Write `mstatus` to enable interrupts globaly for each supported privilege mode. 
+
+
+## Defining "weak" exported ISR handlers in Zig
+
+##### Define and setup ISRs (startup code):
+The first initial step conducted in the start/boot code related to ISRs. 
+Is to define *weak* default interrupt handles (ISRs). We are using a 
+*CLIC* as our interrupt controller. So first we need to enable and set 
+the the mode to *vectored mode*. During this mode, our CPU will jump to 
+addresses located at `mtvt + 4 * interrupt id`.
+
+By utilizing the `export` keyword in Zig, we create symbols that is 
+visable to the linker. In addition to using the `export`, we can also 
+set the exported symbol as `weak`. Meaning we can redefine the same 
+export declaration with a "non-weak" (strong) symbol. This allows us
+to override the weak symbol with the new stronger one. 
+
+##### Register the `mtvt` (vector table)
+```zig
+pub fn set_mtvt(addr: usize) void {
+    asm volatile ("csrw 0x307, a0" :: [a0] "{a0}" (addr));
+}
+```
+
+```zsh
+riscv32-esp-elf-nm -n edge_ai.elf | grep isr
+4001b2fc W ledc_isr
+4001b320 W systimer_target0_isr
+4001b338 W systimer_target1_isr
+4001b350 W gpio0_isr
+4001b368 W gpio1_isr
+4001b380 W flash_mspi_isr
+4001b398 W usb_device_isr
+4001b3b0 W usb_otg_isr
+4001b3c8 W core0_trace_isr
+4001b3e0 W assist_debug_isr
+```
+
+Where `W` = Weak symbol. 
+
+Checking its setup correctly: 
+
+```zsh
+riscv32-esp-elf-readelf -S edge_ai.elf
+llvm-readelf -S edge_ai.elf
+llvm-readelf -S edge_ai.elf | grep -E "Name|.text|.rodata|.srodata.cst4|.mtvt|.data|.bss|.heap|.stack"
+
+riscv32-esp-elf-objdump -D edge_ai.elf --start-address=0x4ff00000 | less
+llvm-objdump -D edge_ai.elf | grep -A150 "<app_main>*"
+
+riscv32-esp-elf-objdump -d firmware-app.elf | grep -A100 "<mtvt>*"
+riscv32-esp-elf-objdump -d edge_ai.elf | grep -A100 "<_startup_init>*"
+riscv32-esp-elf-objdump -d edge_ai.elf | grep -A100 "<systimer_target0>*"
+```
+
+-----------------
+
+
+
+
+
+
+

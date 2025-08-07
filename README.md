@@ -30,6 +30,9 @@ Next install by running the following commands:
 cd ~/esp/esp-idf
 ./install.sh esp32s3
 . $HOME/esp/esp-idf/export.sh
+sudo pacman -S esptool
+sudo pacman -S picocom
+sudo pacman -S riscv32-elf-binutils
 ```
 
 
@@ -48,7 +51,7 @@ from the ESP-IDF framework. Is explained below.
 Building, running, flashing the target: 
 
 ```zsh
- zig build run -- --<arg> <value> --<arg2>=<value2>
+zig build --summary all -- --target esp32p4
 ```
 
 ```zsh
@@ -57,12 +60,22 @@ Building, running, flashing the target:
 
 
 Flashing is internally done via `idf.py` command-line tool, which is a wrapper around the 
-`CMAKE` build system. 
+`CMAKE` build system. `idf.py` internally calls the python library `esptool`.
 <br>
 <br>
 After setting up the ESP-IDF environment and running the `export.sh`
 accessed by the following PATH: `$IDF_PATH/tools/idf.py`.
 We gain access to the python script `idf.py -p /dev/ttyACM0 flash monitor`. 
+
+**Flashing the Firmware**
+```zsh
+idf.py -p /dev/ttyACM0 flash monitor
+...
+python3 -m esptool -port /dev/ttyACM0 write_flash 0 ./zig-out/bin/$1.bin
+
+python -m esptool --chip esp32p4 -b 460800 --before default-reset --after hard-reset write-flash --flash-mode dio --flash-size 2MB --flash-freq 40m 0x2000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 ./zig-out/bin/$1.bin
+
+```
 
 ---
 

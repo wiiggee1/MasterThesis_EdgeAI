@@ -1,6 +1,7 @@
 .zig-cache/
 zig-out/
 /build 
+build_bak.zig
 /sdkconfig
 /sdkconfig.old
 /managed_components

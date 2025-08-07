@@ -85,15 +85,6 @@ pub const ToolchainConfig = struct {
     }
 };
 
-    // const JsonConfig = struct { 
-    //     TOOLCHAIN_VERSION: []const u8,  
-    //     SYSROOT_PATH: []const u8,
-    //     // COMPONENT_DIR: []const u8, 
-    //     COMPONENT_DIR: [][]const u8, 
-    //     COMMON_COMPONENT_REQS: [][]const u8,
-    //     COMMON_COMPONENT_REQS_PATH: [][]const u8,
-    // };
-
 
 /// Represent an ESP-IDF `Components`. It contains directory path 
 /// and associated include dirs, neccessary for including header
@@ -250,9 +241,8 @@ pub fn main() !void{
 
 
     // The below creates a child process to execute system commands. 
-    // ############################################### Creating a new Child process from posix `fork()`
     const cwd_process = try std.fs.cwd().realpathAlloc(allocator, ".");
-    std.log.debug("Process cwd: {s}\n", .{cwd_process});
+    // std.log.debug("Process cwd: {s}\n", .{cwd_process});
     if (std.mem.endsWith(u8, cwd_process[0..], "/scripts")){
         try std.process.changeCurDir("../");
     }
@@ -261,11 +251,13 @@ pub fn main() !void{
         const envmap_parent = try std.process.getEnvMap(allocator);
         if (envmap_parent.get("IDF_TOOLS_EXPORT_CMD") == null){
             std.log.warn("Need to run the export.sh script. Doing it Now...\n", .{});
+            // ######################## Creating a new Child process from posix `fork()`
             const cmd = &[_][]const u8{ "sh", "-c", "source $HOME/esp/esp-idf/export.sh && env" };
             const child_run = try std.process.Child.run(.{
                 .allocator = allocator, 
                 .argv = cmd,
             });
+            // ########################
             std.log.info("(cmd): {s}\n", .{child_run.stderr});
             std.log.info("COMPLETED - export.sh \n", .{});
             // std.log.info("(cmd): {s}\n", .{child_run.stdout});
@@ -310,7 +302,9 @@ pub fn main() !void{
         });
 
         //TODO: - Add build args and check if other command such as --flash, --size-components...
-        const set_target_cmd = &[_][]const u8{ "python3", python_idf_path, "set-target", config.target.?.getBoardName() };
+
+        const set_target_cmd = &[_][]const u8{ "python", python_idf_path, "set-target", config.target.?.getBoardName() };
+        // const set_target_cmd = &[_][]const u8{ "python3", python_idf_path, "set-target", config.target.?.getBoardName() };
 
         const runnable_cmds = [_][]const []const u8{
             toolchain_version_cmd,

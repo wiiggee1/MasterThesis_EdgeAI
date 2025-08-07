@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/CMakeFiles/bootloader
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/CMakeFiles/bootloader.rule
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/CMakeFiles/bootloader-complete.rule
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/wiiggee1/Desktop/Master_Thesis/MasterThesis_EdgeAI/espressif/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
