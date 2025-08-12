@@ -14,7 +14,7 @@ pub fn build(b: *std.Build) !void {
     // what target to build for. Here we do not override the defaults, which
     // means any target is allowed, and the default is native. Other options
     // for restricting supported target set are available.
-
+    
     const xtensa_target: ?std.Target.Query = xtensa:{
         if (std.mem.containsAtLeast(u8, buliltin.zig_version_string, 1, "xtensa")){
             const esp32s3_target = std.Target.Query{
@@ -176,6 +176,7 @@ pub fn build(b: *std.Build) !void {
     
     firmware.root_module.addImport("core", core_mod);
     firmware.setLinkerScript(b.path("config/linker.ld"));
+    // firmware.setLinkerScript(b.path("config/linker_fixed.ld"));
     // firmware.setVerboseLink(true); // Remove this for not getting these nasty error messages. 
     
 
@@ -280,6 +281,7 @@ pub fn build(b: *std.Build) !void {
         .target = b.graph.host,
         .root_source_file = b.path("scripts/run_commands.zig"),
     });
+
     const bin_obj = b.addRunArtifact(runnable_cmd);
     bin_obj.addArgs(&.{
         "--command", "riscv32-elf-objcopy",
@@ -290,12 +292,20 @@ pub fn build(b: *std.Build) !void {
     bin_obj.step.dependOn(&firmware.step);
     b.getInstallStep().dependOn(&bin_obj.step);
 
-    // const post_readelf = b.addExecutable(.{
-    //     .name = "ReadELF",
-    //     .target = b.graph.host,
-    //     .root_source_file = b.path("scripts/run_commands.zig"),
-    // });
-    //
+    // const bootloader = b.addInstallFile(b.path("config/bootloader/bootloader.bin"), "bin/bootloader.bin");
+    // bootloader.step.dependOn(&bin_obj.step);
+    // b.getInstallStep().dependOn(&bootloader.step);
+
+    const fetch_images = b.addSystemCommand(&[_][]const u8{
+        "./scripts/images.sh",
+        "--example",
+        example_name,
+    });
+
+    fetch_images.step.dependOn(&bin_obj.step);
+    b.getInstallStep().dependOn(&fetch_images.step);
+    
+
     const grep_filter = try std.fmt.allocPrintZ(
         b.allocator,
         "\"{s}\"", .{"Name|.text|.rodata|.srodata.cst4|.mtvt|.data|.bss|.heap|.stack"},
@@ -338,12 +348,14 @@ pub fn build(b: *std.Build) !void {
     const run_flash = b.step("flash", "Flashing Target: <example_name>");
     run_flash.dependOn(&run_flash_cmd.step);
 
-    // std.log.info("input file: {s}\n", .{input_file});
-    //
-    // readelf_run_artifact.step.dependOn(&bin_obj.step);
-    // // readelf_run_artifact.step.dependOn(&firmware.step);
-    // b.getInstallStep().dependOn(&readelf_run_artifact.step);
-     
+    const run_debugging_cmd = b.addSystemCommand(&[_][]const u8{
+        "riscv32-elf-gdb", 
+        "-q -x openocd.gdb",
+    });
+
+    run_debugging_cmd.step.dependOn(b.getInstallStep());
+    const run_debugger = b.step("debug", "Debugging the Flashed program using riscv32-elf-gdb");
+    run_debugger.dependOn(&run_debugging_cmd.step);
 
     // This *creates* a Run step in the build graph, to be executed when another
     // step is evaluated that depends on it. The next line below will establish

@@ -18,3 +18,5 @@ compile_commands.json
 main/src/c_wrapper.zig
 dependencies.lock
 scripts/pre_setup.sh
+src/clic_vectors.S
+config/linker_copy.ld

@@ -33,6 +33,7 @@ cd ~/esp/esp-idf
 sudo pacman -S esptool
 sudo pacman -S picocom
 sudo pacman -S riscv32-elf-binutils
+sudo pacman -S riscv32-elf-gdb
 ```
 
 

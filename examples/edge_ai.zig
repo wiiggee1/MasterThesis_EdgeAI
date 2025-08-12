@@ -1,7 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
 const core = @import("core");
-// const model = core.model;
 const startup = core.startup;
 const ISR = startup.ISR; 
 const INTERRUPT = startup.INTERRUPT;
@@ -15,6 +14,18 @@ pub const std_options = std.Options{
     .logFn = core.loggerFn,
 };
 
+/// Testing some .rodata 
+pub const dummy_str_rodata = "hello_rodata!";
+pub const dummy_rodata: [4]u8 linksection(".rodata") = .{ 1, 2, 3, 4 };
+
+extern fn ets_printf(fmt: [*:0]const u8, ...) callconv(.C) void;
+extern fn ets_install_uart_printf() callconv(.C) void;
+extern fn ets_install_usb_printf() callconv(.C) void;
+extern fn ets_delay_us(us: u32) callconv(.C) void;
+extern fn rtc_get_reset_reason() callconv(.C) u32;
+extern fn Uart_Init() callconv(.C) void;
+extern fn software_reset() callconv(.C) noreturn;
+
 extern var _mtvt_table: [48]ISR;
 
 export fn systimer_target0_isr() callconv(INTERRUPT) noreturn {
@@ -23,9 +34,10 @@ export fn systimer_target0_isr() callconv(INTERRUPT) noreturn {
     var dummy_state: struct{a: usize, b: usize} = undefined;
     dummy_state.a = 0x1;
     dummy_state.b = 0x2;
-    @breakpoint();
+    // @breakpoint();
     asm volatile ("mret" ::: "memory");
-    @trap();
+    while (true) {}
+    // @trap();
 
 }
 // export fn my_custom_isr_handler() callconv(.C) void {
@@ -44,7 +56,8 @@ export fn systimer_target0_isr() callconv(INTERRUPT) noreturn {
 /// -----------------------------------------------------------
 export fn app_main() callconv(.C) void {
     //Run embedded firmware below:
-    
+    const rodata = dummy_str_rodata;  
+    _ = &rodata; 
     const dummy_input_rowmajor = [3][2]f16{
         .{ 1.0, 4.0 },
         .{ 2.0, 5.0 },
@@ -52,12 +65,16 @@ export fn app_main() callconv(.C) void {
     };
     _ = dummy_input_rowmajor; 
 
-    // const matrix = model.Matrix(f16, 3, 2).create(dummy_input_rowmajor);
+    ets_install_usb_printf();
+    ets_printf("Hi from ROMMMMMMMMMM\r\n");
+
     const abc: usize = 0; 
     _ = &abc; 
-    
+
     while (true) {
-       asm volatile ("wfi");
+        ets_delay_us(500_000);
+        ets_printf("...\r\n");
+        // asm volatile ("wfi");
     }
 
 }
