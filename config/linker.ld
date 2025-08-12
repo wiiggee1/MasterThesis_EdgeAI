@@ -1,46 +1,78 @@
-/* Default entry point: */
-/* ENTRY(call_start_cpu0);*/
 OUTPUT_ARCH(riscv)
 ENTRY(_start) /* The ENTRY(_start) sets the program entry point - the reset handler.*/
  
-/* Internal Memory on SOC RAM: 
-       HP ROM (128 KB): Read-only memory dedicated to the HP system and is not programable. 
-       HP L2MEM (768 KB): Volatile memory accessible by the HP CPU, LP CPU or DMA peripherals. 
-       LP ROM (16 KB): Read-only, memory, containing code for booting the LP CPU. 
-       LP SRAM (32 KB): Volatile memory accessible by both HP CPU and LP CPU.
-       HP SPM (8 KB): Volatile Memory accessed by the HP CPU, takes two cycles to finish. 
-                   | → 128 KB HP ROM (0x4FC0_0000 ~ 0x4FC1_FFFF)          | 
-                   | → 768 KB HP L2MEM (0x4FF0_0000 ~ 0x4FFB_FFFF)        |
-                   | → 64 MB external flash (0x4000_0000 ~ 0x43FF_FFFF)   | 
-                   | → 64 MB external RAM (0x4800_0000 ~ 0x4BFF_FFFF)     | 
+/* ASSERT(bootloader_iram_loader_seg_start == 0x4FF2CBD0, "bootloader_iram_loader_seg_start inconsistent with SRAM_DRAM_END"); */
 
-External Memory: 
-        FLASH address space:  0x4000_0000 ~ 0x43FF_FFF (Cached flash) & 0x8000_0000 ~ 0x83FF_FFF (non cache, slower).
-        RAM address space:  0x4800_0000 ~ 0x4BFF_FFF (Cached RAM) &  0x8800_0000 ~ 0x8BFF_FFF (non cached, RAM).
-*/
-    
-    /* The code and read-only data goes into the IRAM - Instruction RAM:
-     
-     IROM (Code Executed from flash) 
-        → Most of the application's binary code is placed here, since IRAM is limited. 
-     ...During Application Startup the bootloader (which runs from IRAM) configures 
-        the MMU flash cache to map the app's instruction code region to the instruction space. 
+/* This is the Memory Configuration from the `bootloader.map`:  
+ * Memory Configuration
+ * Name             Origin             Length             Attributes
+ * iram_seg         0x4ff2abd0         0x00002000         xrw
+ * iram_loader_seg  0x4ff2cbd0         0x00007000         xrw
+ * dram_seg         0x4ff33bd0         0x00005000         rw
+ * *default*        0x00000000         0xffffffff
+ *
+ * */
 
-    DROM (Data Stored in flash)
-        → Same as IROM section, but is for read-only data not executable code. */
+/* Memory regions and lengths from bootloader map */
+bootloader_usable_dram_end = 0x4ff3abd0;
+bootloader_stack_overhead = 0x2000;    /* Safety margin for stacks */
+bootloader_dram_seg_len = 0x5000;
+bootloader_iram_loader_seg_len = 0x7000;
+bootloader_iram_seg_len = 0x2000;
+
+/* Calculate segment start/end addresses */
+bootloader_dram_seg_end = bootloader_usable_dram_end - bootloader_stack_overhead;
+bootloader_dram_seg_start = bootloader_dram_seg_end - bootloader_dram_seg_len;
+bootloader_iram_loader_seg_start = bootloader_dram_seg_start - bootloader_iram_loader_seg_len;
+bootloader_iram_seg_start = bootloader_iram_loader_seg_start - bootloader_iram_seg_len;
+
+ASSERT(bootloader_iram_loader_seg_start == 0x4FF2CBD0, "bootloader_iram_loader_seg_start inconsistent");
+
+sram_low_start = 0x4FF00000;
+sram_low_end = 0x4FF2CBD0; /* 2nd stage bootloader iram_loader_seg start address. See above! */
+sram_low_size = sram_low_end - sram_low_start; 
+
+CONFIG_CACHE_L2_CACHE_SIZE = 0x20000; /* L2 Cache Size: 128KB or 0x20000 */
+sram_high_start = 0x4FF40000;
+sram_high_size = 0x80000 - CONFIG_CACHE_L2_CACHE_SIZE;
+sram_high_end = sram_high_start + sram_high_size;
+
+CONFIG_MMU_PAGE_SIZE = 0x10000;
+
+lp_rom_dram_start = 0x5010fa80; 
+lp_ram_end = 0x50110000;
+lp_rom_dram_size = lp_ram_end - lp_rom_dram_start;
+
+/* Boot sequence: ROM bootloader reads 4KB → 0x1000 at SPI flash at 0x00000000 → ...
+ * ... → Reads the Bootloader image header → ...
+ * ... → Reads the main application image header from the offset defined in the partition table (0x10000) → ...
+ * ... → Bootloader reads the Main application image header and copy segments to their addresses
+ * e.g., 0x40000020 for IRAM and so on... → Final jumps to the entry point. 
+ * */
+
+/* ---------- Memory map (ESP32-P4) ---------- */
+/* XIP flash VA window is 0x4000_0000..0x43FF_FFFF.
+   ROM/bootloader expect XIP sections to start at 0x40000020 (IROM).
+   When using a *separate* DROM VMA, place it at 0x40020020 so it lands
+   in a different 64 KiB MMU window than IROM(0x40000020). */
+
 MEMORY
 {
-    /* IDROM_SEG_SIZE (CONFIG_MMU_PAGE_SIZE << 10) = 64 MB */
+    /* TCM */
+    TCM_RAM (rx) : ORIGIN = 0x30100000, LENGTH = 0x2000
 
-    FLASH (rx) : ORIGIN = 0x40000020, LENGTH = 4M /* 4 MB Flash 
-    /* FLASH (rx) : ORIGIN = 0x40000020, LENGTH = 0x1000000 - 0x20   */
-    /* irom_seg (RX) :  org = 0x40000020, len = IDROM_SEG_SIZE - 0x20 */
+    /* FLASH or IROM segment - flashed mapped instruction data 
+     * XIP flash (code) VMA = LMA for XIP sections placed "> IROM".*/ 
 
-    /* IROM (rx) : ORIGIN = 0x40000020, LENGTH = 0x1000000 - 0x20 */
-    /* DROM (r) :  ORIGIN = 0x41000020, LENGTH = 0x1000000 - 0x20 */
+    IROM (rx) : ORIGIN = 0x40000020, LENGTH = 0x4000000 - 0x20 /* 0x4000000 - 0x20 = 0x03FFFFE0 
+    /* FLASH (rx) : ORIGIN = 0x40000020, LENGTH = 0x4000000 - 0x20 /* 0x4000000 - 0x20 = 0x03FFFFE0  */
+ 
+    /* Flash mapped constant data. 
+      XIP flash (const). Uses a different VA window to avoid overlapping. */
+    DROM (r) :  ORIGIN = 0x40020020, LENGTH = 0x4000000 - 0x20
 
     /* 768 KB of on SOC RAM, HP L2MEM (0x4FF0_0000 ~ 0x4FFB_FFFF)
-       Used for stack, .bss , .data, (heap), interrupt vector tables. 
+    * Main Image Entry point: 0x4ff003fe, where 0x3FE = 1022 should be 1024
     */
     SRAM_LOW (rwx) : ORIGIN = 0x4FF00000, LENGTH = 0x0002CBD0 /* .data, .bss, .heap */
     SRAM_HIGH (rw) : ORIGIN = 0x4FF40000, LENGTH = 0x00060000 /* stack */
@@ -53,117 +85,210 @@ MEMORY
 /* PROVIDE - define a symbol only if it is referenced and is not defined by any object included in the link */
 
 /*  The `.` syntax is the linker location counter (i.e., current memory address being filled).*/
+
 PROVIDE(_max_hart_id = 0);
 PROVIDE(_stack_top = ORIGIN(SRAM_HIGH) + LENGTH(SRAM_HIGH)); /* stack start */
 PROVIDE(_stack_size = 0x4000);
 PROVIDE(_stack_bottom = _stack_top - _stack_size);
 
-PROVIDE(_stext = ORIGIN(FLASH));
-/* PROVIDE(_stext = ORIGIN(IROM)); */
+/* This is where the code (.text) in flash starts. */
+PROVIDE(_stext = ORIGIN(IROM));
+
 /* PROVIDE(_text_end = ...) */
-
-/* PROVIDE(_interrupt_handler = ...); */
-/* PROVIDE(_panic_handler = ...); */
-
 /* PROVIDE(_dram0_size = ...); */
 /* PROVIDE(_dram0_end = ...); */
 
 PROVIDE(_bss_size = _bss_end - _bss_start);
 PROVIDE(_bss_end = ADDR(.bss) + SIZEOF(.bss));
 
+/* ROM console & helpers */
+PROVIDE(ets_printf                 = 0x4fc00024);
+PROVIDE(ets_install_uart_printf    = 0x4fc00030);
+PROVIDE(ets_install_usb_printf     = 0x4fc00034);
+PROVIDE(ets_delay_us               = 0x4fc0003c);
+PROVIDE(rtc_get_reset_reason       = 0x4fc00018);
+
+PROVIDE(software_reset             = 0x4fc00094);
+PROVIDE(software_reset_cpu         = 0x4fc00098);
+
+/* Optional UART bring-up from ROM */
+PROVIDE(Uart_Init                  = 0x4fc000c0);
+
 SECTIONS
 {
-    /* . = ABSOLUTE(_stext); */
-    /* _start = ABSOLUTE(.);  */
 
-    .text : ALIGN(4){
-        /* Beginning of RAM, and where the PC starts when it exits the reset */
+    /* =======================================================
+     RUN IN RAM (VMA in SRAM), BYTES STORED IN FLASH (LMA)
+     =======================================================
+     For sections that must *run from RAM* (IRAM code, .data),
+     we give them a RAM VMA ("> SRAM_LOW") and a FLASH LMA.
+     Using “AT > IROM” packs their bytes *after* .flash.text
+     in the IROM load, which keeps the image compact and yields
+     two flash segments total: one IROM (code+copy data) and one
+     DROM (rodata XIP).
+  */
+
+    . = ORIGIN(IROM);
+
+    /* .flash.text _stext : ALIGN(4) { */
+
+    .flash.text : ALIGN(4) {
+        _stext = .;
         _instruction_reserved_start = ABSOLUTE(.);
+
+        /* Beginning of RAM, and where the PC starts when it exits the reset */
         _text_start = ABSOLUTE(.); /* start of .text segment */
 
-        PROVIDE(_start = _text_start);
-        KEEP(*(.text.entry)) /* Our Startup Code */
-        KEEP(*(.text.startup))
+        /* PROVIDE(_start = _text_start); */
 
         *(.text) *(.text.*) /* Place Normal code, our main app here in .text section */
+        KEEP(*(.text.app_main))
         *(.gnu.linkonce.t.*)
+
+        . = ALIGN(16);
+
         _text_end = ABSOLUTE(.); /* end of .text segment */
-    } > FLASH
-    /* } > IROM */
+        _instruction_reserved_end = .;
+        _etext = .;
+        _flash_cache_start = ABSOLUTE(0);
+    } > IROM /* VMA in IROM Flash at 0x40000020... */
+  
+    ASSERT(ADDR(.flash.text) == ORIGIN(IROM), "flash.text must start at 0x40000020")
 
-    .iram0.mtvt : ALIGN(0x40) {
-        _iram_start = ABSOLUTE(.);
-        /* PROVIDE(_iram_start = _iram_start); */
-        /* . = ALIGN(64); */
-        ASSERT(ABSOLUTE(.) % 0x40 == 0, "vector address must be 64 byte aligned");
-        PROVIDE(_vector_table = .); /* This would set the external var to the start address */ 
-        /* *(.iram0.mtvt) */
-        KEEP(*(.iram0.mtvt)) /* This is the vector table containing the ISR callback functions. */ 
-
-        /* . = ALIGN(X);                  */
-        /* SYMBOL = ABSOLUTE(.); */
-
-        PROVIDE(_iram_end = .);
-        . = ALIGN(8); /* Advance the location counter */
-    } > SRAM_LOW 
+    _flash_text_end = .;
+    /* . = ORIGIN(IROM); */
 
     
-    .rodata : ALIGN(0x10){
+    /* CONFIG_MMU_PAGE_SIZE=0x10000 */
+    /* CONFIG_BOOTLOADER_OFFSET_IN_FLASH=0x2000 */
+
+    . = ORIGIN(DROM);
+
+    .flash.appdesc : ALIGN(0x10) { 
+    /**
+     * Mark flash.rodata start.
+     * This can be used for mmu driver to maintain virtual address
+     */
+    _rodata_reserved_start = ABSOLUTE(.);
+    _rodata_start = ABSOLUTE(.);
+
+    /* !DO NOT PUT ANYTHING BEFORE THIS! */
+
+    /* Should be the first.  App version info. */
+    *(.rodata_desc .rodata_desc.*)
+    /* Should be the second. Custom app version info. */
+    *(.rodata_custom_desc .rodata_custom_desc.*)
+
+    . += 0x100; /* 256 - Make it non empty! */
+
+    /**
+     * Create an empty gap within this section. Thanks to this, the end of this
+     * section will match .flash.rodata's begin address. Thus, both sections
+     * will be merged when creating the final bin image.
+     */
+    . = ALIGN(ALIGNOF(.flash.rodata));
+    /* . = ALIGN(16); */
+    } > DROM
+    
+    ASSERT(ADDR(.flash.appdesc) == 0x40020020, "appdesc must start at 0x40020020")
+
+    /* . = ORIGIN(DROM); */
+
+    /* Rounds up to the next block of 64KiB (MMU sisze) and add 0x20 */
+    _flash_rodata_lma = ((ADDR(.flash.text) + SIZEOF(.flash.text) + 0xFFFF) & ~0xFFFF) + 0x20;
+
+    /* . = ORIGIN(FLASH) */
+    /*     + SIZEOF(.image_header) */
+    /*     + SIZEOF(.iram0.text) */
+    /*     + SIZEOF(.flash.text); */
+    /**/
+    
+    /* .flash.rodata: const data; runs from 0x40020020 (DROM) */
+    .flash.rodata : ALIGN(0x10)  {
+        /* . = ALIGN(16); */
         _rodata_start = ABSOLUTE(.);
         PROVIDE(_drom_start = _rodata_start);
-        /* Should be the second. Custom app version info. */
-        /* *(.rodata_startup_info .rodata_startup_info.*) */
-        *(.rodata .rodata.*) /* .text section of the IROM (FLASH) */
-            
-        *(.srodata .srodata.* .sdata2 .sdata2.*)
-        *(.gnu.linkonce.r.*)
+        
+        /* . = ALIGN(ALIGNOF(.flash.text)) + SIZEOF(.flash.text) */
 
-        *(.rela.data .rela.data.*) 
-        *(.rela.gnu.linkonce.r.*)
+        *(.irom1.text) /* catch strays */
+        *(.gnu.linkonce.r.*)
+        *(.rodata .rodata.* .rodata1) /* .text section of the IROM (FLASH) */
+            
+        /* *(.srodata .srodata.* .sdata2 .sdata2.*) */
+        *(.gcc_except_table .gcc_except_table.*)
+        *(.gnu.linkonce.e.*)
+
+        /* *(.literal .literal.* .stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*) */
 
         _rodata_end = ABSOLUTE(.);
-    } > FLASH
-    /* } > DROM */
+    } > DROM
+    /* } > DROM AT > IROM */
 
-    _drom_size = . - _drom_start;
+    . = ORIGIN(SRAM_LOW);
+    .iram0.text : ALIGN(0x40) {
+        /* Ensure 64-byte alignment for vector table as required by hardware */
+        . = ALIGN(0x40); /* Run address (VMA) in SRAM_LOW */
+        _iram_start = ABSOLUTE(.);
+
+        ASSERT(ABSOLUTE(.) % 0x40 == 0, "vector address must be 64 byte aligned");
+        PROVIDE(_vector_table = .); /* This would set the external var to the start address */ 
+
+        KEEP(*(.iram0.vectors))
+        KEEP(*(.iram0.mtvt)) /* This is the vector table containing the ISR callback functions. */ 
+        KEEP(*(.iram0.isr_handler))
+
+        /* Here is code that should be running in the IRAM so it needs to be aligned by 4. */
+        . = ALIGN(4);                 
+        _iram_text_start = ABSOLUTE(.);
+        
+        KEEP(*(.iram0.entry)) /* Entry point symbol points here - Startup Code */
+        KEEP(*(.iram0.startup))
+        KEEP(*(.iram0.isr*))
+
+        PROVIDE(_iram_end = .);
+    } > SRAM_LOW AT > IROM
+    
+    /* } > SRAM_LOW AT > IROM /* SRAM_LOW is the VMA and IROM the LMA */ 
+    PROVIDE(_iram0_lma = LOADADDR(.iram0.text));
+    /* _iram_text_end = . - _iram_start; */
 
     /* RAM sections (64 Mb external RAM, 768 KB L2-MEM, 32 KB LP SRAM): */
+    /* .dram0 represent the lower part of the ram, e.g., .dram0.data → SRAM_LOW and .dram1.data → SRAM_HIGH */
     .data : ALIGN(8){
-        . = ALIGN(8);                 
         _dram0_start = ABSOLUTE(.); /* beginning of .data or RAM segment here */
-
-        *(.data*) *(.data.*)
         *(.gnu.linkonce.d.*)
-        /* PROVIDE(__global_pointer$ = . + 0x800); /* Linker relaxation */ */
-        *(.sdata*) *(.sdata.*)
+        *(.data*)
+        *(.data.*)
+        *(.data1)
+        /* *(.data*) *(.data.*) */
+        PROVIDE(__global_pointer$ = . + 0x800); /* Linker relaxation */
+        *(.sdata) *(.sdata.*)
         *(.gnu.linkonce.s.*)
-
         _dram0_end = ABSOLUTE(.); /* end of data or RAM segment here */
-    } > SRAM_LOW AT > FLASH /* the .data segment should start directly after the .text section in FLASH (ROM) */
-    /* } > SRAM_LOW AT > DROM /* the .data segment should start directly after the .text section in FLASH (ROM) */ 
+    } > SRAM_LOW AT > IROM /* the .data segment should start directly after the .text section in FLASH (ROM) */
+
+    /* Appending a section to a memory region:  
+     * > SRAM_LOW is the VMA, while > DROM is the LMA 
+     * This is the same as defining at the top as: 
+     * .data ORIGIN(ram) : AT(ORIGIN(DROM)) 
+     * Which use the format as .section <VMA> : AT(<LMA>)
+     * */
 
     /* Uninitialized data is set to 0 when <RESET> by our _startup code */
-    .bss (NOLOAD) : {
+    .bss (NOLOAD) : ALIGN(16) {
         . = ALIGN(16);                 
         _bss_start = ABSOLUTE(.); /* beginning of RAM .bss section */
-        *(.bss*)
+        *(.bss) *(.bss*)
         *(.sbss*)
-        /* *(.gnu.linkonce.sb.*) */
-        /* *(.gnu.linkonce.b.*) */
-        /* *(COMMON) */
+        *(COMMON)
         PROVIDE(_bss_end = .);
     } > SRAM_LOW
 
     /* Recall that the stack grows downwards, from higher address towards lower addresses 
         The stack uses decreasing addresses as new functions are called. */
 
-    .stack (NOLOAD) : {
-        PROVIDE(_stack_top = .); /* Represent the top of the stack (Lower address value) */
-        . += _stack_size; /* the stack size is reserved below the _sp (stack pointer) */  
-        PROVIDE(_stack_bottom = .); /* Represent the bottom of the stack (High address value) */
-    } > SRAM_HIGH
 
-    
     /* Heap ends at top of dram0_0_seg */
     .heap (NOLOAD) : {
         . = ALIGN(16);
@@ -172,40 +297,31 @@ SECTIONS
         _end_heap = .;
          /* PROVIDE(_heap_size = _end_heap - _start_heap); */
     } > SRAM_LOW
+      
+    .stack (NOLOAD) : {
+        PROVIDE(_stack_top = .); /* Represent the top of the stack (Lower address value) */
+        . += _stack_size; /* the stack size is reserved below the _sp (stack pointer) */  
+        PROVIDE(_stack_bottom = .); /* Represent the bottom of the stack (High address value) */
+    } > SRAM_HIGH
+
+    PROVIDE (end = . );
+    PROVIDE (_end = . );
 
     PROVIDE(_data_start = LOADADDR(.data));
-    PROVIDE(__global_pointer$ = _dram0_start + 0x800); /* Linker relaxation */
+    PROVIDE(_iram0_lma  = LOADADDR(.iram0.text));
 
-    PROVIDE(_end_of_heap = (ORIGIN(SRAM_HIGH) + LENGTH(SRAM_HIGH)) - _stack_size);
+    PROVIDE(_end_heap = (ORIGIN(SRAM_HIGH) + LENGTH(SRAM_HIGH)) - _stack_size);
     PROVIDE(_start_heap = _data_start + (_bss_end - _dram0_start));
-
-    PROVIDE(_end_heap = _end_of_heap);
     PROVIDE(_heap_size = _end_heap - _start_heap);
+
+    ASSERT(SIZEOF(.flash.text) <= (LENGTH(IROM) - 0x20), "FLASH IROM Overflow (.flash.text)!")
+    ASSERT(SIZEOF(.flash.rodata) <= (LENGTH(DROM) - 0x20), "FLASH DROM Overflow (.flash.rodata)!")
+    
+    /* rodata must begin IMMEDIATELY after appdesc (no gap) */
+    ASSERT(ADDR(.flash.rodata) == ADDR(.flash.appdesc) + SIZEOF(.flash.appdesc),
+       "The gap and .flash.rodata must begin IMMEDIATELY after .flash.appdesc the final bin image.")
+
+
 }
-
-    /* #define ALIGNED_SYMBOL(X, SYMBOL)   \ */
-    /* \n    . = ALIGN(X);                 \ */
-    /* \n    SYMBOL = ABSOLUTE(.); */
-
-  /* [Nr] Name              Type            Address  Off    Size   ES Flg Lk Inf Al */
-  /* [ 8] .iram0.text       PROGBITS        4ff00000 046000 00e2ea 00  AX  0   0 64 */
-  /* [ 9] .iram0.text_end   NOBITS          4ff0e2ea 0542ea 000016 00  WA  0   0  1 */
-  /* [10] .iram0.data       PROGBITS        4ff0e300 057000 000000 00   W  0   0  1 */
-  /* [11] .iram0.bss        PROGBITS        4ff0e300 057000 000000 00   W  0   0  1 */
-  /* [12] .dram0.data       PROGBITS        4ff0e300 054300 001d91 00  WA  0   0  8 */
-  /* [13] .dram1.data       PROGBITS        4ff40000 057000 000000 00  WA  0   0  8 */
-  /* [14] .noinit           NOBITS          4ff10091 056091 000003 00  WA  0   0  1 */
-  /* [15] .flash.text       PROGBITS        40000020 002020 018d50 00  AX  0   0  2 */
-  /* [16] .flash_rodata_dummy NOBITS        40000020 01b020 020000 00  WA  0   0  1 */
-  /* [17] .flash.appdesc    PROGBITS        40020020 03b020 000100 00   A  0   0 16 */
-  /* [18] .flash.rodata     PROGBITS        40020120 03b120 009e34 00   A  0   0 16 */
-  /* [19] .flash.init_array INIT_ARRAY      40029f54 044f54 0000ec 04  WA  0   0  4 */
-  /* [20] .eh_frame_hdr     PROGBITS        4002a040 057000 000000 00   W  0   0  1 */
-  /* [21] .eh_frame         PROGBITS        4002a040 057000 000000 00   W  0   0  1 */
-  /* [22] .flash.tdata      PROGBITS        4002a040 057000 000000 00   W  0   0  1 */
-  /* [23] .dram0.bss        NOBITS          4ff100a0 056091 00173c 00  WA  0   0 16 */
-  /* [24] .dram1.bss        NOBITS          4ff40000 057000 000000 00  WA  0   0 16 */
-  /* [25] .dram0.heap_start_low NOBITS      4ff117dc 056091 000004 00  WA  0   0  1 */
-  /* [26] .dram1.heap_start_high PROGBITS   4ff40000 057000 000000 00   W  0   0  1 */
 
 
