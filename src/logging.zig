@@ -1,8 +1,42 @@
 const std = @import("std");
+const Peripheral = @import("peripherals.zig").Peripheral;
+const Register = @import("peripherals.zig").Register;
 
-pub fn EmbeddedWriter(comptime BUFSIZE: usize) type {
+
+// const UART0_BASE = 0x60000000;       // AHB peripheral base for UART0
+// const UART_FIFO_OFFSET = 0x0;        // UART_FIFO register (write one byte)
+// const UART_STATUS_OFFSET = 0x18;     // UART_STATUS register (bits[16:8] TX FIFO count)
+
+pub const UART0: *volatile u32 = @ptrFromInt(0x500ca000);
+pub const USB_DEVICE: *volatile u32 = @ptrFromInt(0x500d2000);
+
+fn usb_jtag_write(byte: u8) void {
+    // const fifo_tx: *volatile u32 = @ptrFromInt(UART0_BASE + UART_FIFO_OFFSET);
+    // const status: *volatile u32 = @ptrFromInt(UART0_BASE + 0x18);
+
+    // A write to this register pushes the written data into the CDC TX FIFO.
+    const EP1_DATA = 0x0000; 
+    const EP1_CONF_REG_OFFSET = 0x0004;
+    // const usb_jtag = Peripheral.SYSTIMER.
+
+   
+    // 1) Wait until TX FIFO has space
+    while (Peripheral.USB_JTAG.isBitSet(EP1_CONF_REG_OFFSET, 0)) {}
+
+    Peripheral.USB_JTAG.write_register(EP1_DATA, byte);
+
+    // We modify and set the bit index 0, to indicate we placed 
+    // a byte into the tx fifo buffer. It is automatically cleared
+    // once the host reads data from the fifo. 
+    const WRITE_DONE = 0;  
+    Peripheral.USB_JTAG.set_register(0x0004, WRITE_DONE);
+}
+
+pub fn EmbeddedWriter(comptime TXSIZE: usize, comptime RXSIZE: usize) type {
     return struct {
-        buf: [BUFSIZE]u8, 
+        pub const tx_size = TXSIZE; 
+        pub const rx_size = RXSIZE;
+        buf: [TXSIZE+RXSIZE]u8, 
         rx: []u8,
         tx: []u8,
         const Self = @This();
@@ -20,7 +54,9 @@ pub fn EmbeddedWriter(comptime BUFSIZE: usize) type {
         /// Here goes the logic for the embedded io `writefn`. 
         /// It can either use UART or JTAG logging. 
         fn writefn(_: void, bytes: []const u8) EmbeddedWriterError!usize{
-            _ = bytes;
+            for (bytes) |char| {
+                usb_jtag_write(char);
+            }
         }
 
     };

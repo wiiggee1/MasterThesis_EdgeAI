@@ -8,11 +8,12 @@ pub const INTERRUPT: std.builtin.CallingConvention = if (builtin.cpu.arch == .ri
 // symbol of the same name with strong linkage. Often used 
 // in default handlers that can be replaced by the user.
 comptime {
-    @export(&default_interrupt_handler, .{ .name = "default_interrupt_handler", .linkage = .weak });
-    @export(&default_panic_handler, .{.name = "default_panic_handler", .linkage = .weak });
+
+    @export(&default_interrupt_handler, .{ .name = "_interrupt_handler", .linkage = .weak,  });
+    @export(&default_panic_handler, .{.name = "_panic_handler", .linkage = .weak, });
 }
 
-pub const ISRHandlers = struct {
+pub const ISRHandlers  = struct {
     // pub fn soc_panic_handler() callconv(.C) void {default_panic_handler();}
     // pub fn uart0_isr() callconv(.C) void {default_interrupt_handler();}
     // pub fn ledc_isr() callconv(.C) void {default_interrupt_handler();}
@@ -26,23 +27,23 @@ pub const ISRHandlers = struct {
     // pub fn core0_trace_isr() callconv(.C) void {default_interrupt_handler();}
     // pub fn assist_debug_isr() callconv(.C) void {default_interrupt_handler();}
 
-    pub fn soc_panic_handler() callconv(INTERRUPT) noreturn {default_panic();}
-    pub fn uart0_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn ledc_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn systimer_target0_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn systimer_target1_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn gpio0_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn gpio1_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn flash_mspi_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn usb_device_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn usb_otg_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn core0_trace_isr() callconv(INTERRUPT) noreturn {default_handler();}
-    pub fn assist_debug_isr() callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn soc_panic_handler() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_panic();}
+    pub fn uart0_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn ledc_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn systimer_target0_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn systimer_target1_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn gpio0_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn gpio1_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn flash_mspi_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn usb_device_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn usb_otg_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn core0_trace_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
+    pub fn assist_debug_isr() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn {default_handler();}
 };
 
 
 pub fn getInterruptHandlerSymbols() void {
-    @export(&ISRHandlers.soc_panic_handler, .{.name = "soc_panic_handler", .linkage = .weak });
+    @export(&ISRHandlers.soc_panic_handler, .{.name = "soc_panic_handler", .linkage = .weak});
     @export(&ISRHandlers.ledc_isr, .{.name = "ledc_isr", .linkage = .weak });
     @export(&ISRHandlers.systimer_target0_isr, .{.name = "systimer_target0_isr", .linkage = .weak });
     @export(&ISRHandlers.systimer_target1_isr, .{.name = "systimer_target1_isr", .linkage = .weak });
@@ -55,20 +56,20 @@ pub fn getInterruptHandlerSymbols() void {
     @export(&ISRHandlers.assist_debug_isr, .{.name = "assist_debug_isr", .linkage = .weak });
 }
 
-fn default_handler() noreturn {
-    // while (true) {}
-    asm volatile ("mret");
+fn default_handler() linksection(".iram0.isr_handler") noreturn {
+    // asm volatile ("mret");
+    while (true) {}
     if (builtin.mode == .Debug) @breakpoint();
-    @trap();
+    // @trap();
 }
 
-fn default_panic() noreturn {
+fn default_panic() linksection(".iram0.isr_handler") noreturn {
     @branchHint(.cold);
 
     @breakpoint(); 
-    asm volatile ("mret");
-    // while (true) {}
-    @trap(); 
+    // asm volatile ("mret");
+    while (true) {}
+    // @trap(); 
 }
 
 /// Interrupt Calling Convention uses a special interrupt-safe ABI, 
@@ -80,11 +81,12 @@ fn default_panic() noreturn {
 ///     Applying attribute will save and restore additional registers 
 /// that are used within the handler, and add an mret instruction 
 /// at the end of the handler
-fn default_interrupt_handler() callconv(INTERRUPT) noreturn{
+fn default_interrupt_handler() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn{
     default_handler();
     // asm volatile ("mret");
+    // KEEP(*(.iram0.isr_handler))
 }
-fn default_panic_handler() callconv(INTERRUPT) noreturn{
+fn default_panic_handler() linksection(".iram0.isr_handler") callconv(INTERRUPT) noreturn{
     default_panic();
     // asm volatile ("mret");
 }
@@ -98,6 +100,9 @@ fn default_panic_handler() callconv(INTERRUPT) noreturn{
 /// define a new global symbol visable to the linker. 
 extern fn app_main() callconv(.C) void; 
 
+// KEEP(*(.iram0.entry)) /* Entry point symbol points here - Startup Code */
+// KEEP(*(.iram0.startup))
+// KEEP(*(.iram0.isr*))
 
 /// Represent a custom bootloader or startup code function, 
 /// that reference the .text.entry section. It defines 
@@ -115,7 +120,7 @@ extern fn app_main() callconv(.C) void;
 /// The `.naked` calling convention makes a function not have any 
 /// function prologue or epilogue. This can be useful when integrating 
 /// with assembly. 
-export fn _start() linksection(".text.entry") callconv(.naked) noreturn {
+export fn _start() linksection(".iram0.entry") callconv(.naked) noreturn {
     // The stack pointer (sp) points to the top of the stack as the lowest numerical address. 
     // While the _stack_end or bottom of the stack is at a fixed higher numerical address. 
     // Recall how stack goes from HIGH → LOW addresses (grow towards lower addresses).
@@ -130,12 +135,11 @@ export fn _start() linksection(".text.entry") callconv(.naked) noreturn {
                     \\la gp, __global_pointer$;
                     \\.option pop;
                     \\la sp, _stack_top;
-                    // \\jal zero, mem_setup;
                     \\jal zero, startup_init; 
                 ); 
 }
 
-pub export fn startup_init() linksection(".text.startup") callconv(.C) noreturn {
+pub export fn startup_init() linksection(".iram0.startup") callconv(.C) noreturn {
     var mstatus: usize = mstatus_reg: {
         break :mstatus_reg asm volatile ("csrr a0, mstatus" : [ret] "={a0}" (-> usize));
     };
@@ -152,6 +156,7 @@ pub export fn startup_init() linksection(".text.startup") callconv(.C) noreturn 
     irq_setup();
     
     // Enable interrupts before main, by setting the third bit to one at mstatus reg. 
+
     mstatus |= @as(u32, 1) << @as(u2, 3); 
     asm volatile ("csrw mstatus, a0" :: [mstatus] "{a0}" (mstatus));
 
@@ -183,36 +188,49 @@ pub const linker_sections = struct {
     pub extern var _text_start: u8; 
     // pub extern var _text_end: u8; 
 
-    pub extern var _interrupt_handler: u8;
-    pub extern var _panic_handler: u8; 
-    /// Same as `mtvec`.
-    pub extern var _vector_table: u8; 
-
     pub extern var _iram_start: u8; 
     pub extern var _iram_size: u8; 
     pub extern var _iram_end: u8; 
 
     pub extern var _drom_start: u8; 
 
+    pub extern var _data_start: u8;
+
     pub extern var _dram0_start: u8; 
-    // pub extern var _dram0_size: u8; 
     pub extern var _dram0_end: u8; 
 
     pub extern var _bss_start: u8;
     pub extern var _bss_size: u8;
     pub extern var _bss_end: u8;
-
-    // pub extern var _trap_start: u8; // Trap handler upon exit, such as infinity loop. 
 };
 
+
+pub fn getMemorySymbols() void {
+    @export(&startup_init, .{.linkage = .strong, .name = "_startup_init"});
+}
+
 pub const number_of_interrupts = 48; 
-// pub const ISR = *const fn () callconv(INTERRUPT) void;
 pub const ISR = *const fn () callconv(INTERRUPT) void;
+const _system_int_handler: ISR = &default_panic_handler;
 
 pub const TrapVector = extern union{
     RESERVERD: usize,
     ISR_HANDLER: ISR,
 };
+
+pub export fn _vector_table() linksection(".iram0.vectors") callconv(.naked) noreturn
+{
+    // Equivalent to:  j _panic_handler
+    asm volatile (
+        \\  .option push
+        \\  .option norvc
+        \\  .option norelax
+        \\  la   t0, _panic_handler
+        \\  jalr x0, 0(t0)     /* aka jr t0 */
+        \\  .option pop
+    );
+    // unreachable; // keeps Zig happy
+}
 
 /// The ESP32-P4 has 126 peripheral interrupt sources. To map them to 32 HP CPU0 
 /// or 32 HP CPU1 interrupts a matrix is needed. One peripheral interrupt source 
@@ -232,37 +250,30 @@ pub const TrapVector = extern union{
 /// vector_table: .word 10, 20, 30 would allocate three 4-byte words in memory. 
 /// Meaning each entry in the vector_table is 32 bits.
 
-// var vector_table = @as([*]volatile u32, @constCast(@ptrCast(@alignCast(&linker_sections._vector_table))));
-// pub export var _mtvt_table : [48] ISR 
-//     align(64) linksection(".iram0.mtvt") = [48]ISR{
 
 pub export var _mtvt_table : [48] TrapVector 
     align(64) linksection(".iram0.mtvt") = [48]TrapVector{
-    // pub export var _mtvt_table: [48]ISR align(64) linksection(".mtvt") = mtvt: {
-    // [0..16] → Exceptions / panic handlers. 
-    // [16..40] → 
-    // vector_table[id] = callback_isr;
     // var vector_table = @as([*]volatile u32, @constCast(@ptrCast(@alignCast(&linker_sections._vector_table))));
     
     // Overriding the default_interrupt_handler, we need to export the 
     // ISR function (non-weak) symbol with the same name. 
     // @memset(vector_table[0..16], 
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
-    TrapVector{.ISR_HANDLER = &default_panic_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
+    TrapVector{.ISR_HANDLER = _system_int_handler},
     TrapVector{.ISR_HANDLER = &default_interrupt_handler},
     TrapVector{.ISR_HANDLER = &default_interrupt_handler},
     TrapVector{.ISR_HANDLER = &default_interrupt_handler},
@@ -316,7 +327,8 @@ inline fn mem_setup() void {
     // Copy the .data values from ROM to RAM
     const dram_start: [*]u8 = @ptrCast(&linker_sections._dram0_start);
     const dram_end: [*]u8 = @ptrCast(&linker_sections._dram0_end);
-    const drom: [*]const u8 = @ptrCast(&linker_sections._drom_start);
+    
+    const drom: [*]const u8 = @ptrCast(&linker_sections._data_start);
     @memcpy(dram_start[0..@intFromPtr(dram_end) - @intFromPtr(dram_start)], drom[0..@intFromPtr(dram_end) - @intFromPtr(dram_start)]);
 }
 
@@ -348,10 +360,19 @@ pub inline fn irq_setup() void {
     // Then it writes a CSR reg for setting the machine mode interrupt vector
     // base address from the given external `_vector_table` symbol from the linker. 
 
-    RiscvRegisters.set_mtvec_csrw(@intFromPtr(&linker_sections._vector_table), 0b11); // In ESP32P4 mode has to be 3. 
+    // RiscvRegisters.set_mtvec_csrw(@intFromPtr(&linker_sections._vector_table), 0b11); // In ESP32P4 mode has to be 3. 
+    RiscvRegisters.set_mtvec_csrw(@intFromPtr(&_vector_table), 0b11); // In ESP32P4 mode has to be 3. 
 
     // Sets the mode to Vectored. 
     RiscvRegisters.set_mtvt(@intFromPtr(&_mtvt_table));
+
+    // Globally enable machine interrupts (MIE bit in mstatus)
+    asm volatile (
+        \\ csrrs x0, mstatus, %[mie]
+        :
+        : [mie] "r"(1 << 3) // MIE = bit 3
+        : "memory"
+    );
 
 }
 
@@ -405,18 +426,32 @@ pub const RiscvRegisters = struct {
         // asm volatile ("csrw mtvec, a0" :: [mtvec] "{a0}" (MTVEC_BASE_MODE_CSR));
         // asm volatile ("csrr a0, mstatus" : [ret] "={a0}" (-> usize));
 
+
+        // 1. lui a5, 0x4ff00 → Loading the address of the _vector_table address.
+        // 2. mv a5, a5 → Assigning argument a5 = 0x4ff00000
+        // 3. ori a5, a5, 3 → Sets a5 into: a5 = 0x4ff00003
+        // 4. csrw mtvec, a5 → writes a5 into mtvec: [mtvec] = 0x4ff00003
+        // 5. lui a5, 0x4ff00 → Same as step 1. Now a5 = 0x4ff00000
+        // 6. addi a5, a5, 64 # 4ff00040 <_mtvt_table → set a5 with align(64) same as adding 0x40
+        // 7. csrw 0x307, a5 → writes the _mtvt_table align(64) into CLIC address 0x307
+
+
         asm volatile (
-            \\ori a5, %[base], %[mode_val]
-            \\csrw mtvec, a5
+            \\ori a0, %[base], %[mode_val]
+            \\csrw mtvec, a0
             :
-            : [base] "r"(target_address),
+            : [base] "{a0}"(target_address),
               [mode_val] "i"(mode)
-            : "a5"
         );
 
-        // asm volatile ("csrw mtvec, a0" 
+        // asm volatile (
+        //     \\ori a0, %[base], %[mode_val]
+        //     \\csrw mtvec, a0
         //     :
-        //     : [mtvec] "{a0}" (target_address));
+        //     : [base] "r"(target_address),
+        //       [mode_val] "i"(mode)
+        //     // : "a0"
+        // );
     }
 
     /// Setting the `mtvt` (Machine Trap Vector Table), by passing a pointer 
@@ -426,20 +461,15 @@ pub const RiscvRegisters = struct {
         // asm volatile ("csrr a0, mtvec" : [ret] "={a0}" (-> usize));
         // CLIC CSR - the interrupt jump table address.
 
+        // const abc = @extern(_mtvt_table, .{.name = "_mtvt_table"});
+        // asm volatile ("csrw 0x307, %[addr]" :: [addr] "r"(&@extern(_mtvt_table)));
+
         //WARN: - Check that the mtvt_ptr_address is align(64). 
-        //Should end with 0x40. 
         asm volatile ("csrw 0x307, a0" :: [mtvt] "{a0}" (mtvt_ptr_address));
     }
 
 };
 
-// register |= 1 << N; // Set bit N
-// register &= ~(1 << N); // Clear bit N
-
-pub fn setISR(int_id: usize, isr: fn () callconv(.C) noreturn) void {
-    _ = int_id; 
-    _ = isr; 
-}
 
 /// Whenever we are finished with processing an interrupt handler (ISR).
 /// We exit the trap and enter an infinit loop and waiting for next 

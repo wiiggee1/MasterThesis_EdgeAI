@@ -7,6 +7,24 @@ pub const Internal_Interrupt_Count = 16;
 pub const Total_Interrupts = External_Interrupt_Count + Internal_Interrupt_Count; 
 pub const MTVT_CSR_BASE = 0x307; 
 
+    // .{ .name = "GPIO_INT0", .index = 74, .description = null },
+    // .{ .name = "GPIO_INT1", .index = 75, .description = null },
+    // .{ .name = "GPIO_INT2", .index = 76, .description = null },
+    // .{ .name = "GPIO_INT3", .index = 77, .description = null },
+
+    // .{ .name = "USB_DEVICE", .index = 22, .description = null },
+    // .{ .name = "DMA", .index = 24, .description = null },
+    // .{ .name = "UART0", .index = 31, .description = null },
+
+    // .{ .name = "SYSTIMER_TARGET0", .index = 53, .description = null },
+    // .{ .name = "SYSTIMER_TARGET1", .index = 54, .description = null },
+    // .{ .name = "SYSTIMER_TARGET2", .index = 55, .description = null },
+
+/// We route the interrupt source via the Interrupt Matrix and 
+/// write the desired CPU interrupt number. 
+pub const InterruptMatrixBase = 0x0;
+
+
 /// The user can configure HP CPU0 interrupt registers to assign peripheral 
 /// interrupt sources to HP CPU0. Respectively to the second core to HP CPU1. 
 /// ESP32-P4 currently has 126 peripheral interrupt sources in total. 
@@ -79,7 +97,6 @@ pub const PeripheralInterruptSources =  enum{
      AXI_PDMA_IN_CH2_INTR_SOURCE, 
      AXI_PDMA_OUT_CH0_INTR_SOURCE, 
      AXI_PDMA_OUT_CH1_INTR_SOURCE, 
-
      AXI_PDMA_OUT_CH2_INTR_SOURCE, 
      RSA_INTR_SOURCE, 
      AES_INTR_SOURCE, 
@@ -88,7 +105,6 @@ pub const PeripheralInterruptSources =  enum{
      ECDSA_INTR_SOURCE, 
      KM_INTR_SOURCE, 
      GPIO_INTR0_SOURCE, 
-
      GPIO_INTR1_SOURCE, 
      GPIO_INTR2_SOURCE, 
      GPIO_INTR3_SOURCE, 
@@ -100,7 +116,6 @@ pub const PeripheralInterruptSources =  enum{
      CACHE_INTR_SOURCE, 
      MSPI_INTR_SOURCE, 
      CSI_BRIDGE_INTR_SOURCE, 
-
      DSI_BRIDGE_INTR_SOURCE, 
      CSI_INTR_SOURCE, 
      DSI_INTR_SOURCE, 
@@ -110,7 +125,6 @@ pub const PeripheralInterruptSources =  enum{
      ETH_MAC_INTR_SOURCE, 
      USB_OTG_INTR_SOURCE, 
      USB_OTG_ENDP_MULTI_PROC_INTR_SOURCE, 
-
      JPEG_INTR_SOURCE, 
      PPA_INTR_SOURCE, 
      CORE0_TRACE_INTR_SOURCE, 
@@ -121,7 +135,6 @@ pub const PeripheralInterruptSources =  enum{
      I3C_SLV_INTR_SOURCE, 
      USB_OTG11_CH0_INTR_SOURCE, 
      DMA2D_IN_CH0_INTR_SOURCE, 
-
      DMA2D_IN_CH1_INTR_SOURCE, 
      DMA2D_OUT_CH0_INTR_SOURCE, 
      DMA2D_OUT_CH1_INTR_SOURCE, 
@@ -129,7 +142,6 @@ pub const PeripheralInterruptSources =  enum{
      PSRAM_MSPI_INTR_SOURCE, 
      HP_SYSREG_INTR_SOURCE, 
      PCNT_INTR_SOURCE, 
-
      HP_PAU_INTR_SOURCE, 
      HP_PARLIO_RX_INTR_SOURCE, 
      HP_PARLIO_TX_INTR_SOURCE, 
@@ -140,7 +152,6 @@ pub const PeripheralInterruptSources =  enum{
      H264_DMA2D_OUT_CH4_INTR_SOURCE, 
      H264_DMA2D_IN_CH0_INTR_SOURCE, 
      H264_DMA2D_IN_CH1_INTR_SOURCE, 
-
      H264_DMA2D_IN_CH2_INTR_SOURCE, 
      H264_DMA2D_IN_CH3_INTR_SOURCE, 
      H264_DMA2D_IN_CH4_INTR_SOURCE, 
