@@ -1,266 +1,66 @@
 const std = @import("std");
+const builtin = @import("builtin");
+const system_timer = @import("system_timer.zig");
+const general_purpose = @import("gpio.zig");
+const registers = @import("registers.zig");
 
-pub const UART0_BASE: *volatile u32 = @ptrFromInt(0x500ca000);
-pub const USB_JTAG_BASE: *volatile u32 = @ptrFromInt(0x500d2000);
-pub const INTERRUPT_CORE0: *volatile u32 = @ptrFromInt(0x500d6000);
-pub const SYSTIMER: *volatile u32 = @ptrFromInt(0x500e2000);
-pub const GPIO: *volatile u32 = @ptrFromInt(0x500e0000);
-pub const TRACE0: *volatile u32 = @ptrFromInt(0x3ff04000);
-pub const TRACE1: *volatile u32 = @ptrFromInt(0x3ff05000);
-pub const ASSIST_DEBUG: *volatile u32 = @ptrFromInt(0x3ff06000);
-pub const CACHE: *volatile u32 = @ptrFromInt(0x3ff10000);
+// const Interrupt = @import("interrupts.zig").Interrupt;
+const ISR = @import("startup.zig").ISR;
+const TrapVector = @import("startup.zig").TrapVector;
 
-pub fn MakeRegisterBlock(comptime REGBLOCK: anytype) type {
-    // const info = @typeInfo(REGBLOCK).@"struct";
-    // Here we initialize an empty array of struct fields, as fields  
-    // representing our Register Block fields. 
-    const block_len = REGBLOCK.len;
-    var block_fields: [block_len]std.builtin.Type.StructField = undefined;
-
-    for (&block_fields, REGBLOCK) |*block_field, reg_field|{
-        const register_name: []const u8 = reg_field[0][0..];
-        const RegisterDataType: type = reg_field[1];
-        if (std.mem.eql(u8, register_name, "PADDING")){
-            // Handle padding case;
-        }
-
-        block_field.* = .{
-            .name = register_name,
-            // .type = Register, 
-            .type = RegisterDataType, 
-            .default_value_ptr = null,
-            .alignment = @alignOf(RegisterDataType),
-            .is_comptime = false,
-        };
-    }
-
-    return @Type(.{
-        .@"struct" = .{
-            .layout = .@"extern",
-            // .layout = .auto,
-            .fields = &block_fields,
-            .decls = &.{},
-            .is_tuple = false,
-        }
-    });
-}
-
-
-test "register-block" {
-    // registers
-    const EP1_DATA = 0x0000; 
-    const EP1_CONF_REG_OFFSET = 0x0004;
-    _ = EP1_DATA; 
-    _ = EP1_CONF_REG_OFFSET; 
-
-    // .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, }),
-    // const RegBlock = MakeRegisterBlock(.{
-    //     .{"EP1_DATA", u32}, // Offset: 0x0000
-    //     .{"EP1_CONF", u32}, // Offset: 0x0004
-    // });
-    
-     
-    const register_map = comptime [_]type{
-        .{"EP1_DATA", u32}, // Offset: 0x0000
-        .{"EP1_CONF", u32}, // Offset: 0x0004
+pub fn DriverApi(comptime P: Peripheral, comptime D: type) type{
+    // @compileLog("(DriverApi): Received Peripheral: ", P);
+    // @compileLog("(DriverApi): Received D: ", D);
+    const API = comptime switch (P) {
+        .USB_JTAG => Peripheral.Api(.USB_JTAG),
+        .UART0 => Peripheral.Api(.UART0),
+        .GPIO => Peripheral.Api(.GPIO),
+        .SYSTIMER => Peripheral.Api(.SYSTIMER),
+        .SYSREG => Peripheral.Api(.SYSREG),
+        .INTERRUPT_MATRIX => Peripheral.Api(.INTERRUPT_MATRIX),
+        .TIMERG0 => Peripheral.Api(.TIMERG0),
+        .CLIC => Peripheral.Api(.CLIC),
+        .RSTCLK => Peripheral.Api(.RSTCLK),
     };
-    
-    _ = register_map; 
+    _ = API;
+    // @compileLog("(DriverApi): API as inferred type: ", API);
 
-    // const block: *volatile RegBlock = @ptrFromInt(0x500d2000);
-
-    // const usb_jtag = AnyPeripheral(.USB_JTAG, RegBlock);
-    
-
-    // const usb_jtag = AnyPeripheral(.USB_JTAG, .{
-    //     .{"EP1_DATA", u32}, // Offset: 0x0000
-    //     .{"EP1_CONF", u32}, // Offset: 0x0004
-    // });
-
-    // const block: *volatile usb_jtag.asRegisterBlock() = @ptrFromInt(0x500d2000);
-    
-    // const block = usb_jtag.intoRawRegisterBlock();
-    
-}
-
-pub fn AnyPeripheral(comptime PeripheralKind: Peripheral, comptime Registers: anytype) type{
-    const RawRegisterBlock = MakeRegisterBlock(RegBlock);
-    _ = Registers; 
-    return extern struct {
-        pub const peripheral = PeripheralKind; 
-        const PeripheralBaseAddres = PeripheralKind.baseAddress();
-        const RegBlockType = @TypeOf(RegBlock);
-        pub usingnamespace RawRegisterBlock;
-
+    return struct {
         const Self = @This();
-        // pub const GPIO: *volatile types.peripherals.GPIO = @ptrFromInt(0x500e0000);
+        pub const peripheral = P;
+        /// Represent a concrete peripheral driver type. 
+        /// For example `SystemTimer` type. 
+        driver: D,
 
-        pub fn intoRawRegisterBlock() *volatile RegBlock{
-            const reg_ptr: *volatile RegBlock = @ptrFromInt(PeripheralBaseAddres);
-            // const reg_ptr: *volatile u32 = @ptrFromInt(PeripheralBaseAddres);
-            return reg_ptr;
+        // pub fn into(comptime self: *Self, comptime T: type) *T{
+        //     const periph: *T = @alignCast(@fieldParentPtr("self", self.peripheral));
+        //     return periph;
+        // }
+        
+        pub fn new(settings: anytype) Self{
+            const driver_api = Peripheral.Driver.create(P, settings);
+            const driver_init = switch (P) {
+                .USB_JTAG => driver_api.USB_JTAG.driver,
+                .UART0 => driver_api.UART0.driver,
+                .GPIO => driver_api.GPIO.driver,
+                .SYSTIMER => driver_api.SYSTIMER.driver,
+                .SYSREG => driver_api.SYSREG.driver,
+                .INTERRUPT_MATRIX => driver_api.INTERRUPT_MATRIX.driver,
+                .TIMERG0 => driver_api.TIMERG0.driver,
+                .CLIC => driver_api.CLIC.driver,
+                .RSTCLK => driver_api.RSTCLK.driver,
+            };
+
+            return Self{
+                .driver = driver_init,
+            };
+
         }
 
-        pub fn registerFromOffset(offset: usize) *volatile u32 {
-            return @ptrFromInt(PeripheralBaseAddres + offset);
-        }
     };
-
 }
 
-// pub const Register = enum
 
-pub const RegisterBlock = extern struct {
-    REG_0: u32,     // Offset: 0x0000
-    PADDING: u32,   // 0x0004: Padding to satisfy the alignment
-    REG_2: u32,     // 0x0008
-
-    pub fn register(base_addr: usize) *volatile RegisterBlock{
-        const reg_ptr: *volatile RegisterBlock = @ptrFromInt(base_addr);
-        return reg_ptr;
-    }
-
-};
-
-const RegBlock = MakeRegisterBlock(.{
-    .{"EP1_DATA", u32}, // Offset: 0x0000
-    .{"EP1_CONF", u32}, // Offset: 0x0004
-});
-
-const usb_jtag = AnyPeripheral(.USB_JTAG, RegBlock);
-
-
-/// The `Register` union type contain the underlying
-/// peripheral and some user defined registers. 
-/// =================================================
-/// C-ABI compatible struct memory-layout, representing 
-/// a `RegisterBlock`. C Memory Layout means: 
-/// - Field appear in order when they are defined,
-/// - Each field is aligned according to C, 
-/// - The compiler may insert padding to satisfy alignment,
-/// - Size of the struct, is rounded up to a multiple of its strongest field alignment. 
-/// =================================================
-/// On ESP32-P4, little-endian, 4-byte alignment for u32 is used. 
-/// Little-endian: Stores the LSB at the smallest address. 
-/// E.g., 0x0A0B0C0D: 
-///     → Index N:   0D (LSB)
-///     → Index N+1: 0C   |
-///     → Index N+2: 0B   |
-///     → Index N+3: 0A (MSB)
-/// =================================================
-pub const Register = union(Peripheral) {
-    USB_JTAG: extern struct{
-        EP1_DATA: u32 = 0x0000, // Offset: 0x0000
-        EP1_CONF: u32 = 0x0004, // Offset: 0x0004
-        EP1_JFIFO_ST: u32 = 0x0020, // 
-        EP1_ST: u32 = 0x002C, // Endpoint 1 status register.
-    },
-    UART0: extern struct{
-        reg0: u32, // 0x0000 
-        padding: u32, // Padding to satisfy the alignment of 4 bytes.
-        reg2: u32 // 0x0008
-    },
-    GPIO: extern struct{
-        PADDING: u32 = 0x0000,
-        OUT: u32 = 0x0004,
-        W1TS_REG: u32 = 0x0008, 
-        W1TC_REG: u32 = 0x000C,
-        ENABLE: u32 = 0x0020,
-        IN: u32 = 0x3C,
-    },
-    SYSTIMER: extern struct{
-        CONF: u32 = 0x0000,
-        UNIT0_OP: u32 = 0x0004,
-        UNIT0_LOAD_HI: u32 = 0x000C,
-        UNIT0_LOAD_LO: u32 = 0x0010,
-        UNIT0_VALUE_HI: u32 = 0x0040,
-        UNIT0_VALUE_LO: u32 = 0x0044,
-        UNIT0_LOAD_REG: u32 = 0x005C,
-
-        TARGET0_COMP_HI: u32 = 0x001C,
-        TARGET0_COMP_LO: u32 = 0x0020,
-        TARGET0_COMP_CONF: u32 = 0x0034,
-        TARGET0_COMP_LOAD_REG: u32 = 0x0050,
-
-        INT_ENA: u32 = 0x0064,
-        INT_RAW: u32 = 0x0068,
-        INT_CLR: u32 = 0x006C,
-        INT_ST: u32 = 0x0070,
-
-        /// Actual target value of COMP0, low 32 bits
-        REAL_TARGET0_LO: u32 = 0x0074,
-        /// Actual target value of COMP0, high 20 bits
-        REAL_TARGET0_HI: u32 = 0x0078,
-    },
-
-    pub fn getRegisterBlock(self: Register) void {
-        switch(self){
-            .SYSTIMER => |timer| {
-                return timer;
-            },
-        }
-    }
-
-    pub fn enable_systimer(self: Register, options: anytype) void {
-        const ConfigOptions = struct{clk_src: []const u8, prescaler: u8, freq: u8};
-        const config = @as(ConfigOptions, options);
-        _ = config; 
-
-        const systimer = @as(Peripheral, self);
-        switch (self) {
-            .SYSTIMER => |timer| {
-                const reg_addr: usize = systimer.baseAddress() + @as(usize, @intCast(timer.CONF));
-                // Bit 31 - register clock is always enabled for read and write operations.
-                // Bit 30 - Enable UNIT0.
-                const mask_conf: u32 = (1 << 31) | (1 << 30); 
-                const register_conf: *volatile u32 = @ptrFromInt(reg_addr);
-                register_conf.* |= mask_conf; 
-                // ===============================
-
-            },
-            else => {},
-        }
-    }
-
-    fn read_ticks(self: Register) u64 {
-        switch (self) {
-            .SYSTIMER => |timer| {
-                const UNIT0_OP: usize = @intCast(timer.UNIT0_OP);
-                const UNIT0_VALUE_LO: usize = @intCast(timer.UNIT0_VALUE_LO);
-                const UNIT0_VALUE_HI: usize = @intCast(timer.UNIT0_VALUE_HI);
-
-                const register_unit0_op: *volatile u32 = @ptrFromInt(Peripheral.SYSTIMER.baseAddress() + UNIT0_OP);
-                const mask_op: u32 = (1 << 30);
-                register_unit0_op.* |= mask_op; // Set the SYSTIMER_TIMER_UNIT0_UPDATE bit 30 to 1 → Update timer UNIT0.
-                
-                while(!Peripheral.SYSTIMER.isBitSet(UNIT0_OP, 29)){} // Wait for UNIT0 value to be synchronized = valid. 
-
-                const lower: *volatile u32 = @ptrFromInt(Peripheral.SYSTIMER.baseAddress() + UNIT0_VALUE_LO); // dummy value atm! 
-                const higher: *volatile u32 = @ptrFromInt(Peripheral.SYSTIMER.baseAddress() + UNIT0_VALUE_HI); // dummy value atm! 
-
-                return (@as(u64, higher.*) << 32) | lower.*;
-            },
-            else => {},
-        }
-    }
-
-    pub fn write_unit0(self: Register, value: u64) void {
-        switch(self){
-            .SYSTIMER => |timer| {
-                const LOAD_HI: usize = @intCast(timer.UNIT0_LOAD_HI); // bit [19:0]
-                const LOAD_LO: usize = @intCast(timer.UNIT0_LOAD_LO); // bit [31:0] 
-                const LOAD_REG: usize = @intCast(timer.UNIT0_LOAD_REG); // Only for reloading value of UNIT0.
-                const LSB = 0; 
-
-                Peripheral.SYSTIMER.write_register(LOAD_LO, value & 0xFFFF_FFFF);
-                Peripheral.SYSTIMER.write_register(LOAD_HI, value >> 32);
-                Peripheral.SYSTIMER.set_register(LOAD_REG, LSB);
-            },
-            else => {},
-        }
-    }
-        
-};
 
 /// Memory mapped registers, for modifying and accessing.
 /// The tagged enum is associated with the base address 
@@ -277,19 +77,157 @@ pub const Peripheral = enum(u32) {
     SYSTIMER = 0x500E_2000,
     SYSREG = 0x500E_5000,
     INTERRUPT_MATRIX = 0x500D_6000,
+    TIMERG0 = 0x500C_2000,
+    CLIC = 0x2080_0000,
+    RSTCLK = 0x500E_6000,
 
-    pub fn intoRegister(self: Peripheral) Register{
-        switch (self) {
-            inline else => |arch| {
-                return @as(Register, arch); 
+    const SystemTimerConfig = @import("system_timer.zig").SystemTimerConfig;
+    const InterruptConfig = @import("interrupts.zig").InterruptConfig;
+    const UsbJtagRegister = @import("registers.zig").UsbJtagRegister;
+    const UartRegister = @import("registers.zig").UartRegister;
+    const GpioRegister = @import("registers.zig").GpioRegister;
+    const SysRegister = @import("registers.zig").SysRegister;
+    const ResetClockRegister = @import("registers.zig").ResetClockRegister;
+
+    pub const Driver = union(Peripheral){
+        USB_JTAG:           DriverApi(.USB_JTAG, @import("usb_jtag.zig").UsbJtag),
+        UART0:              DriverApi(.UART0, @import("registers.zig").UartRegister),
+        GPIO:               DriverApi(.GPIO, @import("registers.zig").GpioRegister) ,
+        SYSTIMER:           DriverApi(.SYSTIMER, @import("system_timer.zig").SystemTimer),
+        SYSREG:             DriverApi(.SYSREG, @import("registers.zig").SysRegister),
+        INTERRUPT_MATRIX:   DriverApi(.INTERRUPT_MATRIX, @import("interrupts.zig").Interrupt),
+        TIMERG0:            DriverApi(.TIMERG0, @import("timergroup.zig").TimerGroup),
+        CLIC:               DriverApi(.CLIC, @import("interrupts.zig").Clic),
+        RSTCLK:             DriverApi(.RSTCLK, @import("registers.zig").ResetClockRegister),
+
+        pub fn create(peripheral: Peripheral, settings: anytype) Driver{
+            return switch (peripheral) {
+                .USB_JTAG => Driver{
+                    .USB_JTAG = .{.driver = .init()}
+                },
+                .UART0 => Driver{
+                    .UART0 = .{.driver = UartRegister{}}
+                },
+                .GPIO => Driver{
+                    .GPIO = .{.driver = GpioRegister{}}
+                },
+                .SYSTIMER => Driver{
+                    .SYSTIMER = .{.driver = .init(SystemTimerConfig.parse_v2(settings))}
+                },
+                .SYSREG => Driver{
+                    .SYSREG = .{.driver = SysRegister{}}
+                },
+                .INTERRUPT_MATRIX => Driver{
+                    .INTERRUPT_MATRIX = .{.driver = .init(InterruptConfig.parse_v2(settings)) }
+                },
+                .TIMERG0 => Driver{
+                    .TIMERG0 = .{.driver = .init()}
+                },
+                .CLIC => Driver{
+                    .CLIC = .{.driver = .init(settings)}
+                },
+                .RSTCLK => Driver{
+                    .RSTCLK = .{.driver = ResetClockRegister{}}
+                },
+            };
+        }
+    };
+
+    pub fn fromStr(comptime name: []const u8) ?Self{
+        return std.meta.stringToEnum(Peripheral, name);
+    }
+
+    pub fn intoAddress(comptime self: Self) u32{
+        return @intFromEnum(self);
+    }
+
+    pub fn fromAddress(comptime addr: u32) Self{
+        return @enumFromInt(addr);
+    }
+    
+    pub fn TagName(comptime self: Self) [:0]const u8{
+        return comptime switch (self) {
+            .USB_JTAG => "USB_JTAG",
+            .UART0 => "UART0",
+            .GPIO => "GPIO",
+            .SYSTIMER => "SYSTIMER",
+            .SYSREG => "SYSREG",
+            .INTERRUPT_MATRIX => "INTERRUPT_MATRIX",
+            .TIMERG0 => "TIMERG0",
+            .CLIC => "CLIC",
+        };
+    }
+
+    // pub fn init_driver(comptime self: Self, D: type, settings: anytype) D{
+    pub fn driverAPI(comptime self: Self, comptime api: anytype, settings: anytype) DriverApi(self, @TypeOf(api)){
+        // const systemtimer_config: ?SystemTimerConfig = if (@TypeOf(settings) == SystemTimerConfig) settings
+        //     else null;
+        // const interrupt_config: ?InterruptConfig = if (@TypeOf(settings) == InterruptConfig) settings
+        //     else null;
+        // const clic_mtvt: []TrapVector = if (@TypeOf(settings) == []TrapVector) settings 
+        //     else null;
+
+        
+        if (@TypeOf(api) != Driver) @compileError("Argument of 'api' needs to be of type: "++@typeName(Driver));
+        const driver: Driver = Driver.create(self, settings);
+         
+        const driver_init = switch (driver) {
+            .USB_JTAG => |usb_jtag| usb_jtag.new(settings),
+            .UART0 => |uart| uart.new(settings),
+            .GPIO => |gpio| gpio{},
+            .SYSTIMER => |systimer| systimer.new(@as(SystemTimerConfig, settings)),
+            .SYSREG => |sysreg| sysreg.new(settings),
+            .INTERRUPT_MATRIX => |interrupt| interrupt.new(@as(InterruptConfig, settings)),
+            .TIMERG0 => |timergroup| timergroup.new(settings),
+            .CLIC => |clic| clic.new(@as(*[48]TrapVector, settings)),
+        };
+        return driver_init;
+    }
+    
+    // pub fn ApiNew(comptime self: Self, settings: anytype) DriverApi(self, @TypeOf(self.Api())){
+    pub fn ApiNew(comptime self: Self, settings: anytype) DriverApi(self, Api(self)){
+        const driver_api = Driver.create(self, settings);
+        const driver_names = comptime std.meta.fieldNames(Driver);
+        inline for(driver_names) |name|{
+            const driver = @field(driver_api, name);
+            
+            if(std.mem.eql(u8, @tagName(driver), @tagName(self))){
+                // return driver;
+                return DriverApi(self, @TypeOf(driver)).new(settings);
+            }
+        }
+        
+        switch(driver_api){
+            inline else => |api, tag|{
+               if (tag == self){
+                    return api;
+                }
             }
         }
     }
+    
+    pub fn Api(comptime self: Self) type{
+        // @compileLog("(Api) Found comptime self as: ", self);
+        const api = comptime api_type:{
+            switch (self) {
+                .USB_JTAG => break :api_type @import("usb_jtag.zig").UsbJtag,
+                .UART0 => break :api_type UartRegister,
+                .GPIO => break :api_type GpioRegister,
+                .SYSTIMER => break :api_type @import("system_timer.zig").SystemTimer,
+                .SYSREG => break :api_type SysRegister,
+                .INTERRUPT_MATRIX => break :api_type @import("interrupts.zig").Interrupt,
+                .TIMERG0 => break :api_type @import("timergroup.zig").TimerGroup,
+                .CLIC => break :api_type @import("interrupts.zig").Clic,
+                .RSTCLK  => break : api_type @import("registers.zig").ResetClockRegister,
+            }
+        };
+        // @compileLog("(Api) return type as: ", api);
+        return api;
+    }
 
     pub fn register_ptr(self: Self, offset: usize) *volatile u32 {
-        const base_address = @intFromEnum(self);
-        const base: usize = @intCast(base_address);
-        return @as(*volatile u32, @ptrFromInt(base + offset));
+        // const base_address = @intFromEnum(self);
+        return @ptrFromInt(self.baseAddress() + @as(usize, offset));
     }
 
     pub inline fn baseAddress(self: Self) usize{
@@ -298,43 +236,50 @@ pub const Peripheral = enum(u32) {
         return base; 
     }
 
-    pub fn isBitSet(self: Self, offset: usize, bit_index: u8) bool {
-        const mask: u32 = 1 << bit_index; 
-        const register_value = self.read_u32_reg(offset);
-        return (register_value & mask) != 0; 
+    /// Return true if `bit_index` is 1. 
+    pub inline fn isBitSet(self: Self, offset: u32, bit_index: u6) bool {
+        // const mask: u32 = @as(u32, 1) << bit_index; 
+        const mask: u32 = @as(u32, 1) << bit_index;
+        return (self.read_register(offset) & mask) != 0; 
     }
-
-    pub inline fn read_u32_reg(self: Self, offset: usize) u32 {
-        return self.register_ptr(offset).*;
-    }
-
-    /// Modify a single bit (true=set, false=clear) in a 32-bit register at base+offset.
-    pub inline fn modify(self: Self, offset: usize, bit_index: u8, set: bool) void {
-        // const addr = self.getBaseAddress() + offset;
-        if (set) {
-            // self.set_bits(@as(u32, 1) << bit_index);
-            self.set_register(offset, bit_index);
-        } else {
-            clear_register(self.baseAddress(), offset, bit_index);
-        }
-    }
-
-    pub inline fn setAt(self: Self, offset: usize, mask: u32) void {
-        // const reg = self.baseAddress() + offset;
-        // const WR_DONE: u32 = 1 << 0; // WT: write 1 to signal a TX byte is ready
-        // 0b0000_..._0001
-        self.write_register(offset, mask);
-        // self.write_bits(addr, read_bits(addr) & ~mask);
-    }
-
-    // Peripheral.USB_JTAG → contains the base address of the peripheral. 
-    // To access a register within the peripheral you need to pass that 
-    // as an offset to the function.
-    // Peripheral.USB_JTAG.setAt()
     
-    pub inline fn read_bits(self: Self) u32 {
-        const register: *volatile u32 = @ptrFromInt(self.baseAddress());
-        return register.*; 
+    /// Set one bit
+    pub inline fn setBit(self: Self, offset: u32, bit_index: u6) void {
+        const bit_pos: std.math.Log2Int(u32) = @intCast(bit_index);
+
+        // const mask: u32 = @as(u32, 1) << bit_index;
+        const mask: u32 = @as(u32, 1) << bit_pos;
+        const addr_ptr = self.register_ptr(offset);
+        addr_ptr.* = addr_ptr.* | mask;
+    }
+    
+    /// Clear one bit
+    pub inline fn clearBit(self: Self, offset: u32, bit_index: u6) void {
+        const mask: u32 = @as(u32, 1) << bit_index;
+        const addr_ptr = self.register_ptr(offset);
+        addr_ptr.* = addr_ptr.* & ~mask;
+    }
+
+    /// Set all 1-bits in `mask`
+    pub inline fn setMask(self: Self, offset: u32, mask: u32) void {
+        const addr_ptr = self.register_ptr(offset);
+        addr_ptr.* = addr_ptr.* | mask;
+    }
+    
+    /// Clear all 1-bits in `mask`
+    pub inline fn clearMask(self: Self, offset: u32, mask: u32) void {
+        const addr_ptr = self.register_ptr(offset);
+        addr_ptr.* = addr_ptr.* & ~mask;
+    }
+
+    /// Clears specific bits in a volatile register.
+    ///
+    /// `base` → base address of peripheral  
+    /// `offset` → offset of register from base  
+    /// `mask` → bit mask to clear (1's at positions you want to clear)
+    pub inline fn clear_bits(base: usize, offset: u32, mask: u32) void {
+        const reg: *volatile u32 = @ptrFromInt(base + offset);
+        reg.* &= ~mask; // AND with inverted mask to clear bits
     }
 
     // pub inline toggle_bit ^= mask
@@ -343,27 +288,16 @@ pub const Peripheral = enum(u32) {
     // Below are APIs for setting a specific register (BASE + OFFSET):
     // ==============================================================
     
-    pub inline fn read_register(self: Self, offset: usize) u32 {
+    pub inline fn read_register(self: Self, offset: u32) u32 {
         const register: *volatile u32 = @ptrFromInt(self.baseAddress() + offset);
         return register.*;  
     }
 
     /// The offset is the same as the target register within a peripheral's 
     /// base address.
-    pub inline fn write_register(self: Self, offset: usize, value: u32) void {
+    pub inline fn write_register(self: Self, offset: u32, value: u32) void {
         const register: *volatile u32 = @ptrFromInt(self.baseAddress() + offset);
         register.* = value;
-    }
-
-    pub inline fn set_register(self: Self, offset: usize, N: u8) void {
-        const register: *volatile u32 = @ptrFromInt(self.baseAddress() + offset);
-        register.* |= (1 << N); // Set bit N.
-    }
-
-    pub inline fn clear_register(base_addr: usize, offset: usize, N: u8) void {
-        const register: *volatile u32 = @ptrFromInt(base_addr + offset);
-        // If N = 2 then this is: register = register AND 0x1111_1101
-        register.* &= ~(1 << N); // Clear bit N
     }
 
 };

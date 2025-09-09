@@ -1,66 +1,91 @@
 const std = @import("std");
 const Peripheral = @import("peripherals.zig").Peripheral;
-const Register = @import("peripherals.zig").Register;
-
-
-// const UART0_BASE = 0x60000000;       // AHB peripheral base for UART0
-// const UART_FIFO_OFFSET = 0x0;        // UART_FIFO register (write one byte)
-// const UART_STATUS_OFFSET = 0x18;     // UART_STATUS register (bits[16:8] TX FIFO count)
-
-pub const UART0: *volatile u32 = @ptrFromInt(0x500ca000);
-pub const USB_DEVICE: *volatile u32 = @ptrFromInt(0x500d2000);
-
-fn usb_jtag_write(byte: u8) void {
-    // const fifo_tx: *volatile u32 = @ptrFromInt(UART0_BASE + UART_FIFO_OFFSET);
-    // const status: *volatile u32 = @ptrFromInt(UART0_BASE + 0x18);
-
-    // A write to this register pushes the written data into the CDC TX FIFO.
-    const EP1_DATA = 0x0000; 
-    const EP1_CONF_REG_OFFSET = 0x0004;
-    // const usb_jtag = Peripheral.SYSTIMER.
-
-   
-    // 1) Wait until TX FIFO has space
-    while (Peripheral.USB_JTAG.isBitSet(EP1_CONF_REG_OFFSET, 0)) {}
-
-    Peripheral.USB_JTAG.write_register(EP1_DATA, byte);
-
-    // We modify and set the bit index 0, to indicate we placed 
-    // a byte into the tx fifo buffer. It is automatically cleared
-    // once the host reads data from the fifo. 
-    const WRITE_DONE = 0;  
-    Peripheral.USB_JTAG.set_register(0x0004, WRITE_DONE);
-}
+const AnyRegister = @import("registers.zig").AnyRegister;
+const GenericPeripheral = @import("peripherals.zig").GenericPeripheral;
+const DriverApi = @import("peripherals.zig").DriverApi;
 
 pub fn EmbeddedWriter(comptime TXSIZE: usize, comptime RXSIZE: usize) type {
     return struct {
+        const Self = @This();
         pub const tx_size = TXSIZE; 
         pub const rx_size = RXSIZE;
-        buf: [TXSIZE+RXSIZE]u8, 
-        rx: []u8,
-        tx: []u8,
-        const Self = @This();
+        // pub var log_buffer: [TXSIZE + 100]u8 = undefined;
 
-        pub const Writer = std.io.GenericWriter(void, EmbeddedWriterError, writefn);
-        const writer: Writer = .{ .context = {} };
+        const UsbJtag = @import("usb_jtag.zig").UsbJtag;
+        
+        // pub const Writer = std.io.GenericWriter(void, EmbeddedWriterError, writeTxFn); // depricated!!!
+        // pub const writer = std.Io.Writer.Discarding.init(&log_buffer).writer;
 
+        // discarding: std.Io.Writer.Discarding,
+        interface: std.Io.Writer,
+        // peripheral: DriverApi(.USB_JTAG, UsbJtag),
+        peripheral: UsbJtag,
+
+        pub fn new(buf: []u8) Self{
+            return Self{
+                .interface = .{
+                    // .buffer = &.{},
+                    .buffer = buf,
+                    .vtable = &.{
+                        .drain = drain,
+                        .sendFile = std.Io.Writer.unimplementedSendFile,
+                    }
+                },
+                .peripheral = .init(),
+            };
+        }
+        
         pub const EmbeddedWriterError = error{
             Timeout, 
             BufferFull,
             ReceiveError,
             TransmitError,
-        } || std.io.AnyWriter.Error;
+        } || std.Io.Writer.Error || std.Io.Writer.FileAllError;
 
-        /// Here goes the logic for the embedded io `writefn`. 
-        /// It can either use UART or JTAG logging. 
-        fn writefn(_: void, bytes: []const u8) EmbeddedWriterError!usize{
-            for (bytes) |char| {
-                usb_jtag_write(char);
+        fn drain(writer: *std.Io.Writer, data: []const []const u8, splat: usize) std.Io.Writer.Error!usize{
+            _ = splat;
+            const self: *Self = @alignCast(@fieldParentPtr("interface", writer));
+            // var temp_buf: [128]u8 = undefined;
+            // const embedded_writer = EmbeddedWriter(32, 32).new(&temp_buf);
+
+            // if (data.len == 0) return 1;
+            if (data.len == 0) return 0;
+            var total_bytes: usize = 0; 
+            for (data) |bytes| {
+                // self.peripheral.driver.write_slice(bytes);
+                // total_bytes +=  try self.write_tx(bytes);
+                total_bytes += try self.write_tx(bytes);
+                // total_bytes += try embedded_writer.write_tx(bytes);
             }
+            return total_bytes;
+            // return self.write_tx(data[0]) catch return std.Io.Writer.Error.WriteFailed;
+        }
+
+        /// Here goes the logic for the embedded io writer. 
+        /// This function's main purpose is to write to the 
+        /// transmit buffer (tx) of the Usb Jtag peripheral. 
+        fn write_tx(self: Self, bytes: []const u8) std.Io.Writer.Error!usize{
+            // const usb_jtag = self.peripheral; 
+            self.peripheral.write_slice(bytes); // Don't forget to flush the tx buffer.
+            // usb_jtag.flush_tx(); 
+            return bytes.len;
+        }
+
+        // pub fn print(self: *Self, comptime fmt: []const u8, args: anytype) EmbeddedWriterError!void{
+        pub fn print(self: *std.Io.Writer.fixed, comptime fmt: []const u8, args: anytype) EmbeddedWriterError!void{
+            // comptime var literal: []const u8 = "";
+            var temp_buf: [128]u8 = undefined;
+            const bytes = std.fmt.bufPrint(&temp_buf, fmt, args) catch return;
+
+            var interface = &self.interface.print;
+            interface.writeAll(bytes) catch return;
+            // interface.print(fmt, args) catch return;
+            interface.flush() catch return;
         }
 
     };
 }
+
 
 pub const custom_scope_options = [_]std.log.ScopeLevel{
     .{.scope = .multiple_lines, .level = .debug},
@@ -82,9 +107,9 @@ pub const custom_scope_options = [_]std.log.ScopeLevel{
 ///         ```
 pub fn loggerFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLiteral), comptime format: []const u8, args: anytype) void{
     // std.heap.FixedBufferAllocator
-    const stdout = EmbeddedWriter(1024).writer;
-    // const stderr = std.io.getStdErr().writer();
-
+    var log_buffer: [1024]u8 = undefined;
+    var embedded_writer = EmbeddedWriter(32, 32).new(&log_buffer);
+     
     // const level_text = comptime level.asText();
     const level_string = comptime switch (level) {
         .debug => "\x1b[1;34m[debug]\x1b[0m : ",
@@ -92,20 +117,25 @@ pub fn loggerFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLite
         .info => "\x1b[1;37m[info]\x1b[0m : ",
         .err => "\x1b[1;31m[err]\x1b[0m : ",
     };
+
     const is_inner: bool = switch(scope){
         .multiple_lines, .inner_scope, .inner, .str_part, .itr_start, .itr_end => true,
         else => false, 
     };
 
-
-    // const log_format = std.fmt.comptimePrint(log_color ++ "[" ++ log_tag ++ "]" ++ " (%u): {s}\x1b[0m\n", .{format});
-    // const time = esp_idf.esp_log_timestamp();
-
     if (is_inner){
-        stdout.print(format, args) catch {};
+        // try stdout.writeAll();
+        // stdout.print(format, args) catch {};
+        // embedded_writer.print(format, args) catch {};
+        const bytes = std.fmt.bufPrint(format, args) catch return;
+        embedded_writer.peripheral.write_slice(bytes); // Don't forget to flush the tx buffer.
     }else {
+        // stdout.print(level_string ++ format ++ scope_prefix++"\r", args) catch {};
         const scope_prefix = if (scope == .default) " " else " (" ++ @tagName(scope) ++ "): ";
-        stdout.print(level_string ++ format ++ scope_prefix, args) catch {};
+        // embedded_writer.print(level_string ++ format ++ scope_prefix++"\r", args) catch {};
+        const bytes = std.fmt.bufPrint(&log_buffer, level_string ++ format ++ scope_prefix++"\r", args) catch return;
+        embedded_writer.peripheral.write_slice(bytes); // Don't forget to flush the tx buffer.
+
     }
 }
 
