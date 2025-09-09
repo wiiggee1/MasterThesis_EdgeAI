@@ -2,46 +2,72 @@ const std = @import("std");
 const builtin = @import("builtin");
 const core = @import("core");
 const startup = core.startup;
-const ISR = startup.ISR; 
-const INTERRUPT = startup.INTERRUPT;
+const Testing = core.Testing;
+const Hardware = core.Hardware;
+const hal = core.DriversImpl;
+pub const std_options = core.std_options; // Custom logging over usb-jtag.
+
+const Peripheral = Hardware.Peripheral;
+const ISR = Hardware.ISR;
+const INTERRUPT = Hardware.INTERRUPT;
+const TrapVector = Hardware.TrapVector;
+const CSR = Hardware.CSR;
+
+extern var _mtvt_table: [48]TrapVector; // extern var _mtvt_table: [48]TrapVector;
+extern fn _vector_table() callconv(.naked) noreturn;
 
 comptime {
     startup.getStartupSymbols();
 }
 
-pub const std_options = std.Options{
-    // .log_level = std.log.Level.info,
-    .logFn = core.loggerFn,
+const XTAL_CLK_FREQ: u64 = 40_000_000; // 40 MHz.
+const FREQ_HZ: u64 = 16_000_000; // Average clock frequency: 16 MHz XTAL clk
+
+/// Shared global context
+const Shared = struct {
+    const SystemTimerConfig = hal.SystemTimerConfig;
+    const SystemTimer = hal.SystemTimer;
+    const Clic = Hardware.Clic;
+    const DriverApi = Hardware.DriverApi;
+
+    const SysTimeCfg = SystemTimerConfig{
+        .clk = .XTAL_CLK, 
+        .counter = .UNIT0, 
+        .freq = FREQ_HZ,
+        .target_mode = .periodic,
+        .target_num = .target0,
+    };
+
+    systimer: SystemTimer,
+    clic: Clic,
+    timergroup: DriverApi(.TIMERG0, hal.TimerGroup),
+    usb_jtag: DriverApi(.USB_JTAG, hal.UsbJtag),
 };
 
-/// Testing some .rodata 
-pub const dummy_str_rodata = "hello_rodata!";
-pub const dummy_rodata: [4]u8 linksection(".rodata") = .{ 1, 2, 3, 4 };
+var shared: Shared = undefined;
 
-extern fn ets_printf(fmt: [*:0]const u8, ...) callconv(.C) void;
-extern fn ets_install_uart_printf() callconv(.C) void;
-extern fn ets_install_usb_printf() callconv(.C) void;
-extern fn ets_delay_us(us: u32) callconv(.C) void;
-extern fn rtc_get_reset_reason() callconv(.C) u32;
-extern fn Uart_Init() callconv(.C) void;
-extern fn software_reset() callconv(.C) noreturn;
+/// Below is the override logic of the .weak `isr1_handler` symbol.
+pub export fn isr1_handler() linksection(".iram0.isr_handler") callconv(INTERRUPT) void {
+    std.log.warn("Hello from System Timer Target0 ISR!!!\n", .{});
 
-extern var _mtvt_table: [48]ISR;
+    // clear interrupt bit. 
+    // shared.systimer.enable_interrupt();
+    shared.systimer.clear_interrupt();
 
-export fn systimer_target0_isr() callconv(INTERRUPT) noreturn {
-    // Below is the override logic of the .weak isr symbol.
-    // This is our trap handler and should not return. 
-    var dummy_state: struct{a: usize, b: usize} = undefined;
-    dummy_state.a = 0x1;
-    dummy_state.b = 0x2;
-    // @breakpoint();
-    asm volatile ("mret" ::: "memory");
-    while (true) {}
-    // @trap();
-
+    //FIX: start enable work to satisfy: COMPx starts comparing the count value with the sum of (start value + n*δt)
+    shared.systimer.start_enable_work(); 
+    
+    // asm volatile ("mret");
+    // core.exit_trap();
 }
-// export fn my_custom_isr_handler() callconv(.C) void {
-// }
+
+/// Background idle work for sleeping inbetween interrupt events. 
+inline fn idle() void{
+    CSR.clear_interrupt(.mstatus);
+    asm volatile ("wfi");
+    CSR.interrupt_info_enable(); // mnxti, works only for non-vectored setting. 
+    asm volatile ("beqz a0, idle");
+}
 
 /// This is the main entry point for the embedded firmware to run.
 /// Which is jumped to whenever the reset handler `.text.entry`
@@ -54,64 +80,148 @@ export fn systimer_target0_isr() callconv(INTERRUPT) noreturn {
 ///     - Load Interrupt Vector Tables + defines weak linked default ISR handles. 
 /// 3. After step(2) is completed it jumps to the main() function (our application code).
 /// -----------------------------------------------------------
-export fn app_main() callconv(.C) void {
+pub export fn app_main() callconv(.c) void {
     //Run embedded firmware below:
-    const rodata = dummy_str_rodata;  
-    _ = &rodata; 
-    const dummy_input_rowmajor = [3][2]f16{
-        .{ 1.0, 4.0 },
-        .{ 2.0, 5.0 },
-        .{ 3.0, 6.0 }, 
+    const Interrupt = Hardware.Interrupt; 
+    const TimerCfg = Shared.SysTimeCfg;
+    const GenericSystemTimer = Hardware.DriverApi(.SYSTIMER, hal.SystemTimer);
+    // const system_timer = GenericSystemTimer.new(TimerCfg) catch blk:{
+    //     break :blk GenericSystemTimer{
+    //         .driver = hal.SystemTimer.init(Shared.SysTimeCfg),
+    //     };
+    // };
+    const system_timer = GenericSystemTimer.new(TimerCfg);
+
+    shared = .{
+        .systimer = system_timer.driver,
+        .clic = .init(&_mtvt_table),
+        .timergroup = .new(.{}),
+        .usb_jtag = .new(.{}),
     };
-    _ = dummy_input_rowmajor; 
 
-    ets_install_usb_printf();
-    ets_printf("Hi from ROMMMMMMMMMM\r\n");
+    pre_setup(shared, &.{
+        Peripheral.TIMERG0,
+        Peripheral.USB_JTAG,
+    });
 
-    const abc: usize = 0; 
-    _ = &abc; 
+    shared.clic.debug_info();
 
+    // Set the alarm period + synchronize the alarm period + sets period mode. 
+    // shared.systimer.setup_timer(.{ .time = 500_000 * 4, .unit = .Micro }) catch {};
+    // shared.systimer.start_enable_work(); // COMPx starts comparing the count value of SUM(start value + n*δt) (n = 1, 2, 3...)
+    // shared.systimer.enable_interrupt();
+   
+    // FIX: - parsing logic for tuple anonymous struct types
+    const systimer_interrupt: Interrupt = Interrupt.init(.{
+        .trigger_mode = Hardware.TriggerMode.level,
+        .id = @as(u5, 1), // 0..31, id = 1 → _mtvt_table[17]
+        .mtvt_index = @as(u6, 0), //TODO: : Change this to optional for initially setting to null.
+        .isr = @as(ISR, isr1_handler),
+        .priority = @as(?u3, null),
+        .level = @as(u3, 1),
+        .source = Hardware.PeripheralInterruptSources.SYSTIMER_TARGET0_INTR_SOURCE, 
+        .threshold = @as(?u4, null),
+    });
+    // const systimer_interrupt_v2: Interrupt = Interrupt.init(Interrupt.Config{
+    //     .trigger_mode = .level,
+    //     .id = 1,
+    //     .mtvt_index = 0,
+    //     .isr = isr1_handler,
+    //     .priority = Interrupt.DefaultConfig.priority,
+    //     .level = 1,
+    //     .source = .SYSTIMER_TARGET0_INTR_SOURCE,
+    //     .threshold = null, 
+    // });
+
+    // This will setup the vector table and MTVT table for our ISRs.
+    // shared.clic.global_setup(
+    //     @intFromPtr(&_vector_table), 
+    //     @intFromPtr(&_mtvt_table)
+    // );
+
+    // shared.clic.mtvt_setup_defaults() catch |err| std.log.err("Got Error: {s}\n", .{@errorName(err)});
+    shared.clic.configure_interrupt(systimer_interrupt) catch |err| {
+        std.log.err("Got Error: {s}\n", .{@errorName(err)});
+    };
+    
+    const t_prior_setup = shared.systimer.now_v2(.Micro).time;
+    std.log.warn("SYSTIMER now prior setup: {d} µs\n", .{t_prior_setup});
+    const t_ticks_prior = shared.systimer.now_v2(.Ticks).time;
+    std.log.warn("SYSTIMER now: {d} ticks\n", .{t_ticks_prior});
+    
+    // Set the alarm period + synchronize the alarm period + sets period mode. 
+    shared.systimer.clear_interrupt(); // NOTE: - This fixed the enable_mie freezing. 
+    shared.systimer.setup_timer(.{ .time = 500_000 * 2, .unit = .Micro }) catch {};
+    shared.systimer.start_enable_work(); // COMPx starts comparing the count value of SUM(start value + n*δt) (n = 1, 2, 3...)
+    shared.systimer.clear_interrupt(); // NOTE: - This fixed the enable_mie freezing. 
+    shared.systimer.enable_interrupt();
+
+    std.log.info("After configure interrupt!\n", .{});
+    std.log.warn("&systimer_target0_isr: {*}\r\n\t mtvt[{d}] = {*}\r\n\t_mtvt_table: {*}\n", .{
+        &isr1_handler, 
+        systimer_interrupt.config.mtvt_index, 
+        &shared.clic.mtvt[systimer_interrupt.config.mtvt_index],
+        shared.clic.mtvt.ptr
+    });
+
+    const mtvt_read = CSR.mtvt.read_csrr();
+    std.log.warn("mtvt CSR=0x{x}\n", .{mtvt_read});
+
+    shared.clic.enable_mie(); // Enable/Set MIE - global interrupts.
+    
+
+    const t0 = shared.systimer.now_v2(.Micro).time;
+    std.log.info("Hello From SYSTIMER now: {d} µs\n", .{t0});
+
+    // var iteration_num: usize = 0;
     while (true) {
-        ets_delay_us(500_000);
-        ets_printf("...\r\n");
+        shared.systimer.set_delay(.Micro, 500_000);
+        // shared.systimer.TimeUnit.Micro.delay(500_000);
+        const t1 = shared.systimer.now_v2(.Micro).time;
+        // std.log.info("-------------------------------------- Iteration {d}\n", .{@as(u32, iteration_num)});
+        std.log.info("SYSTIMER now: {d} µs\n", .{t1});
+
+        // std.log.info("SYSTIMER Counter Ticks: {d}\n", .{shared.systimer.readCounter()});
+        // std.log.info("SYSTIMER Comparator: 0b{b}\n", .{shared.systimer.readComparator()});
+        // const since_t0 = shared.systimer.duration_v2(.{ .time = t0, .unit = .Micro });
+        // std.log.info("SYSTIMER duration since t0: {d} µs\n", .{since_t0});
+        // iteration_num += 1; 
+
         // asm volatile ("wfi");
     }
 
 }
 
-
-/// Init function for initializing board specific stuff for baremetal.
-/// The startup is split into three dedicated stages:
-/// and after RAM has been initialized. It should be a never ending 
-/// function that ends with an infinite loop.
-export fn app_startup() void {
-    // export fn _start() linksection(".text.entry") callconv(.naked) noreturn {
-
+fn pre_setup(shared_ctx: Shared, peripheral_list: []const Peripheral) void{
+    for(peripheral_list) |periph|{
+        switch (periph) {
+            .TIMERG0 => shared_ctx.timergroup.driver.wdt_disable(),
+            .USB_JTAG => shared_ctx.usb_jtag.driver.ready_timeout(500_000),
+            else => return,
+        } 
+    }
 }
 
-fn gpio_setup() void {
-    const GPIO_BASE: *volatile u32 = @ptrFromInt(0x123);
-    GPIO_BASE.* |= @as(u32, 0x10);
+fn peripheral_setup(shared_ctx: Shared, periph: Peripheral) void{
+    if (periph == .TIMERG0){
+        shared_ctx.timergroup.driver.wdt_disable();
+    }else if (periph == .USB_JTAG){
+        shared_ctx.usb_jtag.driver.ready_timeout(500_000);
+    }
 }
 
-fn timer_setup() void {
-    // LEDC_APB_CLK_SEL[1:0]
-    // Enable SYSTEM_LEDC_CLK_EN in SYSTEM_PERIP_CLK_EN0_REG (0x0018).
-    const SYSTEM_PERIP_CLK_ENO_REG: *volatile u32 = @ptrFromInt(0x0018);
-    const LEDC_CONF_REG: *volatile u32 = @ptrFromInt(0x00D0);
+fn run_benchmarks(shared_ctx: Shared) void {
+    const systimer = shared_ctx.systimer orelse return;
+    Testing.interrupt_init_test();
+    std.log.info("Hello From SYSTIMER now BEFORE LOOP: {d} µs\n", .{systimer.now_v2(.Micro).time});
 
-    LEDC_CONF_REG.* |= @as(u32, 0x01);
-    SYSTEM_PERIP_CLK_ENO_REG.* |= @as(u32, (1 << 11));
+    const baseline_metrics = core.BenchMark.getBaselineClockCycleCount();
+    std.log.info("Benchmark of Baseline Function: {d} cycle count, {d:.3}µs\n", .{baseline_metrics.raw_cc, baseline_metrics.time_us});
 
-    // LED PWM Boundary Address (Low address + High address):
-    // 0x6001_9000 (LOW Address) and 0x6001_9FFF (HIGH Address)
+    const fn_performance = core.BenchMark.getFunctionClockCycleCount("Interrupt init Test", Testing.interrupt_init_test);
+    std.log.info("Benchmark of '{s}': {d} cycle count, {d:.3}µs\n", .{fn_performance.benchmark_name, fn_performance.raw_cc, fn_performance.time_us});
+    
+    const fn1_performance = core.BenchMark.getFunctionClockCycleCount("Clic Tests",Testing.test_clic);
+    std.log.info("Benchmark of '{s}': {d} cycle count, {d:.3}µs\n", .{fn1_performance.benchmark_name, fn1_performance.raw_cc, fn1_performance.time_us});
 }
 
-/// LED PWM Controller (LEDC) blinky test.
-fn blinky() void {
-    // 1. Timer configuration, specifying PWM signal's frequency and duty cycle.
-    // 2. Channel configuration, associate with the timer(1) and GPIO to output PWM signal.
-    // 3. Change PWM signal that drives the output to change LED's intensity.
-    timer_setup();
-    // Toggle bit, e.g., `register = register ^ (1 << 3)`.
-}
