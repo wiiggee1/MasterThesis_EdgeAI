@@ -176,7 +176,7 @@ entry from the vector table is loaded and then jumped to in hardware. CLIC
 vectored mode uses `mtvec` exclusively for exception handling, since the 
 `mtvt` is used to define the base address for all vectored interrupts. 
 
-**NOTE:** To access the `mtvt`sometimes you need to do it directly 
+**NOTE:** To access the `mtvt` sometimes you need to do it directly 
 using the CSR number = 0x307 instead of the `mtvt` keyword. E.g., 
 ```asm
 csrr %0, 0x307 : "=r(mtvt_read_value)"
@@ -250,11 +250,11 @@ addresses located at `mtvt + 4 * interrupt id`.
 
 By utilizing the `export` keyword in Zig, we create symbols that is 
 visable to the linker. In addition to using the `export`, we can also 
-set the exported symbol as `weak`. Meaning we can redefine the same 
+set the exported symbol as `weak`. Meaning we can re-define the same 
 export declaration with a "non-weak" (strong) symbol. This allows us
 to override the weak symbol with the new stronger one. 
 
-##### Register the `mtvt` (vector table)
+##### Register/create the `mtvt` (vector table)
 ```zig
 pub fn set_mtvt(addr: usize) void {
     asm volatile ("csrw 0x307, a0" :: [a0] "{a0}" (addr));
@@ -293,6 +293,143 @@ riscv32-esp-elf-objdump -d edge_ai.elf | grep -A100 "<systimer_target0>*"
 ```
 
 -----------------
+
+##### Mapping Interrupt Sources to CPU Interrupt Signals
+We have 128 peripheral interrupt sources that maps into 32 *external* interrupts, 
+where external interrupt refer to peripheral sources. And 16 *internal* 
+representing e.g., timer and software interrupts. 
+
+1. Identify interrupt source (peripheral trigger) and the associated 
+mapping register. For example the source named `USB_SERIAL_JTAG_INTR_SOURCE`
+is mapped into index 22. Given by `Offset 0x0058 = 88 → 88/4 = 22`. 
+
+- General mapping formula:
+    - `mtvt + 4 * interrupt id` → `addr(mtvt) + offset`
+    - Vector offset = `4 * id`, e.g., ID 22 yield offset: `4 * 22 = 88 = 0x0058`
+
+So for each source, there is a corresponding mapping register that is referenced 
+as `CORE0_<SOURCE>_INT_MAP_REG` (for CPU0) and so on.
+
+2. For the ESP32-P4 board, the CPU has a pre-defined interrupt number ordering. 
+The peripheral interrupt have the dedicated numbers *16 to 47*. In the 
+meanwhile, in CLIC-mode the interrupt numbers *0-15* are reserved for 
+core-local or *internal* interrupts such as machine timer, software interrupts etc.
+While the numbers 16-47 (as mentioned) are used for the 32 interrupt lines 
+coming from the interrupt matrix. 
+
+3. After choosing the *interrupt source* in the previous step(2), we need to 
+setup and program the mapping register. 
+    > 3.1. First we pick the CPU interrupt number into the mapping register 
+    for that source. This will route the peripheral's interrupt signal 
+    to that CPU interrupt line. 
+
+For example, to map *Timer Group0* (ID 46) to CPU0 interrupt 16, we would 
+write the value 16 into the `CORE0_TIMERGRP0_T0_INT_MAP_REG`. 
+
+**Pseudo-code example:**
+
+```zig
+const CORE0_SOURCE_INT_MAP_REG: *volatile u32 = @ptrFromInt(base + src_offset);
+const interrupt_id = 16;
+CORE0_SOURCE_INT_MAP_REG.* = interrupt_id; // <Source> ID X → CPI0 interrupt 16. 
+```
+
+***Interrupt Vector Table (MTVT) and Selecting ISR indices***
+
+When we use CLIC in *vectored mode* the CPU automatically vectors to the 
+correct ISR using a vector table. The `mtvt` register holds the base 
+address of an interrupt vector table in memory. Each entry in this table 
+is a pointer (or jump) to an ISR callback for a specific interrupt number.
+
+- *Vector Index = Interrupt number* 
+
+Given that the vector index equal the interrupt number, means that 
+*we must place the ISR at the index corresponding to the CPU interrupt 
+number we mapped the source to*. From the example above (Pseudo-code), 
+we would place the ISR handler function pointer into our `_mtvt_table`
+at index 16 in the array/vector table. So the SOURCE ISR pointer would 
+be placed at `_mtvt_table[16]`. 
+
+- *Software Interrupts* - ESP32-P4 provide four software interrupt sources. 
+These are not tied to a specific peripheral. Where each has its own mapping 
+register `COREn_CPU_INTR_FROM_CPU_x_MAP_REG`. Software interrupt serve as a 
+way to intentionally cause an interrupt in code. 
+
+| **Source**            	| **Source ID** 	| **Mapping Register**               	| **Interrupt ID** 	|
+|:-----------------------:	|:---------------:	|:------------------------------------:	|:------------------:|
+| SYSTIMER_TARGET0_INTR 	| 53            	| CORE0_SYSTIMER_TARGET0_INT_MAP_REG 	|                  	|
+| SYSTIMER_TARGET1_INTR 	| 54            	| CORE0_SYSTIMER_TARGET1_INT_MAP_REG 	|                  	|
+| SYSTIMER_TARGET2_INTR 	| 55            	| CORE0_SYSTIMER_TARGET2_INT_MAP_REG 	|                  	|
+| CPU_INTR_FROM_CPU_0   	| 79            	| CORE0_CPU_INTR_FROM_CPU_0_MAP_REG  	|                  	|
+| CPU_INTR_FROM_CPU_1   	| 80            	| CORE0_CPU_INTR_FROM_CPU_1_MAP_REG  	|                  	|
+| CPU_INTR_FROM_CPU_2   	| 81            	| CORE0_CPU_INTR_FROM_CPU_2_MAP_REG  	|                  	|
+| CPU_INTR_FROM_CPU_3   	| 82            	| CORE0_CPU_INTR_FROM_CPU_3_MAP_REG  	|                  	|
+
+
+***Configuring the CLIC***
+- Interrupt Type: Level- or Edge-Triggered.
+- Interrupt Priority: Higher priority can preempt lower priorities.
+- Enabling the Interrupt: each interrupt line has an enable bit. 
+- Interrupt Threshold: filters out interrupts based on priority. 
+
+Enabling interrupt, is done via CSRs (riscv), e.g., by setting the 
+global interrupt enable bit `MIE` in the `mstatus` CSR. 
+
+4. After mapping in prior steps (see above) we would configure as: 
+
+    4.1. `set_interrupt_trigger_type(INTR_ID, LEVEL/EDGE);`
+    4.2. `set_priority(INTR_ID, priority_num);`
+    4.3. `mtvt_table[INTR_ID] = &my_isr_handler;`
+    4.4. `enable_interrupt_line(INTR_ID);`
+
+##### Summary:
+
+1. *Find the source ID and corresponding mapping register*.
+
+2. *Route interrupt source to a CPU interrupt line* by writing 
+into the `CORE0_SOURCE_INT_MAP_REG` for that source. 
+
+3. *Setup the CPU's interrupt vector table*: Make sure the `mtvt_table`
+has an entry at the index equal to the interrupt number choosed. 
+
+4. *Configure interrupt trigger mode and priority*.
+
+5. *Enable the interrupts*: Set enable bit in the CPU's enable 
+register. Also enable global interrupt, by `MIE` in `mstatus` CSR.
+
+6. *Define handle and clear logic for the ISR* 
+
+**OBS:**
+
+If we write *1* to `clicintattr[i].shv` we would set the interrupt *i* to vectored. 
+The trap handler function address is fetch from the base of `mtvt`, and can be 
+explained as (where exccode = interrupt id):
+`pc := M[MTVT_BASE + XLEN/8 * exccode] & ~1`
+
+The vector table layout for RV32 (4-byte or 32-bit function pointers):
+```
+mtvt → 0x4ff00000 # Interrupt 0 handler function pointer
+       0x4ff00004 # Interrupt 1 handler function pointer
+       0x4ff00008 # Interrupt 2 handler function pointer
+       0x4ff0000c # Interrupt 3 handler function pointer
+```
+With this CLIC vectored mode, we reads a handler function address from 
+the table, and jumps to it in hardware. The vector table contains vector 
+addresses rather than instructions. More specifically, the entries in the 
+table are simple *XLEN-bit* function pointers.
+
+Returning pointer to the trap handler entry (ISR) in our `mtvt` table 
+are done using the following pseudo-code: 
+
+```
+rd = MTVT_BASE + XLEN/8 * interrupt id // Return pointer to trap handler entry.
+```
+
+- Machine XLEN = 1 (32-bit), according to the `misa` (0x301) CSR. 
+
+
+
+
 
 
 
