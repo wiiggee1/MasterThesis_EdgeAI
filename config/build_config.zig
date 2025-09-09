@@ -211,12 +211,18 @@ pub const Toolchain = struct {
             .root_source_file = b.path("../espressif/main/src/bindings_new.zig"),
         });
         translate_c_bindings.addIncludePath(b.path("espressif/include")); 
-        
+
+
+        const toolchain_mod = b.addModule("toolchain_pre", .{ 
+            .target = b.graph.host,
+            .optimize = .Debug,
+            .root_source_file = b.path("scripts/toolchain_setup.zig"),
+        });
+         
         // ######################################## Pre-Setup Toolchain
         const toolchain_setup = b.addExecutable(.{
-            .name = "ToolChain-Pre-Setup",
-            .target = b.graph.host,
-            .root_source_file = b.path("scripts/toolchain_setup.zig"),
+            .name = "toolchain_pre",
+            .root_module = toolchain_mod,
         });
 
         const toolchain_run = b.addRunArtifact(toolchain_setup);
@@ -295,22 +301,17 @@ pub const Toolchain = struct {
             \\#include "esp_event_base.h"
             \\#include "{s}\n"
         ;
-        // /home/wiiggee1/esp/esp-idf/components/freertos/FreeRTOS-Kernel/include/freertos
-        // /home/wiiggee1/esp/esp-idf/components/hal/include/hal → if we addIncludePath(.../components/hal/include)
-        // then we need to include the header as e.g., #include "hal/gpio_hal.h"
         _ = default_includes; 
         
-        var header_string_list = std.ArrayList([]const u8).init(b.allocator);
-        // var header_components = std.StringArrayHashMap([]const u8).init(b.allocator);
+        var header_string_list = try std.ArrayList([]const u8).initCapacity(b.allocator, header_files.items.len);
         for(header_files.items) |hfile| {
             const header_file_path = hfile.getSource().cwd_relative;
             const basename_start = std.mem.lastIndexOfScalar(u8, header_file_path, '/') orelse return error.HeaderIncludeDirCouldntGetIndexOfLast;
             const header_dir = header_file_path[0..basename_start];
             const include_name = header_file_path[basename_start+1..];
             _ = header_dir;
-            // std.log.info("Header Include Dir: {s}\nHeader Name: {s}\n", .{header_dir, include_name});
-            // const header_line_str = b.fmt(line_format, .{include_name});
-            try header_string_list.append(b.fmt(line_format, .{include_name, "\n"}));
+
+            try header_string_list.append(b.allocator, b.fmt(line_format, .{include_name, "\n"}));
         }
 
         var header_file = file:{
@@ -439,34 +440,17 @@ pub const Firmware = struct {
 
     fn baremetalFirmwareSetup(b: *std.Build, build_settings: *BuildConfig, modules: []const std.Build.Module.Import) !Firmware{
         const example_name = build_settings.example_name orelse "firmware_baremetal";
-        // const embedded_firmware_mod = b.addModule(example_name, .{
-        //     .root_source_file = b.path(b.fmt("main/examples/{s}.zig", .{example_name})),
-        //     .target = build_settings.target,
-        //     .optimize = build_settings.profile, 
-        //     .link_libc = false,
-        //     .sanitize_c = false,
-        // });
 
-        // const exe_mod = b.createModule(.{
-        //     .root_source_file = b.path("src/root.zig"),
-        //     // .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example_name})),
-        //     // .target = build_settings.target,
-        //     // .optimize = build_settings.profile, 
-        //     .link_libc = false,
-        //     .sanitize_c = false,
-        // });
-
+        const embedded_mod = b.addModule(b.fmt("{s}.{s}", .{example_name, "elf"}), .{
+            .target = build_settings.target,    
+            .optimize = build_settings.profile orelse b.standardOptimizeOption(.{}),
+            .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example_name})),
+        });
+        
         const embedded_firmware = b.addExecutable(.{
             .name = b.fmt("{s}.{s}", .{example_name, "elf"}),
-            // .root_module = exe_mod,
-            .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example_name})),
-            .target = build_settings.target,
-            .optimize = build_settings.profile orelse b.standardOptimizeOption(.{}), 
+            .root_module = embedded_mod,
         });
-
-        // embedded_firmware.root_module.addImport("core", exe_mod);
-
-        // embedded_firmware.addAssemblyFile
 
         // Further baremetal options:
         embedded_firmware.setLinkerScript(b.path("config/linker.ld"));
@@ -488,9 +472,6 @@ pub const Firmware = struct {
             module.module.link_libc = false;
             embedded_firmware.root_module.addImport(module.name, module.module);
         }
-
-        // b.installArtifact(embedded_firmware);
-        // std.log.debug("embedded_firmware before: {any}\n", .{embedded_firmware.root_module});
 
         return Firmware{.executable = embedded_firmware};
     }

@@ -31,7 +31,7 @@ pub fn build(b: *std.Build) !void {
         }else {
             // The esp32s3 target require Zig toolchain with LLVM backend support. 
             const details: []const u8 = "https://deepwiki.com/kassane/zig-esp-idf-sample/3.2-target-platform-support";
-            std.log.err("Zig version {s} has no Xtensa support need LLVM fork!\nMore details here: {s}\n", .{buliltin.zig_version_string, details}); 
+            std.log.warn("Zig version {s} has no Xtensa support need LLVM fork!\nMore details here: {s}\n", .{buliltin.zig_version_string, details}); 
             break :xtensa null;
         }
     };
@@ -54,11 +54,18 @@ pub fn build(b: *std.Build) !void {
         // d → Double-Precision float,
         // ...
         .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, }),
+        // Testing without F extension. 
+        // .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, .f }),
+        // .cpu_features_add = std.Target.riscv.featureSet(&.{
+        //     .i, .a, .m, .c, 
+        //     .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc,
+        // }),
         .cpu_features_add = std.Target.riscv.featureSet(&.{
             .i, .a, .f, .m, .c, 
             .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc,
         }),
     };
+    
 
     // ===================================== Supported Targets.
     const supported_targets: []const std.Target.Query = supported:{
@@ -113,10 +120,13 @@ pub fn build(b: *std.Build) !void {
 
     try target_setup(b, supported_targets, &build_config);
     
-    const core_mod = b.createModule(.{
-        // .root_source_file = b.path("src/root.zig"),
-        .root_source_file = .{.cwd_relative = "src/root.zig"},
+    // const core_mod = b.createModule(.{
+    const core_mod = b.addModule("core", .{
+        // .root_source_file = .{.cwd_relative = "src/root.zig"},
+        .root_source_file = b.path("src/root.zig"),
         .link_libc = false,
+        .target = build_config.target,
+        .optimize = optimization_profile,
     });
 
     const gpio_mod = b.createModule(.{
@@ -134,13 +144,6 @@ pub fn build(b: *std.Build) !void {
         .name = "model",
         .root_module = nn_mod,
     });
-
-    // const core_lib = b.addLibrary(.{
-    //     .name = "core",
-    //     .linkage = .static,
-    //     .root_module = core_mod,
-    // });
-    // _ = core_lib; 
 
     const imports = [_]std.Build.Module.Import{
         .{.name = "startup", .module = b.createModule(.{
@@ -163,39 +166,55 @@ pub fn build(b: *std.Build) !void {
     };
     _ = imports; 
 
-    const example_name = build_config.example_name orelse "firmware_baremetal";
+    const example_name = build_config.example_name orelse "edge_ai";
+
+    const firmware_mod = b.addModule(b.fmt("{s}.{s}", .{example_name, "elf"}), .{
+        .target = build_config.target,
+        .optimize = optimization_profile,
+        .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example_name})),
+        // .imports = &.{
+        //     .{.name = "core", .module = core_mod},
+        // }
+    });
+
+    // firmware_mod.addImport("core", core_mod);
 
     const firmware = b.addExecutable(.{
         .name = b.fmt("{s}.{s}", .{example_name, "elf"}),
-        // .root_module = exe_mod,
-        .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example_name})),
-        .target = build_config.target,
-        // .optimize = build_config.profile orelse b.standardOptimizeOption(.{}), 
-        .optimize = optimization_profile, 
+        .root_module = firmware_mod,
     });
     
-    firmware.root_module.addImport("core", core_mod);
+    firmware.root_module.addImport("core", core_mod); // This is working!
     firmware.setLinkerScript(b.path("config/linker.ld"));
-    // firmware.setLinkerScript(b.path("config/linker_fixed.ld"));
     // firmware.setVerboseLink(true); // Remove this for not getting these nasty error messages. 
     
-
-    // firmware.root_module.code_model = .medium;
-    // firmware.root_module.strip = false;
-
+    // firmware.root_module.error_tracing = true; 
     firmware.entry = .{.symbol_name = "_start"};
     firmware.link_gc_sections = true;
+    // firmware.lto = .none;
+    // firmware.link_gc_sections = false;   // keep unreferenced sections
     firmware.link_data_sections = true;
     firmware.link_function_sections = true;
     firmware.linker_allow_shlib_undefined = false;
 
+    b.installArtifact(firmware); // Installs the .elf file [WORKING CODE LINE]
 
-    // const firmware_bin = b.addObjCopy(firmware.getEmittedBin(), .{.format = .bin});
-    // firmware_bin.step.dependOn(&firmware.step);
-    // const bin_copy = b.addInstallBinFile(firmware_bin.getOutput(), b.fmt("{s}.{s}", .{example_name, "bin"}));
-    // b.getInstallStep().dependOn(&bin_copy.step);
+    // Finally we add the "check" step which will be detected
+    // by ZLS and automatically enable Build-On-Save.
+    // If you copy this into your `build.zig`, make sure to rename 'foo'
+    const exe_check = b.addExecutable(.{
+        .name = b.fmt("{s}-check", .{example_name}),
+        // .name = b.fmt("{s}.{s}", .{example_name, "elf"}),
+        // .root_module = firmware.root_module,
+        .root_module = firmware_mod,
+    });
 
-    b.installArtifact(firmware); // Installs the .elf file
+    // exe_check.root_module.addImport("core", core_mod); // This is working!
+
+    const desc = b.fmt("Check if '{s}' compiles", .{example_name});
+    const check = b.step("check", desc);
+    
+    check.dependOn(&exe_check.step);   // WORKING CODE LINE 
 
     if (build_config.requireToolchainSetup()){
         try app_setup(b, &build_config, &.{
@@ -210,17 +229,6 @@ pub fn build(b: *std.Build) !void {
             std.log.debug("firmare.executable.root_module import: {s}\n", .{import.key_ptr.*});
         }
         
-        // Finally we add the "check" step which will be detected
-        // by ZLS and automatically enable Build-On-Save.
-        // If you copy this into your `build.zig`, make sure to rename 'foo'
-        const exe_check = b.addExecutable(.{
-            .name = example_name,
-            .root_module = firmware.root_module,
-        });
-
-        const desc = b.fmt("Check if '{s}' compiles", .{example_name});
-        const check = b.step("check", desc);
-        check.dependOn(&exe_check.step);   
     }
     
     const FirmwareInfo = struct {
@@ -276,10 +284,15 @@ pub fn build(b: *std.Build) !void {
     const input_file = b.fmt("zig-out/bin/{s}", .{firmware.name});
     const bin_file = b.fmt("zig-out/bin/{s}.{s}", .{example_name, "bin"});
 
+    const runnable_mod = b.addModule("RunnableCommands", .{
+        .root_source_file = b.path("scripts/run_commands.zig"),
+        .target = b.graph.host,
+        .optimize = .Debug,
+    });
+
     const runnable_cmd = b.addExecutable(.{
         .name = "RunnableCommands",
-        .target = b.graph.host,
-        .root_source_file = b.path("scripts/run_commands.zig"),
+        .root_module = runnable_mod,
     });
 
     const bin_obj = b.addRunArtifact(runnable_cmd);
@@ -292,10 +305,6 @@ pub fn build(b: *std.Build) !void {
     bin_obj.step.dependOn(&firmware.step);
     b.getInstallStep().dependOn(&bin_obj.step);
 
-    // const bootloader = b.addInstallFile(b.path("config/bootloader/bootloader.bin"), "bin/bootloader.bin");
-    // bootloader.step.dependOn(&bin_obj.step);
-    // b.getInstallStep().dependOn(&bootloader.step);
-
     const fetch_images = b.addSystemCommand(&[_][]const u8{
         "./scripts/images.sh",
         "--example",
@@ -306,7 +315,7 @@ pub fn build(b: *std.Build) !void {
     b.getInstallStep().dependOn(&fetch_images.step);
     
 
-    const grep_filter = try std.fmt.allocPrintZ(
+    const grep_filter = try std.fmt.allocPrint(
         b.allocator,
         "\"{s}\"", .{"Name|.text|.rodata|.srodata.cst4|.mtvt|.data|.bss|.heap|.stack"},
     );
@@ -482,12 +491,15 @@ fn addIncludeRequirments(b: *std.Build, firmware: ?*std.Build.Step.Compile, tool
                     parent.toolchain_ref.sysroot_path = try step.owner.allocator.dupe(u8, parsed_config.value.SYSROOT_PATH);
 
 
-                    // std.ArrayList(std.Build.Step.Compile.HeaderInstallation);
-                    // parent.firmware_ref.installed_headers_include_tree
-                    const installed_headers = try parent.firmware_ref.installed_headers.clone();
+                    // const installed_headers = try parent.firmware_ref.installed_headers.clone();
+                    const headers = try std.ArrayList(std.Build.Step.Compile.HeaderInstallation)
+                        .initCapacity(step.owner.allocator, parent.firmware_ref.installed_headers.items.len);
 
-                    //TODO: - Use a HashMap for creating header file for each unique component name:
-                    try parent.toolchain_ref.generateBindingModule(step.owner, parent.toolchain_ref.code_wrapper, installed_headers);
+                    try parent.toolchain_ref.generateBindingModule(
+                        step.owner, 
+                        parent.toolchain_ref.code_wrapper, 
+                        headers
+                    );
                     
                     // for(installed_headers.items) |header|{
                     //     // parent.firmware_ref.addHeaderInstallationToIncludeTree(header);
@@ -529,17 +541,25 @@ pub fn app_setup(b: *std.Build, build_settings: *BuildConfig, modules: []const s
     const target = build_settings.target orelse return error.TargetIsNotDefined;
     switch (target.result.cpu.arch) {
         inline else => |arch| {
-            std.debug.print("Target ({s}) Features: {any}\n", .{arch.genericName(), target.result.cpu.features});
+            std.debug.print("Target ({s}) Features: {any}\n", .{
+                @tagName(arch), 
+                target.result.cpu.features
+            });
         }
     }
     
     try addIncludeRequirments(b, firmware.executable, &toolchain, modules);
     b.installArtifact(firmware.executable);
+
+    const post_setup_mod = b.addModule("BuildingFlashingIdfComponents", .{ 
+        .root_source_file = b.path("scripts/run_commands.zig"),
+        .target = b.graph.host, 
+        .optimize = .Debug, 
+    });
     
     const post_setup_commands = b.addExecutable(.{
         .name = "BuildingFlashingIdfComponents",
-        .target = b.graph.host,
-        .root_source_file = b.path("scripts/run_commands.zig"),
+        .root_module = post_setup_mod,
     });
 
     const post_build_run = b.addRunArtifact(post_setup_commands);

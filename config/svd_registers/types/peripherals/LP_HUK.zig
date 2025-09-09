@@ -105,5 +105,5 @@ pub const LP_HUK = extern struct {
     }),
     /// The memory that stores HUK info.
     /// offset: 0x100
-    INFO_MEM: [96]u32,
+    INFO_MEM: [384]u8,
 };

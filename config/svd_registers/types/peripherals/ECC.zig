@@ -67,11 +67,11 @@ pub const ECC = extern struct {
     }),
     /// The memory that stores k.
     /// offset: 0x100
-    K_MEM: [8]u32,
+    K_MEM: [32]u8,
     /// The memory that stores Px.
     /// offset: 0x120
-    PX_MEM: [8]u32,
+    PX_MEM: [32]u8,
     /// The memory that stores Py.
     /// offset: 0x140
-    PY_MEM: [8]u32,
+    PY_MEM: [32]u8,
 };

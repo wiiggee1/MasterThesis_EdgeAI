@@ -79,7 +79,7 @@ pub const HMAC = extern struct {
     /// offset: 0x68
     QUERY_ERROR: mmio.Mmio(packed struct(u32) {
         /// Hmac configuration state. 0: key are agree with purpose. 1: error
-        QUERY_CHECK: u1,
+        QUREY_CHECK: u1,
         padding: u31 = 0,
     }),
     /// Busy register.
@@ -93,10 +93,10 @@ pub const HMAC = extern struct {
     reserved112: [16]u8,
     /// Message block memory.
     /// offset: 0x80
-    WR_MESSAGE_MEM: [16]u32,
+    WR_MESSAGE_MEM: [64]u8,
     /// Result from upstream.
     /// offset: 0xc0
-    RD_RESULT_MEM: [8]u32,
+    RD_RESULT_MEM: [32]u8,
     /// offset: 0xe0
     reserved224: [16]u8,
     /// Process control register 5.

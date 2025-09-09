@@ -17,7 +17,7 @@ pub const properties = struct {
     pub const @"cpu.revision" = "r0p0";
     pub const @"cpu.vendorSystickConfig" = "false";
     pub const license =
-        \\Copyright 2024 Espressif Systems (Shanghai) PTE LTD
+        \\Copyright 2025 Espressif Systems (Shanghai) PTE LTD
         \\
         \\    Licensed under the Apache License, Version 2.0 (the "License");
         \\    you may not use this file except in compliance with the License.

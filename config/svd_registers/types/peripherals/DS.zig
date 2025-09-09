@@ -5,27 +5,27 @@ const types = @import("../../types.zig");
 pub const DS = extern struct {
     /// memory that stores Y
     /// offset: 0x00
-    Y_MEM: [128]u32,
+    Y_MEM: [512]u8,
     /// memory that stores M
     /// offset: 0x200
-    M_MEM: [128]u32,
+    M_MEM: [512]u8,
     /// memory that stores Rb
     /// offset: 0x400
-    RB_MEM: [128]u32,
+    RB_MEM: [512]u8,
     /// memory that stores BOX
     /// offset: 0x600
-    BOX_MEM: [12]u32,
+    BOX_MEM: [48]u8,
     /// memory that stores IV
     /// offset: 0x630
-    IV_MEM: [4]u32,
+    IV_MEM: [16]u8,
     /// offset: 0x640
     reserved1600: [448]u8,
     /// memory that stores X
     /// offset: 0x800
-    X_MEM: [128]u32,
+    X_MEM: [512]u8,
     /// memory that stores Z
     /// offset: 0xa00
-    Z_MEM: [128]u32,
+    Z_MEM: [512]u8,
     /// offset: 0xc00
     reserved3072: [512]u8,
     /// DS start control register

@@ -5,22 +5,22 @@ const types = @import("../../types.zig");
 pub const RSA = extern struct {
     /// Represents M
     /// offset: 0x00
-    M_MEM: [4]u32,
+    M_MEM: [16]u8,
     /// offset: 0x10
     reserved16: [496]u8,
     /// Represents Z
     /// offset: 0x200
-    Z_MEM: [4]u32,
+    Z_MEM: [16]u8,
     /// offset: 0x210
     reserved528: [496]u8,
     /// Represents Y
     /// offset: 0x400
-    Y_MEM: [4]u32,
+    Y_MEM: [16]u8,
     /// offset: 0x410
     reserved1040: [496]u8,
     /// Represents X
     /// offset: 0x600
-    X_MEM: [4]u32,
+    X_MEM: [16]u8,
     /// offset: 0x610
     reserved1552: [496]u8,
     /// Represents M’

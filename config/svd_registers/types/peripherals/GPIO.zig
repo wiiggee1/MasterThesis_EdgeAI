@@ -1333,3537 +1333,3227 @@ pub const GPIO = extern struct {
     /// offset: 0x15c
     FUNC1_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC1_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC1_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG1_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x160
     FUNC2_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC2_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC2_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG2_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x164
     FUNC3_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC3_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC3_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG3_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x168
     FUNC4_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC4_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC4_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG4_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x16c
     FUNC5_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC5_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC5_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG5_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x170
     FUNC6_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC6_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC6_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG6_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x174
     FUNC7_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC7_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC7_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG7_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x178
     FUNC8_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC8_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC8_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG8_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x17c
     FUNC9_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC9_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC9_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG9_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x180
     FUNC10_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC10_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC10_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG10_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x184
     FUNC11_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC11_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC11_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG11_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x188
     FUNC12_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC12_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC12_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG12_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x18c
     FUNC13_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC13_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC13_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG13_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x190
     FUNC14_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC14_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC14_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG14_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x194
     FUNC15_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC15_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC15_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG15_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x198
     FUNC16_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC16_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC16_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG16_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x19c
     FUNC17_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC17_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC17_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG17_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1a0
     FUNC18_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC18_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC18_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG18_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1a4
     FUNC19_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC19_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC19_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG19_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1a8
     FUNC20_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC20_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC20_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG20_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1ac
     FUNC21_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC21_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC21_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG21_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1b0
     FUNC22_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC22_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC22_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG22_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1b4
     FUNC23_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC23_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC23_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG23_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1b8
     FUNC24_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC24_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC24_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG24_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1bc
     FUNC25_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC25_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC25_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG25_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1c0
     FUNC26_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC26_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC26_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG26_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1c4
     FUNC27_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC27_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC27_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG27_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1c8
     FUNC28_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC28_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC28_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG28_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1cc
     FUNC29_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC29_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC29_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG29_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1d0
     FUNC30_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC30_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC30_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG30_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1d4
     FUNC31_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC31_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC31_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG31_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1d8
     FUNC32_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC32_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC32_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG32_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1dc
     FUNC33_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC33_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC33_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG33_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1e0
     FUNC34_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC34_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC34_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG34_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1e4
     FUNC35_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC35_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC35_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG35_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1e8
     FUNC36_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC36_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC36_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG36_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1ec
     FUNC37_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC37_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC37_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG37_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1f0
     FUNC38_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC38_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC38_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG38_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1f4
     FUNC39_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC39_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC39_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG39_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1f8
     FUNC40_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC40_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC40_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG40_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x1fc
     FUNC41_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC41_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC41_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG41_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x200
     FUNC42_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC42_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC42_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG42_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x204
     FUNC43_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC43_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC43_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG43_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x208
     FUNC44_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC44_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC44_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG44_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x20c
     FUNC45_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC45_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC45_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG45_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x210
-    FUNC46_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved528: [4]u8,
     /// GPIO input function configuration register
     /// offset: 0x214
     FUNC47_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC47_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC47_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG47_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x218
     FUNC48_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC48_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC48_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG48_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x21c
     FUNC49_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC49_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC49_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG49_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x220
     FUNC50_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC50_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC50_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG50_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x224
     FUNC51_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC51_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC51_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG51_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x228
     FUNC52_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC52_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC52_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG52_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x22c
     FUNC53_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC53_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC53_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG53_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x230
     FUNC54_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC54_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC54_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG54_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x234
     FUNC55_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC55_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC55_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG55_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x238
     FUNC56_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC56_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC56_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG56_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x23c
     FUNC57_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC57_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC57_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG57_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x240
     FUNC58_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC58_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC58_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG58_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x244
     FUNC59_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC59_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC59_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG59_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x248
     FUNC60_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC60_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC60_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG60_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x24c
     FUNC61_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC61_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC61_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG61_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x250
     FUNC62_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC62_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC62_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG62_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x254
     FUNC63_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC63_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC63_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG63_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x258
     FUNC64_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC64_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC64_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG64_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x25c
     FUNC65_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC65_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC65_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG65_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x260
     FUNC66_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC66_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC66_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG66_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x264
-    FUNC67_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved612: [4]u8,
     /// GPIO input function configuration register
     /// offset: 0x268
     FUNC68_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC68_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC68_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG68_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x26c
     FUNC69_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC69_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC69_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG69_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x270
     FUNC70_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC70_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC70_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG70_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x274
     FUNC71_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC71_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC71_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG71_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x278
-    FUNC72_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x27c
-    FUNC73_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved632: [8]u8,
     /// GPIO input function configuration register
     /// offset: 0x280
     FUNC74_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC74_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC74_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG74_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x284
     FUNC75_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC75_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC75_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG75_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x288
     FUNC76_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC76_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC76_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG76_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x28c
     FUNC77_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC77_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC77_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG77_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x290
     FUNC78_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC78_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC78_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG78_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x294
-    FUNC79_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved660: [4]u8,
     /// GPIO input function configuration register
     /// offset: 0x298
     FUNC80_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC80_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC80_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG80_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x29c
-    FUNC81_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x2a0
-    FUNC82_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved668: [8]u8,
     /// GPIO input function configuration register
     /// offset: 0x2a4
     FUNC83_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC83_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC83_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG83_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x2a8
-    FUNC84_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x2ac
-    FUNC85_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved680: [8]u8,
     /// GPIO input function configuration register
     /// offset: 0x2b0
     FUNC86_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC86_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC86_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG86_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x2b4
-    FUNC87_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x2b8
-    FUNC88_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved692: [8]u8,
     /// GPIO input function configuration register
     /// offset: 0x2bc
     FUNC89_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC89_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC89_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG89_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2c0
     FUNC90_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC90_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC90_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG90_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2c4
     FUNC91_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC91_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC91_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG91_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2c8
     FUNC92_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC92_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC92_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG92_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2cc
     FUNC93_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC93_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC93_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG93_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2d0
     FUNC94_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC94_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC94_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG94_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2d4
     FUNC95_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC95_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC95_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG95_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2d8
     FUNC96_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC96_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC96_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG96_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2dc
     FUNC97_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC97_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC97_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG97_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2e0
     FUNC98_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC98_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC98_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG98_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2e4
     FUNC99_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC99_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC99_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG99_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2e8
     FUNC100_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC100_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC100_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG100_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2ec
     FUNC101_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC101_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC101_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG101_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2f0
     FUNC102_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC102_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC102_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG102_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2f4
     FUNC103_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC103_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC103_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG103_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2f8
     FUNC104_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC104_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC104_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG104_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x2fc
     FUNC105_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC105_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC105_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG105_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x300
     FUNC106_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC106_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC106_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG106_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x304
     FUNC107_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC107_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC107_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG107_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x308
     FUNC108_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC108_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC108_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG108_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x30c
     FUNC109_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC109_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC109_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG109_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x310
     FUNC110_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC110_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC110_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG110_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x314
     FUNC111_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC111_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC111_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG111_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x318
     FUNC112_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC112_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC112_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG112_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x31c
     FUNC113_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC113_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC113_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG113_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x320
     FUNC114_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC114_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC114_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG114_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x324
-    FUNC115_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x328
-    FUNC116_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved804: [8]u8,
     /// GPIO input function configuration register
     /// offset: 0x32c
     FUNC117_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC117_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC117_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG117_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x330
     FUNC118_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC118_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC118_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG118_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x334
-    FUNC119_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x338
-    FUNC120_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x33c
-    FUNC121_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x340
-    FUNC122_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x344
-    FUNC123_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x348
-    FUNC124_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x34c
-    FUNC125_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved820: [28]u8,
     /// GPIO input function configuration register
     /// offset: 0x350
     FUNC126_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC126_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC126_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG126_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x354
     FUNC127_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC127_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC127_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG127_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x358
     FUNC128_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC128_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC128_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG128_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x35c
     FUNC129_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC129_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC129_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG129_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x360
     FUNC130_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC130_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC130_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG130_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x364
     FUNC131_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC131_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC131_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG131_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x368
     FUNC132_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC132_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC132_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG132_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x36c
     FUNC133_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC133_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC133_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG133_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x370
     FUNC134_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC134_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC134_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG134_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x374
     FUNC135_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC135_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC135_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG135_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x378
     FUNC136_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC136_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC136_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG136_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x37c
     FUNC137_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC137_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC137_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG137_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x380
     FUNC138_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC138_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC138_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG138_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x384
     FUNC139_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC139_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC139_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG139_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x388
     FUNC140_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC140_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC140_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG140_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x38c
     FUNC141_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC141_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC141_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG141_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x390
     FUNC142_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC142_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC142_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG142_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x394
     FUNC143_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC143_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC143_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG143_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x398
     FUNC144_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC144_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC144_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG144_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x39c
     FUNC145_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC145_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC145_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG145_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3a0
     FUNC146_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC146_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC146_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG146_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3a4
     FUNC147_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC147_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC147_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG147_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3a8
     FUNC148_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC148_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC148_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG148_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3ac
     FUNC149_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC149_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC149_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG149_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3b0
     FUNC150_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC150_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC150_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG150_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3b4
     FUNC151_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC151_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC151_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG151_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3b8
     FUNC152_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC152_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC152_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG152_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3bc
     FUNC153_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC153_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC153_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG153_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3c0
     FUNC154_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC154_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC154_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG154_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3c4
     FUNC155_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC155_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC155_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG155_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3c8
     FUNC156_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC156_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC156_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG156_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x3cc
-    FUNC157_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved972: [4]u8,
     /// GPIO input function configuration register
     /// offset: 0x3d0
     FUNC158_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC158_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC158_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG158_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3d4
     FUNC159_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC159_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC159_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG159_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3d8
     FUNC160_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC160_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC160_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG160_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3dc
     FUNC161_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC161_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC161_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG161_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3e0
     FUNC162_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC162_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC162_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG162_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3e4
     FUNC163_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC163_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC163_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG163_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3e8
     FUNC164_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC164_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC164_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG164_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3ec
     FUNC165_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC165_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC165_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG165_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3f0
     FUNC166_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC166_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC166_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG166_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3f4
     FUNC167_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC167_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC167_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG167_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3f8
     FUNC168_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC168_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC168_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG168_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x3fc
     FUNC169_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC169_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC169_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG169_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x400
     FUNC170_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC170_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC170_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG170_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x404
     FUNC171_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC171_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC171_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG171_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x408
     FUNC172_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC172_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC172_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG172_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x40c
     FUNC173_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC173_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC173_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG173_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x410
     FUNC174_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC174_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC174_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG174_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x414
     FUNC175_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC175_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC175_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG175_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x418
     FUNC176_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC176_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC176_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG176_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x41c
     FUNC177_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC177_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC177_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG177_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x420
     FUNC178_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC178_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC178_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG178_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x424
     FUNC179_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC179_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC179_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG179_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x428
     FUNC180_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC180_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC180_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG180_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x42c
     FUNC181_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC181_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC181_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG181_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x430
     FUNC182_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC182_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC182_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG182_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x434
     FUNC183_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC183_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC183_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG183_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x438
     FUNC184_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC184_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC184_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG184_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x43c
     FUNC185_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC185_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC185_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG185_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x440
     FUNC186_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC186_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC186_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG186_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x444
     FUNC187_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC187_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC187_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG187_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x448
     FUNC188_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC188_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC188_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG188_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x44c
     FUNC189_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC189_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC189_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG189_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x450
     FUNC190_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC190_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC190_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG190_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x454
     FUNC191_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC191_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC191_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG191_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x458
     FUNC192_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC192_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC192_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG192_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x45c
     FUNC193_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC193_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC193_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG193_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x460
     FUNC194_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC194_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC194_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG194_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x464
     FUNC195_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC195_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC195_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG195_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x468
     FUNC196_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC196_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC196_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG196_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x46c
     FUNC197_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC197_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC197_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG197_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x470
     FUNC198_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC198_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC198_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG198_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x474
     FUNC199_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC199_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC199_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG199_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x478
     FUNC200_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC200_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC200_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG200_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x47c
     FUNC201_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC201_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC201_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG201_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x480
     FUNC202_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC202_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC202_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG202_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x484
     FUNC203_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC203_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC203_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG203_IN_SEL: u1,
         padding: u24 = 0,
     }),
-    /// GPIO input function configuration register
     /// offset: 0x488
-    FUNC204_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x48c
-    FUNC205_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x490
-    FUNC206_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x494
-    FUNC207_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x498
-    FUNC208_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x49c
-    FUNC209_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x4a0
-    FUNC210_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x4a4
-    FUNC211_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x4a8
-    FUNC212_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
-    /// GPIO input function configuration register
-    /// offset: 0x4ac
-    FUNC213_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
-        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
-        /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
-        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
-        padding: u24 = 0,
-    }),
+    reserved1160: [40]u8,
     /// GPIO input function configuration register
     /// offset: 0x4b0
     FUNC214_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC214_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC214_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG214_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4b4
     FUNC215_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC215_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC215_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG215_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4b8
     FUNC216_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC216_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC216_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG216_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4bc
     FUNC217_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC217_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC217_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG217_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4c0
     FUNC218_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC218_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC218_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG218_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4c4
     FUNC219_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC219_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC219_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG219_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4c8
     FUNC220_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC220_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC220_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG220_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4cc
     FUNC221_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC221_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC221_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG221_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4d0
     FUNC222_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC222_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC222_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG222_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4d4
     FUNC223_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC223_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC223_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG223_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4d8
     FUNC224_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC224_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC224_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG224_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4dc
     FUNC225_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC225_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC225_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG225_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4e0
     FUNC226_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC226_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC226_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG226_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4e4
     FUNC227_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC227_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC227_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG227_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4e8
     FUNC228_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC228_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC228_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG228_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4ec
     FUNC229_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC229_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC229_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG229_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4f0
     FUNC230_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC230_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC230_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG230_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4f4
     FUNC231_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC231_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC231_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG231_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4f8
     FUNC232_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC232_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC232_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG232_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x4fc
     FUNC233_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC233_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC233_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG233_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x500
     FUNC234_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC234_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC234_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG234_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x504
     FUNC235_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC235_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC235_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG235_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x508
     FUNC236_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC236_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC236_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG236_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x50c
     FUNC237_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC237_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC237_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG237_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x510
     FUNC238_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC238_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC238_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG238_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x514
     FUNC239_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC239_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC239_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG239_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x518
     FUNC240_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC240_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC240_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG240_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x51c
     FUNC241_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC241_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC241_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG241_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x520
     FUNC242_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC242_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC242_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG242_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x524
     FUNC243_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC243_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC243_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG243_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x528
     FUNC244_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC244_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC244_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG244_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x52c
     FUNC245_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC245_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC245_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG245_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x530
     FUNC246_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC246_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC246_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG246_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x534
     FUNC247_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC247_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC247_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG247_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x538
     FUNC248_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC248_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC248_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG248_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x53c
     FUNC249_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC249_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC249_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG249_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x540
     FUNC250_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC250_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC250_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG250_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x544
     FUNC251_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC251_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC251_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG251_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x548
     FUNC252_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC252_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC252_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG252_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x54c
     FUNC253_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC253_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC253_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG253_IN_SEL: u1,
         padding: u24 = 0,
     }),
     /// GPIO input function configuration register
     /// offset: 0x550
     FUNC254_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
-        IN_SEL: u6,
+        FUNC254_IN_SEL: u6,
         /// set this bit to invert input signal. 1:invert. 0:not invert.
-        IN_INV_SEL: u1,
+        FUNC254_IN_INV_SEL: u1,
         /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
-        SEL: u1,
+        SIG254_IN_SEL: u1,
         padding: u24 = 0,
     }),
+    /// GPIO input function configuration register
     /// offset: 0x554
-    reserved1364: [4]u8,
+    FUNC255_IN_SEL_CFG: mmio.Mmio(packed struct(u32) {
+        /// set this value: s=0-56: connect GPIO[s] to this port. s=0x3F: set this port always high level. s=0x3E: set this port always low level.
+        FUNC255_IN_SEL: u6,
+        /// set this bit to invert input signal. 1:invert. 0:not invert.
+        FUNC255_IN_INV_SEL: u1,
+        /// set this bit to bypass GPIO. 1:do not bypass GPIO. 0:bypass GPIO.
+        SIG255_IN_SEL: u1,
+        padding: u24 = 0,
+    }),
     /// GPIO output function select register
     /// offset: 0x558
     FUNC0_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x55c
     FUNC1_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x560
     FUNC2_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x564
     FUNC3_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x568
     FUNC4_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x56c
     FUNC5_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x570
     FUNC6_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x574
     FUNC7_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x578
     FUNC8_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x57c
     FUNC9_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x580
     FUNC10_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x584
     FUNC11_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x588
     FUNC12_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x58c
     FUNC13_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x590
     FUNC14_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x594
     FUNC15_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x598
     FUNC16_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x59c
     FUNC17_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5a0
     FUNC18_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5a4
     FUNC19_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5a8
     FUNC20_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5ac
     FUNC21_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5b0
     FUNC22_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5b4
     FUNC23_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5b8
     FUNC24_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5bc
     FUNC25_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5c0
     FUNC26_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5c4
     FUNC27_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5c8
     FUNC28_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5cc
     FUNC29_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5d0
     FUNC30_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5d4
     FUNC31_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5d8
     FUNC32_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5dc
     FUNC33_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5e0
     FUNC34_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5e4
     FUNC35_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5e8
     FUNC36_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5ec
     FUNC37_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5f0
     FUNC38_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5f4
     FUNC39_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5f8
     FUNC40_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x5fc
     FUNC41_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x600
     FUNC42_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x604
     FUNC43_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x608
     FUNC44_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x60c
     FUNC45_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x610
     FUNC46_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x614
     FUNC47_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x618
     FUNC48_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x61c
     FUNC49_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x620
     FUNC50_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x624
     FUNC51_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x628
     FUNC52_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x62c
     FUNC53_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x630
     FUNC54_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x634
     FUNC55_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO output function select register
     /// offset: 0x638
     FUNC56_OUT_SEL_CFG: mmio.Mmio(packed struct(u32) {
         /// The value of the bits: 0<=s<=256. Set the value to select output signal. s=0-255: output of GPIO[n] equals input of peripheral[s]. s=256: output of GPIO[n] equals GPIO_OUT_REG[n].
-        OUT_SEL: u9,
+        FUNC_OUT_SEL: u9,
         /// set this bit to invert output signal.1:invert.0:not invert.
-        INV_SEL: u1,
+        FUNC_OUT_INV_SEL: u1,
         /// set this bit to select output enable signal.1:use GPIO_ENABLE_REG[n] as output enable signal.0:use peripheral output enable signal.
-        OEN_SEL: u1,
+        FUNC_OEN_SEL: u1,
         /// set this bit to invert output enable signal.1:invert.0:not invert.
-        OEN_INV_SEL: u1,
+        FUNC_OEN_INV_SEL: u1,
         padding: u20 = 0,
     }),
     /// GPIO interrupt 2 status register for GPIO0-31

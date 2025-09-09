@@ -90,8 +90,8 @@ pub const SHA = extern struct {
     reserved48: [16]u8,
     /// Sha H memory which contains intermediate hash or finial hash.
     /// offset: 0x40
-    H_MEM: [16]u32,
+    H_MEM: [64]u8,
     /// Sha M memory which contains message.
     /// offset: 0x80
-    M_MEM: [16]u32,
+    M_MEM: [64]u8,
 };

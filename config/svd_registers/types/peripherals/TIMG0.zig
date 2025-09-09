@@ -8,32 +8,32 @@ pub const TIMG0 = extern struct {
     T0CONFIG: mmio.Mmio(packed struct(u32) {
         reserved9: u9 = 0,
         /// 1: Use XTAL_CLK as the source clock of timer group. 0: Use APB_CLK as the source clock of timer group.
-        USE_XTAL: u1,
+        T_USE_XTAL: u1,
         /// When set, the alarm is enabled. This bit is automatically cleared once an alarm occurs.
-        ALARM_EN: u1,
+        T_ALARM_EN: u1,
         reserved12: u1 = 0,
         /// When set, Timer %s 's clock divider counter will be reset.
-        DIVCNT_RST: u1,
+        T_DIVCNT_RST: u1,
         /// Timer %s clock (T%s_clk) prescaler value.
-        DIVIDER: u16,
+        T_DIVIDER: u16,
         /// When set, timer %s auto-reload at alarm is enabled.
-        AUTORELOAD: u1,
+        T_AUTORELOAD: u1,
         /// When set, the timer %s time-base counter will increment every clock tick. When cleared, the timer %s time-base counter will decrement.
-        INCREASE: u1,
+        T_INCREASE: u1,
         /// When set, the timer %s time-base counter is enabled.
-        EN: u1,
+        T_EN: u1,
     }),
     /// Timer %s current value, low 32 bits
     /// offset: 0x04
     T0LO: mmio.Mmio(packed struct(u32) {
         /// After writing to TIMG_T%sUPDATE_REG, the low 32 bits of the time-base counter of timer %s can be read here.
-        LO: u32,
+        T_LO: u32,
     }),
     /// Timer %s current value, high 22 bits
     /// offset: 0x08
     T0HI: mmio.Mmio(packed struct(u32) {
         /// After writing to TIMG_T%sUPDATE_REG, the high 22 bits of the time-base counter of timer %s can be read here.
-        HI: u22,
+        T_HI: u22,
         padding: u10 = 0,
     }),
     /// Write to copy current timer value to TIMGn_T%s_(LO/HI)_REG
@@ -41,42 +41,112 @@ pub const TIMG0 = extern struct {
     T0UPDATE: mmio.Mmio(packed struct(u32) {
         reserved31: u31 = 0,
         /// After writing 0 or 1 to TIMG_T%sUPDATE_REG, the counter value is latched.
-        UPDATE: u1,
+        T_UPDATE: u1,
     }),
     /// Timer %s alarm value, low 32 bits
     /// offset: 0x10
     T0ALARMLO: mmio.Mmio(packed struct(u32) {
         /// Timer %s alarm trigger time-base counter value, low 32 bits.
-        ALARM_LO: u32,
+        T_ALARM_LO: u32,
     }),
     /// Timer %s alarm value, high bits
     /// offset: 0x14
     T0ALARMHI: mmio.Mmio(packed struct(u32) {
         /// Timer %s alarm trigger time-base counter value, high 22 bits.
-        ALARM_HI: u22,
+        T_ALARM_HI: u22,
         padding: u10 = 0,
     }),
     /// Timer %s reload value, low 32 bits
     /// offset: 0x18
     T0LOADLO: mmio.Mmio(packed struct(u32) {
         /// Low 32 bits of the value that a reload will load onto timer %s time-base Counter.
-        LOAD_LO: u32,
+        T_LOAD_LO: u32,
     }),
     /// Timer %s reload value, high 22 bits
     /// offset: 0x1c
     T0LOADHI: mmio.Mmio(packed struct(u32) {
         /// High 22 bits of the value that a reload will load onto timer %s time-base counter.
-        LOAD_HI: u22,
+        T_LOAD_HI: u22,
         padding: u10 = 0,
     }),
     /// Write to reload timer from TIMG_T%s_(LOADLOLOADHI)_REG
     /// offset: 0x20
     T0LOAD: mmio.Mmio(packed struct(u32) {
         /// Write any value to trigger a timer %s time-base counter reload.
-        LOAD: u32,
+        T_LOAD: u32,
     }),
+    /// Timer %s configuration register
     /// offset: 0x24
-    reserved36: [36]u8,
+    T1CONFIG: mmio.Mmio(packed struct(u32) {
+        reserved9: u9 = 0,
+        /// 1: Use XTAL_CLK as the source clock of timer group. 0: Use APB_CLK as the source clock of timer group.
+        T_USE_XTAL: u1,
+        /// When set, the alarm is enabled. This bit is automatically cleared once an alarm occurs.
+        T_ALARM_EN: u1,
+        reserved12: u1 = 0,
+        /// When set, Timer %s 's clock divider counter will be reset.
+        T_DIVCNT_RST: u1,
+        /// Timer %s clock (T%s_clk) prescaler value.
+        T_DIVIDER: u16,
+        /// When set, timer %s auto-reload at alarm is enabled.
+        T_AUTORELOAD: u1,
+        /// When set, the timer %s time-base counter will increment every clock tick. When cleared, the timer %s time-base counter will decrement.
+        T_INCREASE: u1,
+        /// When set, the timer %s time-base counter is enabled.
+        T_EN: u1,
+    }),
+    /// Timer %s current value, low 32 bits
+    /// offset: 0x28
+    T1LO: mmio.Mmio(packed struct(u32) {
+        /// After writing to TIMG_T%sUPDATE_REG, the low 32 bits of the time-base counter of timer %s can be read here.
+        T_LO: u32,
+    }),
+    /// Timer %s current value, high 22 bits
+    /// offset: 0x2c
+    T1HI: mmio.Mmio(packed struct(u32) {
+        /// After writing to TIMG_T%sUPDATE_REG, the high 22 bits of the time-base counter of timer %s can be read here.
+        T_HI: u22,
+        padding: u10 = 0,
+    }),
+    /// Write to copy current timer value to TIMGn_T%s_(LO/HI)_REG
+    /// offset: 0x30
+    T1UPDATE: mmio.Mmio(packed struct(u32) {
+        reserved31: u31 = 0,
+        /// After writing 0 or 1 to TIMG_T%sUPDATE_REG, the counter value is latched.
+        T_UPDATE: u1,
+    }),
+    /// Timer %s alarm value, low 32 bits
+    /// offset: 0x34
+    T1ALARMLO: mmio.Mmio(packed struct(u32) {
+        /// Timer %s alarm trigger time-base counter value, low 32 bits.
+        T_ALARM_LO: u32,
+    }),
+    /// Timer %s alarm value, high bits
+    /// offset: 0x38
+    T1ALARMHI: mmio.Mmio(packed struct(u32) {
+        /// Timer %s alarm trigger time-base counter value, high 22 bits.
+        T_ALARM_HI: u22,
+        padding: u10 = 0,
+    }),
+    /// Timer %s reload value, low 32 bits
+    /// offset: 0x3c
+    T1LOADLO: mmio.Mmio(packed struct(u32) {
+        /// Low 32 bits of the value that a reload will load onto timer %s time-base Counter.
+        T_LOAD_LO: u32,
+    }),
+    /// Timer %s reload value, high 22 bits
+    /// offset: 0x40
+    T1LOADHI: mmio.Mmio(packed struct(u32) {
+        /// High 22 bits of the value that a reload will load onto timer %s time-base counter.
+        T_LOAD_HI: u22,
+        padding: u10 = 0,
+    }),
+    /// Write to reload timer from TIMG_T%s_(LOADLOLOADHI)_REG
+    /// offset: 0x44
+    T1LOAD: mmio.Mmio(packed struct(u32) {
+        /// Write any value to trigger a timer %s time-base counter reload.
+        T_LOAD: u32,
+    }),
     /// Watchdog timer configuration register
     /// offset: 0x48
     WDTCONFIG0: mmio.Mmio(packed struct(u32) {

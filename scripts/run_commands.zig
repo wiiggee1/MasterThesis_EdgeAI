@@ -118,7 +118,7 @@ pub const RunnableCommand = struct {
             std.process.fatal("Parent Env is missing the $IDF_PATH!", .{});
         }
 
-        const python_idf_path = try std.fmt.allocPrintZ(allocator, "{s}/tools/idf.py", .{
+        const python_idf_path = try std.fmt.allocPrint(allocator, "{s}/tools/idf.py", .{
             cached_envmap.get("IDF_PATH") orelse @panic("Missing env $IDF_PATH"), 
         });
 
@@ -153,7 +153,7 @@ pub const RunnableCommand = struct {
             for(flags, 0..) |flag, i| {
                 if (std.mem.eql(u8, flag, "--example")){
                     const example_name = flags[i+1];
-                    const example_file = try std.fmt.allocPrintZ(allocator, "/zig-out/bin/{s}.elf", .{example_name});
+                    const example_file = try std.fmt.allocPrint(allocator, "/zig-out/bin/{s}.elf", .{example_name});
 
                     _ = std.fs.cwd().access(example_file, .{}) catch |err| {
                         return err; 
@@ -189,7 +189,7 @@ pub const RunnableCommand = struct {
         const start_index = std.mem.lastIndexOf(u8, input_image, "/");
         const example_name = if(start_index) |start| input_image[start+1..] else input_image; 
         const image_name = std.mem.trim(u8, example_name, ".bin");
-        const flash_command = try std.fmt.allocPrintZ(allocator, "./flash_target.sh --example {s}", .{image_name});
+        const flash_command = try std.fmt.allocPrint(allocator, "./flash_target.sh --example {s}", .{image_name});
 
         // ./scripts/flash_target.sh --example edge_ai
         // ./flash_target.sh --example edge_ai
@@ -201,16 +201,24 @@ pub const RunnableCommand = struct {
         });
 
         std.log.info("Attempting to Flash via: {s}\n", .{flash_command});
+        const stdout_buffer = try allocator.alloc(u8, 
+            if(child.stdout.len != 0) child.stdout.len
+            else if(child.stderr.len != 0) child.stderr.len
+            else @as(usize, 1024)); 
+
+        var stdout_writer = std.fs.File.stdout().writer(stdout_buffer);
+        const stdout = &stdout_writer.interface;
+
 
         if (child.stdout.len != 0){
-            const stdout = std.io.getStdOut().writer();
             try stdout.print("{s}\n", .{child.stdout});
+            try stdout.flush();
         }else if (child.stderr.len != 0){
             std.process.fatal("stderr: {s}\n", .{child.stderr});
         }
         
-        const stdout = std.io.getStdOut().writer();
         try stdout.print("Successfully Flashed the Binary Image: '{s}.bin'", .{image_name});
+        try stdout.flush();
 
         _ = command_name; 
     }
@@ -249,8 +257,6 @@ pub const RunnableCommand = struct {
         const input_file = input_file_path orelse std.process.fatal("Missing --input_file", .{});
         const output_file = output_file_path orelse std.process.fatal("Missing --output_file", .{});
 
-        // "--output_file", b.fmt("zig-out/bin/{s}.{s}", .{example_name, "bin"})
-
         const objcopy_cmd_str: []const []const u8 = blk:{
             if (cmd_options) |options| {
                 const objcopy_cmd = &[_][]const u8{ "riscv32-elf-objcopy", input_file, options, output_file};
@@ -268,16 +274,27 @@ pub const RunnableCommand = struct {
         });
 
         const cmd_str = try std.mem.join(allocator, " ", objcopy_cmd_str);
-        const stdout = std.io.getStdOut().writer();
+        const child_out_len = 
+            if(child.stdout.len != 0) child.stdout.len 
+            else if(child.stderr.len != 0) child.stderr.len 
+            else @as(usize, 100);
+
+        const stdout_buffer = try allocator.alloc(u8, cmd_str.len + child_out_len);
+        var stdout_writer = std.fs.File.stdout().writer(stdout_buffer);
+        const stdout = &stdout_writer.interface;
+
         try stdout.print("\nAttempting to run: {s}\n", .{cmd_str});
+        try stdout.flush();
 
         if (child.stdout.len != 0){
             try stdout.print("{s}\n", .{child.stdout});
+            try stdout.flush();
         }else if (child.stderr.len != 0){
             std.log.err("{s}\n", .{child.stderr});
         }
 
         try stdout.print("Objcopy Successfully Generated The File '{s}'\n", .{output_file});
+        try stdout.flush();
     }
 
     
@@ -294,7 +311,7 @@ pub const RunnableCommand = struct {
             // zig build -freference-trace=9 -- --example edge_ai
             const command_string = switch (action) {
                 .cmd_str => placeholder_cmd: {
-                    var cmd_arr = std.ArrayList([]const u8).init(allocator);
+                    var cmd_arr = try std.ArrayList([]const u8).initCapacity(allocator, flags.len);
                     var i: usize = 0;
 
                     while(i < flags.len - 1) : (i += 1){
@@ -302,21 +319,21 @@ pub const RunnableCommand = struct {
                         const flag = flags[i];
                         const val = flags[i+1];
                         if (std.mem.eql(u8, flag, "--cmd") or std.mem.eql(u8, flag, "--cmd_name")){
-                            try cmd_arr.append(val);
+                            try cmd_arr.append(allocator, val);
 
                         }else if (std.mem.eql(u8, flag, "--options") or std.mem.eql(u8, flag, "--cmd_options")){
                             // std.mem.replace(u8, output_cmd, "[options]", val, output_cmd[0..]);
-                            try cmd_arr.append(val);
+                            try cmd_arr.append(allocator, val);
 
                         }else if (std.mem.eql(u8, flag, "--input") or std.mem.eql(u8, flag, "--input_file")){
-                            try cmd_arr.append(val);
+                            try cmd_arr.append(allocator, val);
                         }else if (std.mem.eql(u8, flag, "--filter") or std.mem.eql(u8, flag, "--pipe")){
                             const filter_options = flags[i+1..];
                             const filter = try std.mem.join(allocator, " ", filter_options);
-                            try cmd_arr.append(filter);
+                            try cmd_arr.append(allocator, filter);
                         }
                     }
-                    const out = try cmd_arr.toOwnedSlice();
+                    const out = try cmd_arr.toOwnedSlice(allocator);
                     break :placeholder_cmd out; 
                 },
                 else => &[_][]const u8{""}, 
@@ -330,13 +347,23 @@ pub const RunnableCommand = struct {
             });
             const cmd_str = try std.mem.join(allocator, " ", command_string);
             std.log.info("Attempting to run: {s}\n", .{cmd_str});
+                
+            const buffer = try allocator.alloc(u8, 
+                if(child.stdout.len != 0) child.stdout.len
+                else if(child.stderr.len != 0) child.stderr.len
+                else 1024
+            );
 
             if (child.stdout.len != 0){
-                const stdout = std.io.getStdOut().writer();
+                var stdout_writer = std.fs.File.stdout().writer(buffer);
+                const stdout = &stdout_writer.interface;
                 try stdout.print("{s}\n", .{child.stdout});
+                try stdout.flush();
             }else if (child.stderr.len != 0){
-                const stderr = std.io.getStdErr().writer();
+                var stderr_writer = std.fs.File.stderr().writer(buffer);
+                const stderr = &stderr_writer.interface;
                 try stderr.print("{s}\n", .{child.stderr});
+                try stderr.flush();
             }
         }
     }
@@ -399,7 +426,12 @@ pub fn main() !void {
             i += 1; 
             if (i+1 > args.len) break; 
         }else if (std.mem.eql(u8, "--help",args[i])){
-            try std.io.getStdOut().writeAll(help_flag);
+            // try std.io.getStdOut().writeAll(help_flag);
+            const help_buffer = try allocator.alloc(u8, help_flag.len + 10);
+            var stdout_writer = std.fs.File.stdout().writer(help_buffer);
+            const stdout = &stdout_writer.interface;
+            try stdout.writeAll(help_flag);
+            try stdout.flush();
             return std.process.cleanExit();
         }
     }

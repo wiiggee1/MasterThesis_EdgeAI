@@ -129,16 +129,16 @@ pub const AES = extern struct {
     }),
     /// The memory that stores initialization vector
     /// offset: 0x50
-    IV_MEM: [4]u32,
+    IV_MEM: [16]u8,
     /// The memory that stores GCM hash subkey
     /// offset: 0x60
-    H_MEM: [4]u32,
+    H_MEM: [16]u8,
     /// The memory that stores J0
     /// offset: 0x70
-    J0_MEM: [4]u32,
+    J0_MEM: [16]u8,
     /// The memory that stores T0
     /// offset: 0x80
-    T0_MEM: [4]u32,
+    T0_MEM: [16]u8,
     /// DMA-AES working mode register
     /// offset: 0x90
     DMA_ENABLE: mmio.Mmio(packed struct(u32) {

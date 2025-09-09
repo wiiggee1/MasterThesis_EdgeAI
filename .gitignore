@@ -20,3 +20,9 @@ dependencies.lock
 scripts/pre_setup.sh
 src/clic_vectors.S
 config/linker_copy.ld
+config/PyCortexMDebug
+config/svd_registers/
+config/svd_registers/types/
+config/svd_registers/types/peripherals/
+scripts/PyCortexMDebug/
+.gdb_history

@@ -137,22 +137,22 @@ pub const ECDSA = extern struct {
     reserved540: [100]u8,
     /// The memory that stores message.
     /// offset: 0x280
-    MESSAGE_MEM: [8]u32,
+    MESSAGE_MEM: [32]u8,
     /// offset: 0x2a0
     reserved672: [1888]u8,
     /// The memory that stores r.
     /// offset: 0xa00
-    R_MEM: [8]u32,
+    R_MEM: [32]u8,
     /// The memory that stores s.
     /// offset: 0xa20
-    S_MEM: [8]u32,
+    S_MEM: [32]u8,
     /// The memory that stores software written z.
     /// offset: 0xa40
-    Z_MEM: [8]u32,
+    Z_MEM: [32]u8,
     /// The memory that stores x coordinates of QA or software written k.
     /// offset: 0xa60
-    QAX_MEM: [8]u32,
+    QAX_MEM: [32]u8,
     /// The memory that stores y coordinates of QA.
     /// offset: 0xa80
-    QAY_MEM: [8]u32,
+    QAY_MEM: [32]u8,
 };
