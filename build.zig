@@ -46,26 +46,18 @@ pub fn build(b: *std.Build) !void {
         .abi = .none,
         // .abi = .ilp32,
         // .abi = .eabihf,
-        // RISC-V feature (example):
-        // m → Multiply/Divide,
-        // a → Atomic,
-        // c → Compressed,
-        // f → Single-Precision float,
-        // d → Double-Precision float,
-        // ...
-        .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, }),
+        // .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, }),
         // Testing without F extension. 
-        // .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, .f }),
+        .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, .f }),
+        .cpu_features_add = std.Target.riscv.featureSet(&.{
+            .i, .a, .m, .c,
+            .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc, 
+        }),
         // .cpu_features_add = std.Target.riscv.featureSet(&.{
-        //     .i, .a, .m, .c, 
+        //     .i, .a, .f, .m, .c, 
         //     .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc,
         // }),
-        .cpu_features_add = std.Target.riscv.featureSet(&.{
-            .i, .a, .f, .m, .c, 
-            .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc,
-        }),
     };
-    
 
     // ===================================== Supported Targets.
     const supported_targets: []const std.Target.Query = supported:{
