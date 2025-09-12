@@ -14,6 +14,27 @@ const csr = @import("csr.zig");
 pub const Testing = @import("testing.zig");
 pub const BenchMark = @import("benchmarks.zig").BenchMark;
 
+
+pub const SIMD = struct{
+    pub const Operation = enum {
+        Add,
+        Mul,
+        Sub,
+    };
+
+    pub fn vec_op(comptime T: type, comptime Cols: usize, op: Operation, arr1: [Cols]T, arr2: [Cols]T) @Vector(Cols, T){
+        var row_vector: @Vector(Cols, T) = arr1;
+        const other_vector: @Vector(Cols, T) = arr2;
+        switch (op) {
+            .Add => row_vector += other_vector, // row_vector = row_vector + other_vector.
+            .Mul => row_vector *= other_vector,
+            .Sub => row_vector -= other_vector, 
+        }
+        return row_vector;
+    }
+
+};
+
 pub const Hardware = struct {
     pub const Clic = interrupts.Clic;
     pub const Interrupt = interrupts.Interrupt;

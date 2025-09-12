@@ -36,6 +36,8 @@ const Shared = struct {
         .freq = FREQ_HZ,
         .target_mode = .periodic,
         .target_num = .target0,
+        .core0_stall_enabled = true,
+        // .core0_stall_enabled = false,
     };
 
     systimer: SystemTimer,
@@ -45,18 +47,20 @@ const Shared = struct {
 };
 
 var shared: Shared = undefined;
+var int_counter: u32 = 0; 
 
 /// Below is the override logic of the .weak `isr1_handler` symbol.
 pub export fn isr1_handler() linksection(".iram0.isr_handler") callconv(INTERRUPT) void {
-    std.log.warn("Hello from System Timer Target0 ISR!!!\n", .{});
-
-    // clear interrupt bit. 
-    // shared.systimer.enable_interrupt();
-    shared.systimer.clear_interrupt();
-
-    //FIX: start enable work to satisfy: COMPx starts comparing the count value with the sum of (start value + n*δt)
-    shared.systimer.start_enable_work(); 
+    // shared.systimer.enable_interrupt(false);
     
+    std.log.warn("Hello from System Timer Target0 ISR!!!\n", .{});
+    int_counter +=1;
+    // clear interrupt bit. 
+    shared.systimer.clear_interrupt();
+    // shared.systimer.enable_interrupt(true);
+    // shared.systimer.clear_interrupt();
+    
+
     // asm volatile ("mret");
     // core.exit_trap();
 }
@@ -84,16 +88,12 @@ pub export fn app_main() callconv(.c) void {
     //Run embedded firmware below:
     const Interrupt = Hardware.Interrupt; 
     const TimerCfg = Shared.SysTimeCfg;
-    const GenericSystemTimer = Hardware.DriverApi(.SYSTIMER, hal.SystemTimer);
-    // const system_timer = GenericSystemTimer.new(TimerCfg) catch blk:{
-    //     break :blk GenericSystemTimer{
-    //         .driver = hal.SystemTimer.init(Shared.SysTimeCfg),
-    //     };
-    // };
-    const system_timer = GenericSystemTimer.new(TimerCfg);
+    // const GenericSystemTimer = Hardware.DriverApi(.SYSTIMER, hal.SystemTimer);
+    // const system_timer = GenericSystemTimer.new(TimerCfg);
 
     shared = .{
-        .systimer = system_timer.driver,
+        // .systimer = system_timer.driver,
+        .systimer = .init(TimerCfg),
         .clic = .init(&_mtvt_table),
         .timergroup = .new(.{}),
         .usb_jtag = .new(.{}),
@@ -101,17 +101,18 @@ pub export fn app_main() callconv(.c) void {
 
     pre_setup(shared, &.{
         Peripheral.TIMERG0,
+        // Peripheral.SYSTIMER,
         Peripheral.USB_JTAG,
     });
 
-    shared.clic.debug_info();
+    // shared.clic.debug_info();
+
 
     // Set the alarm period + synchronize the alarm period + sets period mode. 
     // shared.systimer.setup_timer(.{ .time = 500_000 * 4, .unit = .Micro }) catch {};
     // shared.systimer.start_enable_work(); // COMPx starts comparing the count value of SUM(start value + n*δt) (n = 1, 2, 3...)
     // shared.systimer.enable_interrupt();
    
-    // FIX: - parsing logic for tuple anonymous struct types
     const systimer_interrupt: Interrupt = Interrupt.init(.{
         .trigger_mode = Hardware.TriggerMode.level,
         .id = @as(u5, 1), // 0..31, id = 1 → _mtvt_table[17]
@@ -122,6 +123,11 @@ pub export fn app_main() callconv(.c) void {
         .source = Hardware.PeripheralInterruptSources.SYSTIMER_TARGET0_INTR_SOURCE, 
         .threshold = @as(?u4, null),
     });
+
+    // systimer_interrupt.sourceMappingDebug() catch |err|{
+    //     std.log.err("Failed! Got Error: {s}\n", .{@errorName(err)});
+    // };
+
     // const systimer_interrupt_v2: Interrupt = Interrupt.init(Interrupt.Config{
     //     .trigger_mode = .level,
     //     .id = 1,
@@ -133,30 +139,29 @@ pub export fn app_main() callconv(.c) void {
     //     .threshold = null, 
     // });
 
-    // This will setup the vector table and MTVT table for our ISRs.
-    // shared.clic.global_setup(
-    //     @intFromPtr(&_vector_table), 
-    //     @intFromPtr(&_mtvt_table)
-    // );
+    // const cfg_parsed = hal.SystemTimerConfig.parse_v2(TimerCfg);
+    // std.log.warn("usb_jtag: {any}\n", .{shared.usb_jtag});
+    // std.log.warn("systimer cfg parsed: {any}\n", .{cfg_parsed});
 
-    // shared.clic.mtvt_setup_defaults() catch |err| std.log.err("Got Error: {s}\n", .{@errorName(err)});
+    shared.systimer.setup_clock(.{.time = @as(u64, 500_000 * 4), .unit = .Micro}) catch |err|{
+        std.log.err("Failed setting up clock. Got: {s}\n", .{@errorName(err)});
+        startup.panic("Hell noooooo...", null, null);
+    };
+
+    const dt_old = shared.systimer.intoDeltaTimeTicks(.{.time = 500_000 * 15, .unit = .Micro});
+    const dt_new = shared.systimer.intoDeltaTimeTicksNew(.{.time = 500_000 * 15, .unit = .Micro});
+    std.log.warn("intoDeltaTimeTicks: {d} vs intoDeltaTimeTicksNew: {d}\n", .{dt_old, dt_new});
+
+    
     shared.clic.configure_interrupt(systimer_interrupt) catch |err| {
         std.log.err("Got Error: {s}\n", .{@errorName(err)});
     };
     
-    const t_prior_setup = shared.systimer.now_v2(.Micro).time;
-    std.log.warn("SYSTIMER now prior setup: {d} µs\n", .{t_prior_setup});
-    const t_ticks_prior = shared.systimer.now_v2(.Ticks).time;
-    std.log.warn("SYSTIMER now: {d} ticks\n", .{t_ticks_prior});
-    
-    // Set the alarm period + synchronize the alarm period + sets period mode. 
-    shared.systimer.clear_interrupt(); // NOTE: - This fixed the enable_mie freezing. 
-    shared.systimer.setup_timer(.{ .time = 500_000 * 2, .unit = .Micro }) catch {};
-    shared.systimer.start_enable_work(); // COMPx starts comparing the count value of SUM(start value + n*δt) (n = 1, 2, 3...)
-    shared.systimer.clear_interrupt(); // NOTE: - This fixed the enable_mie freezing. 
-    shared.systimer.enable_interrupt();
+    shared.clic.enableInterruptAt(&systimer_interrupt); // `clicintie[i]`
+    shared.systimer.clear_interrupt();
+    shared.systimer.enable_interrupt(true);
+    shared.clic.enable_mie(); // Enable/Set MIE - global interrupts.
 
-    std.log.info("After configure interrupt!\n", .{});
     std.log.warn("&systimer_target0_isr: {*}\r\n\t mtvt[{d}] = {*}\r\n\t_mtvt_table: {*}\n", .{
         &isr1_handler, 
         systimer_interrupt.config.mtvt_index, 
@@ -164,22 +169,19 @@ pub export fn app_main() callconv(.c) void {
         shared.clic.mtvt.ptr
     });
 
-    const mtvt_read = CSR.mtvt.read_csrr();
-    std.log.warn("mtvt CSR=0x{x}\n", .{mtvt_read});
-
-    shared.clic.enable_mie(); // Enable/Set MIE - global interrupts.
-    
-
-    const t0 = shared.systimer.now_v2(.Micro).time;
-    std.log.info("Hello From SYSTIMER now: {d} µs\n", .{t0});
+    const result_vec = core.SIMD.vec_op(u32, 4, .Mul, [_]u32{1, 2, 3, 4}, [_]u32{5, 6, 7, 8});
+    std.log.warn("SIMD Multiplication Test: {}\n", .{result_vec});
 
     // var iteration_num: usize = 0;
     while (true) {
-        shared.systimer.set_delay(.Micro, 500_000);
-        // shared.systimer.TimeUnit.Micro.delay(500_000);
+        // shared.systimer.set_delay(.Micro, 500_000);
+        // shared.systimer.delay_us(.{.time = 500_000, .unit = .Micro});
         const t1 = shared.systimer.now_v2(.Micro).time;
         // std.log.info("-------------------------------------- Iteration {d}\n", .{@as(u32, iteration_num)});
         std.log.info("SYSTIMER now: {d} µs\n", .{t1});
+        // const comp = shared.systimer.readComparator(); // should be zero initially!
+        // std.log.warn("Comparator value: {d} \n", .{comp});
+        std.log.info("Number of interrupts: {d}\n", .{int_counter});
 
         // std.log.info("SYSTIMER Counter Ticks: {d}\n", .{shared.systimer.readCounter()});
         // std.log.info("SYSTIMER Comparator: 0b{b}\n", .{shared.systimer.readComparator()});
@@ -187,7 +189,7 @@ pub export fn app_main() callconv(.c) void {
         // std.log.info("SYSTIMER duration since t0: {d} µs\n", .{since_t0});
         // iteration_num += 1; 
 
-        // asm volatile ("wfi");
+        asm volatile ("wfi");
     }
 
 }
@@ -196,7 +198,12 @@ fn pre_setup(shared_ctx: Shared, peripheral_list: []const Peripheral) void{
     for(peripheral_list) |periph|{
         switch (periph) {
             .TIMERG0 => shared_ctx.timergroup.driver.wdt_disable(),
-            .USB_JTAG => shared_ctx.usb_jtag.driver.ready_timeout(500_000),
+            // .SYSTIMER => shared_ctx.systimer.setup_clock(.{.time = 500_000 * 2, .unit = .Micro}) catch |err|{
+            //     std.log.err("Failed setting up clock. Got: {s}\n", .{@errorName(err)});
+            //     startup.panic("Hell noooooo...", null, null);
+            // },
+            // .USB_JTAG => shared_ctx.usb_jtag.driver.ready_timeout(500_000, &shared_ctx.systimer) catch continue,
+            .USB_JTAG => shared_ctx.usb_jtag.driver.wait_spin(),
             else => return,
         } 
     }
@@ -206,7 +213,7 @@ fn peripheral_setup(shared_ctx: Shared, periph: Peripheral) void{
     if (periph == .TIMERG0){
         shared_ctx.timergroup.driver.wdt_disable();
     }else if (periph == .USB_JTAG){
-        shared_ctx.usb_jtag.driver.ready_timeout(500_000);
+        shared_ctx.usb_jtag.driver.ready_timeout(500_000, &shared_ctx.systimer);
     }
 }
 

@@ -112,7 +112,8 @@ pub const Peripheral = enum(u32) {
                     .GPIO = .{.driver = GpioRegister{}}
                 },
                 .SYSTIMER => Driver{
-                    .SYSTIMER = .{.driver = .init(SystemTimerConfig.parse_v2(settings))}
+                    // .SYSTIMER = .{.driver = .init(SystemTimerConfig.parse_v2(settings))}
+                    .SYSTIMER = .{.driver = .init(settings)}
                 },
                 .SYSREG => Driver{
                     .SYSREG = .{.driver = SysRegister{}}
@@ -255,7 +256,9 @@ pub const Peripheral = enum(u32) {
     
     /// Clear one bit
     pub inline fn clearBit(self: Self, offset: u32, bit_index: u6) void {
-        const mask: u32 = @as(u32, 1) << bit_index;
+        const bit_pos: std.math.Log2Int(u32) = @intCast(bit_index);
+        const mask: u32 = @as(u32, 1) << bit_pos;
+        // const mask: u32 = @as(u32, (1 << bit_index));
         const addr_ptr = self.register_ptr(offset);
         addr_ptr.* = addr_ptr.* & ~mask;
     }

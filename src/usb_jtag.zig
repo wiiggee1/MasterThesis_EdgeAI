@@ -31,9 +31,18 @@ pub const UsbJtag = struct {
     pub fn usb_jtag_write(self: Self, byte: u8) void {
         // Wait until TX FIFO has space
         self.wait_tx_free();
+        // try self.wait_until_free();
     
         // A write to this register pushes the written data into the CDC TX FIFO.
         USB_JTAG.write_register(self.register.EP1_DATA, byte);
+    }
+
+    fn wait_until_free(self: Self) !void{
+        var spins: u32 = 0;
+        while (!USB_JTAG.isBitSet(self.register.EP1_CONF, 1)) : (spins += 1) {
+            if (spins > 100_000) return error.UsbJtagNotReady;
+            asm volatile ("nop");
+        }
     }
 
     fn wait_tx_free(self: Self) void {
@@ -60,29 +69,41 @@ pub const UsbJtag = struct {
     /// the `USB_SERIAL_JTAG_SERIAL_IN_INT` interrupt will be triggered. 
     /// Or by keep reading until the `EP_DATA_FREE` register bit equal to 1. 
     /// Meaning TX FIFO is not full and writing can be conducted.
-    pub fn write_slice(self: Self, bytes: []const u8) void {
+    pub fn write_slice(self: Self, bytes: []const u8) !void {
         var idx: usize = 0; 
         // Wait until TX FIFO has space
         while (idx < bytes.len) : (idx += 1){
-            self.wait_tx_free();
+            // self.wait_tx_free();
+            try self.wait_until_free();
             // A write to this register pushes the written data into the CDC TX FIFO.
             USB_JTAG.write_register(self.register.EP1_DATA, bytes[idx]);
         }
         self.flush_tx(); // For clarity we will call this as a separate call, whenever, done. 
     }
 
-    pub fn ready_timeout(self: Self, timeout_us: u32) void {
-        const systimer = SystemTimer.init(SystemTimerConfig{ 
-            .clk = .XTAL_CLK, 
-            .counter = .UNIT0, 
-            .freq = SystemTimer.DEFAULT_FREQ_XTAL,
-            .target_mode = .periodic,
-            .target_num = .target0,
-        });
+    pub fn wait_spin(_: Self) void {
+        var spins: u32 = 0;
+        while (spins < 500_000) : (spins += 1) {
+            // if (spins > 100_000) return error.UsbJtagNotReady;
+            asm volatile ("nop");
+        }
+    }
+
+    pub fn ready_timeout(_: Self, timeout_us: u32, systimer: *const SystemTimer) !void {
+        // const systimer = SystemTimer.init(SystemTimerConfig{ 
+        //     .clk = .XTAL_CLK, 
+        //     .counter = .UNIT0, 
+        //     .freq = SystemTimer.DEFAULT_FREQ_XTAL,
+        //     .target_mode = .periodic,
+        //     .target_num = .target0,
+        //     .core0_stall_enabled = true,
+        // });
         const wait_deadline: u64 = systimer.now_v2(.Micro).time + timeout_us;
         while(systimer.now_v2(.Micro).time < wait_deadline){
-            self.wait_tx_free();
+            // self.wait_tx_free();
+            // try self.wait_until_free();
         }
+
     }
 
 };

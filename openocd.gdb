@@ -9,6 +9,7 @@ set print address on
 set confirm off
 set history save on
 set remotetimeout 20
+set remote hardware-watchpoint-limit 3
 
 set disassemble-next-line on
 
@@ -184,24 +185,25 @@ end
 file zig-out/bin/edge_ai.elf
 # target extended-remote :3333
 
-target extended-remote localhost:3333
+target extended-remote :3333
 monitor reset halt
 maintenance flush register-cache
+thbreak app_main:80
+riscv-state
+continue
 
-load
+# load
 
 # thbreak - HW breakpoint
 # thbreak app_main
-# thbreak app_main
-hbreak app_main      # or thbreak if you want it temporary
+# hbreak app_main      # or thbreak if you want it temporary
 # break app_main
 
 # Startup info: 
 # info all-registers
 # regs32
-riscv-state
 
-run
+# run
 
 # continue
 

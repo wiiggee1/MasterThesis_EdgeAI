@@ -66,7 +66,7 @@ pub fn EmbeddedWriter(comptime TXSIZE: usize, comptime RXSIZE: usize) type {
         /// transmit buffer (tx) of the Usb Jtag peripheral. 
         fn write_tx(self: Self, bytes: []const u8) std.Io.Writer.Error!usize{
             // const usb_jtag = self.peripheral; 
-            self.peripheral.write_slice(bytes); // Don't forget to flush the tx buffer.
+            self.peripheral.write_slice(bytes) catch return 0; // Don't forget to flush the tx buffer.
             // usb_jtag.flush_tx(); 
             return bytes.len;
         }
@@ -128,13 +128,13 @@ pub fn loggerFn(comptime level: std.log.Level, comptime scope: @TypeOf(.EnumLite
         // stdout.print(format, args) catch {};
         // embedded_writer.print(format, args) catch {};
         const bytes = std.fmt.bufPrint(format, args) catch return;
-        embedded_writer.peripheral.write_slice(bytes); // Don't forget to flush the tx buffer.
+        embedded_writer.peripheral.write_slice(bytes) catch return; // Don't forget to flush the tx buffer.
     }else {
         // stdout.print(level_string ++ format ++ scope_prefix++"\r", args) catch {};
         const scope_prefix = if (scope == .default) " " else " (" ++ @tagName(scope) ++ "): ";
         // embedded_writer.print(level_string ++ format ++ scope_prefix++"\r", args) catch {};
         const bytes = std.fmt.bufPrint(&log_buffer, level_string ++ format ++ scope_prefix++"\r", args) catch return;
-        embedded_writer.peripheral.write_slice(bytes); // Don't forget to flush the tx buffer.
+        embedded_writer.peripheral.write_slice(bytes) catch return; // Don't forget to flush the tx buffer.
 
     }
 }

@@ -101,92 +101,53 @@ pub const InterruptConfig = struct {
         var interrupt_config: InterruptConfig = undefined; 
         const default_conf = Clic.DefaultConfig;
         const config_info = @typeInfo(@TypeOf(config)).@"struct";
-        const valid_cfg_fields = @typeInfo(InterruptConfig).@"struct".fields;
 
         if(@TypeOf(config) == InterruptConfig) return @as(InterruptConfig, config);
 
         inline for(config_info.fields, 0..) |field, i|{
-            inline for(valid_cfg_fields) |valid|{
-                const valid_info = @typeInfo(valid.type);
-                const field_info = @typeInfo(field.type);
+            if (@hasField(InterruptConfig, field.name)) {
+                const cfg_val = @field(config, field.name);
+                const DestinationType = @TypeOf(@field(interrupt_config, field.name));
+                const CfgFieldType = @TypeOf(cfg_val);
+
+                const valid_info = @typeInfo(DestinationType);
+                const field_info = @typeInfo(CfgFieldType);
                 
-                // .trigger_mode = Hardware.TriggerMode.level, // field_info != .optional here!
+                std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
+                
                 const child_match: bool = (
                     valid_info == .optional and (valid_info.optional.child == field.type or
                     (field_info == .optional and valid_info.optional.child == field_info.optional.child))
                 );
-                // if(valid_info == .optional and field_info == .optional and valid_info.optional.child == field_info.optional.child){
                 if(child_match){
-                    const config_value = if(config_info.is_tuple) @as(valid.type, config[i]) else @field(config, valid.name); 
                     if(field_info == .optional){
                         const config_entry = entry_field:{
-                            if(config_value) |value|{
+                            if(cfg_val) |value|{
                                 break value;
                             }else{
-                                if(@TypeOf(config_value) == ?TriggerMode) break :entry_field default_conf.trigger_mode;
-                                if(@TypeOf(config_value) == ?ISR) break :entry_field null;
-                                if(@TypeOf(config_value) == ?u3) break :entry_field default_conf.priority;
-                                if(@TypeOf(config_value) == ?u4) break :entry_field null;
+                                if(CfgFieldType == ?TriggerMode) break :entry_field default_conf.trigger_mode;
+                                if(CfgFieldType == ?ISR) break :entry_field null;
+                                if(CfgFieldType == ?u3) break :entry_field default_conf.priority;
+                                if(CfgFieldType == ?u4) break :entry_field null;
                             }
                         };
-                        @field(interrupt_config, valid.name) = config_entry;
-                        // std.log.info("Arg({d}) with value: {any} of type: {s}\n", .{i, config_entry, @typeName(@TypeOf(config_entry))});
+                        @field(interrupt_config, field.name) = config_entry;
+                        // std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
                     }else{
-                        // std.log.info("Arg({d}) with value: {any} of type: {s}\n", .{i, config_value, @typeName(@TypeOf(config_value))});
-                        @field(interrupt_config, valid.name) = config_value;
+                        // std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
+                        @field(interrupt_config, field.name) = cfg_val;
                     }
-                }else if(field.type == valid.type){
-                    const config_value = if(config_info.is_tuple) @as(valid.type, config[i]) else @field(config, valid.name); 
-                    // std.log.info("Arg({d}) with value: {any} of type: {s}\n", .{i, config_value, @typeName(@TypeOf(config_value))});
-                    @field(interrupt_config, valid.name) = config_value;
+                }else if(CfgFieldType == DestinationType){
+                    // std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
+                    @field(interrupt_config, field.name) = cfg_val;
                 }
             }
         }
-        // std.log.info("Parsed InterruptConfig (v2): {any}\n", .{interrupt_config});
+        interrupt_config.mtvt_index = Clic.CLIC_EXT_INTR_NUM_OFFSET + interrupt_config.id; // 16..47
+        std.log.info("Parsed InterruptConfig (v2): {any}\n", .{interrupt_config});
         return interrupt_config;
     }
 
-    pub fn parse(config: anytype) InterruptConfig{
-        const config_info = @typeInfo(@TypeOf(config));
-        const interrupt_cfg_fields = @typeInfo(InterruptConfig).@"struct".fields;
-
-        if (@TypeOf(config) == InterruptConfig) return @as(InterruptConfig, config);
-        var interrupt_config: InterruptConfig = undefined;
-
-        switch (config_info) {
-            .@"struct" => |cfg|{
-                if (cfg.is_tuple){
-                    inline for(interrupt_cfg_fields, 0..) |cfg_option, i|{
-                        var have_option: bool = false;
-                        inline for(cfg.fields) |arg|{
-                            if(arg.type == cfg_option.type){
-                                have_option = true;
-                            }
-                        }
-                        if (have_option){
-                            @field(interrupt_config, cfg_option.name) = config[i];
-                            have_option = false;
-                        }else{
-                            if(@typeInfo(cfg_option.type) == .optional){
-                                @field(interrupt_config, cfg_option.name) = null;
-                                have_option = false;
-                            }else{
-                                // @Type(.{ .error_union = .{ .payload =  } })
-                                @compileError("Provided config argument, is missing and is not optional. The Interrupt Config Type missing is: "++@typeName(cfg_option.type));
-                            }
-                        }
-                    }
-                }
-            },
-            else => {},
-        }
-        const default_conf = Clic.DefaultConfig;
-        if (interrupt_config.trigger_mode == null) interrupt_config.trigger_mode = default_conf.trigger_mode;
-        if (interrupt_config.priority == null) interrupt_config.priority = default_conf.priority;
-        std.log.info("Parsed InterruptConfig: {any}\n", .{interrupt_config});
-
-        return interrupt_config;
-    }
 };
 
 pub const Interrupt = struct {
@@ -212,17 +173,24 @@ pub const Interrupt = struct {
         const parsed_conf: InterruptConfig = if(@TypeOf(config) == InterruptConfig) @as(InterruptConfig, config) 
             else InterruptConfig.parse_v2(config);
         
-        // if(parsed_conf.isr == null) @panic("Missing ISR!");
         if(parsed_conf.isr == null) panic("Missing ISR!", null, null);
 
-        var self: Interrupt = .{.config = parsed_conf, .register = InterruptMatrixRegister{}};
-        self.config.mtvt_index = Clic.CLIC_EXT_INTR_NUM_OFFSET + self.config.id; // 16..47
+        if(parsed_conf.mtvt_index == 0){
+            var self: Interrupt = .{.config = parsed_conf, .register = InterruptMatrixRegister{}};
+            self.config.mtvt_index = Clic.CLIC_EXT_INTR_NUM_OFFSET + self.config.id; // 16..47
+            return self;
+        }else{
+            return Interrupt{
+                .config = parsed_conf,
+                .register = InterruptMatrixRegister{},
+            };
+        }
 
-        self.routeInterruptSource() catch {};
-        self.sourceMappingDebug() catch {};
+        // self.routeInterruptSource() catch {};
+        // self.sourceMappingDebug() catch {};
         
         // Register the external interrupt to the associated ISR handler.
-        return self; 
+        // return self; 
     }
 
     /// Try to get the address of the ISR handler symbol.
@@ -239,6 +207,7 @@ pub const Interrupt = struct {
         const source_values = std.enums.values(PeripheralInterruptSources);
         for(source_values, 0..) |source_tag, i| {
             if(source_tag == self.config.source){
+                std.log.warn("Found Interrupt Source: {s} at index: {d}\n", .{@tagName(source_tag), i});
                 index = i; 
                 break; 
             }
@@ -546,10 +515,6 @@ pub const Clic = struct {
             std.log.err("Got Error: BadMtvtIndexValue\n", .{});
             return error.BadMtvtIndexValue;
         }
-        // slot_addr = base + 4*index
-        //    = 0x4FF00040 + 4*17
-        //    = 0x4FF00040 + 0x44
-        //    = 0x4FF00084
         const mtvt_base: usize = @intFromPtr(&_mtvt_table);
         // const mtvt_isr_location: usize = @intFromPtr(&_mtvt_table) + @as(usize, @intCast(interrupt.config.mtvt_index));
         const mtvt_isr_location: usize = @intFromPtr(&_mtvt_table) + @as(usize, @intCast(interrupt.config.mtvt_index))*4;
@@ -563,8 +528,6 @@ pub const Clic = struct {
         const entry_val = @as(*const usize, @ptrCast(slot_ptr)).*;
 
         if(builtin.mode == .Debug){
-            // mtvt slot 17 @ 0x4ff00051, target ISR @ 0x4ff00100, off=0xaf, mtvt start @ 0x4ff00040
-            // The slot should be at 0x4ff00084
             std.log.warn("mtvt slot {d} @ 0x{x}, target ISR @ 0x{x}, off=0x{x}, mtvt start @ 0x{x}\n", .{ 
                 interrupt.config.mtvt_index, 
                 mtvt_isr_location, 
@@ -598,12 +561,22 @@ pub const Clic = struct {
         //     &self.mtvt[interrupt.config.mtvt_index],
         // });
 
-        // 2. Map External Interrupt Source to MTVT Index.
-        // try interrupt.routeInterruptSource();
-        // try interrupt.sourceMappingDebug();
 
-        // 3. Setup Interrupt:
-        self.setup_interrupt(interrupt);
+        // 2. Setup Interrupt:
+        self.setup_interrupt_source(&interrupt);
+        
+        // 3. Map External Interrupt Source to MTVT Index.
+        try interrupt.routeInterruptSource();
+        if(builtin.mode == .Debug) try interrupt.sourceMappingDebug();
+
+        self.clear_interrupt_pending(DefaultConfig, &interrupt); //clicintip[i]
+
+        // HERE we setup and enable the peripheral interrupt. 
+        // Thoughts: add 'enable_fn' argument as a function pointer for calling the 
+        // specific peripherals enable_interrupt function in this scope. 
+
+        // interrupt_ctx.mtvt_index represent a value in the bit range: 16..47
+        // self.enableInterruptAt(&interrupt); // `clicintie[i]`
 
         if (builtin.mode == .Debug){
             std.log.warn("After setup of Interrupt CTRL Register 0x{x}: 0b{b}\n", .{
@@ -627,12 +600,12 @@ pub const Clic = struct {
     }
 
     /// Related to the `clicintip[i]` - clic interrupt[i] pending bit. 
-    pub inline fn clear_interrupt_pending(self: Self, config: Clic.DefaultConfig, id: u6) void {
+    pub inline fn clear_interrupt_pending(self: Self, config: Clic.ClicConfig, interrupt: *const Interrupt) void {
         if (config.SHV and config.trigger_mode == .level){
             // When config have SHV enabled + TriggerMode.level we need to
             // clear the interrupt sources (devices) and not the `clicintip[i]` bit.
             // const register_ip: *volatile u8 = self.byteAddresPtr(.IP, id);
-            self.byteAddresPtr(.IP, id).* = 0;
+            self.byteAddresPtr(.IP, interrupt.config.mtvt_index).* = 0;
         }else {
             // SHV + edge-triggered (falling_edge or rising_edge), the hardware 
             // is designed to help clearing interrupt pending bits. 
@@ -786,18 +759,16 @@ pub const Clic = struct {
     /// - Bit [23:22]: Mode Attribute  - `clicintattr[i].mode`
     /// - Bits [31:24]: Control bits (CTL) - `clicintctl[i]`
     /// ------------------------------------------------------
-    pub fn setup_interrupt(self: Self, interrupt_ctx: Interrupt) void {
+    pub fn setup_interrupt_source(self: Self, interrupt_ctx: *const Interrupt) void {
         std.log.info("Running 'setup_interrupt'...\n", .{});
-        self.configure_attr_register(&interrupt_ctx); // `clicintattr[i]`
+        self.configure_attr_register(interrupt_ctx); // `clicintattr[i]`
 
-        self.setupCTL(&interrupt_ctx);
+        self.setupCTL(interrupt_ctx);
         
         // clear interrupt pending bit. 
         self.byteAddresPtr(.IP, interrupt_ctx.config.mtvt_index).* = 0;
         // self.clear_interrupt_pending(Clic.DefaultConfig, interrupt_ctx.config.mtvt_index);
         
-        // interrupt_ctx.mtvt_index represent a value in the bit range: 16..47
-        self.enableInterruptAt(interrupt_ctx.config.mtvt_index); // `clicintie[i]`
 
     }
 
@@ -821,16 +792,16 @@ pub const Clic = struct {
         }
     }
 
-    fn enableInterruptAt(self: Self, interrupt_id: u6) void {
+    pub fn enableInterruptAt(self: Self, interrupt: *const Interrupt) void {
         // const address_ie = CTRL_REG.IE.registerAddress(interrupt_id);
         // const register_ie: *volatile u8 = @ptrFromInt(address_ie);
         // const address_ie = self.registerAddress(.IE, interrupt_id);
         // CTRL_REG.IE.byteAddresPtr(interrupt_id).* = 1; 
         // if((register_ie.* >> 8) & 1 != 0){} // interrupt is enabled.
         
-        const register_ie: *volatile u8 = self.byteAddresPtr(.IE, interrupt_id);
+        const register_ie: *volatile u8 = self.byteAddresPtr(.IE, interrupt.config.mtvt_index);
         const before = register_ie.*;
-        self.byteAddresPtr(.IE, interrupt_id).* = 1;
+        self.byteAddresPtr(.IE, interrupt.config.mtvt_index).* = 1;
 
         if (builtin.mode == .Debug){
             std.log.info("clicintie[i] Before → After: 0b{b} → 0b{b} \n", .{before, register_ie.*});

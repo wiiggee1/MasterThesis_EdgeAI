@@ -234,6 +234,8 @@ pub const ResetClockRegister = struct {
     CTRL21_REG: u32 = 0x0098,
     /// Enabling bus clock of HP CPU0 CLIC. 
     CLKRST_SOC_CLK_CTRL0_REG: u32 = 0x0014,
+    CLKRST_SOC_CLK_CTRL2_REG: u32 = 0x001C,
+    CLKRST_HP_RST_EN1_REG: u32 = 0x00C4,
     /// E.g. Bit[3:0] → CPUICM_DELAY configures time required from entering WFI mode 
     /// to the actual shutdown of the CPU clock. 
     /// This offset (at 0x0004) at bit[4], can also configure if you want to update the 
@@ -245,6 +247,7 @@ pub const ResetClockRegister = struct {
     /// At: CLKRST_SYS_CLK_DIV_NUMERATOR and respectively CLKRST_SYS_CLK_DIV_DENOMINATOR
     HP_SYS_CLKRST_ROOT_CLK_CTRL2: u32 = 0x000C,
     HP_SYS_CLKRST_ROOT_CLK_CTRL3: u32 = 0x0010,
+
 };
 
 /// The Interrupt Matrix receives interrupt signals (sources) sent 
