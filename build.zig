@@ -52,12 +52,15 @@ pub fn build(b: *std.Build) !void {
         .cpu_features_add = std.Target.riscv.featureSet(&.{
             .i, .a, .m, .c,
             .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc, 
+            // .zve64d, .zvl128b,
         }),
         // .cpu_features_add = std.Target.riscv.featureSet(&.{
         //     .i, .a, .f, .m, .c, 
         //     .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc,
         // }),
     };
+
+    // std.Target.riscv.Feature.v
 
     // ===================================== Supported Targets.
     const supported_targets: []const std.Target.Query = supported:{
