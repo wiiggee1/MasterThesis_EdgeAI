@@ -4,38 +4,53 @@ const testing = std.testing;
 const InputConvention = @import("layers.zig").InputShapeConvention; 
 const layers = @import("layers.zig");
 const Matrix = layers.Matrix; 
+const print_fn = layers.print_fn;
+
+pub const ActivationFuncTag = enum(u8){
+    // Empty = 0,
+    Sigmoid = 1,
+    Relu = 2,
+    LeakyRelu = 3,
+    SoftMax = 4,
+
+    pub fn fromInt(id: u8) ActivationFuncTag{
+        return @enumFromInt(id);
+    }
+};
 
 /// Activation function used in the neural network.
-pub const ActivationFunction = enum {
-    Sigmoid,
-    Relu,
-    LeakyRelu,
-    SoftMax,
+pub const ActivationFunction = union(ActivationFuncTag) {
+    Sigmoid: void,
+    Relu: void,
+    LeakyRelu: f32,
+    SoftMax: void,
+
+    pub fn from(comptime tag: ActivationFuncTag, comptime alpha: ?f32) ActivationFunction{
+        return comptime switch (tag) {
+            .Sigmoid => ActivationFunction{.Sigmoid = {}},
+            .Relu => ActivationFunction{.Relu = {}},
+            .LeakyRelu => ActivationFunction{.LeakyRelu = alpha orelse 0.0},
+            .SoftMax => ActivationFunction{.SoftMax = {}},
+        };
+    }
 
     /// This is the public API for executing any available activation function.
     /// It's executed over vectors, and can be either over row- or column-wise vectors. 
-    pub fn execute_fn(self: ActivationFunction, comptime T: type, comptime LayerSize: usize, mut_data: []T, derive_flag: bool, alpha: ?T) [LayerSize]T {
+    pub fn execute_fn(self: ActivationFunction, comptime T: type, comptime LayerSize: usize, mut_data: []T, derive_flag: bool) [LayerSize]T {
         var activation_array: [LayerSize]T = mut_data[0..LayerSize].*;
 
         switch (self) {
             .Sigmoid => sigmoid(T, activation_array[0..], derive_flag),
             .Relu => relu(T, activation_array[0..], derive_flag),
-            .LeakyRelu => leaky_relu(T, activation_array[0..], alpha.?, derive_flag),
+            .LeakyRelu => |alpha| leaky_relu(T, activation_array[0..], alpha, derive_flag),
             .SoftMax => softmax(T, LayerSize, activation_array[0..]),
         }
         return activation_array;
     }
 
-    //This would apply the activation function over a Matrix type instead over a vector. 
-    // pub fn elementwise_activation(self: ActivationFunction, comptime T: type, matrix: anytype, derive_flag: bool, alpha: ?T, comptime Convention: InputConvention) @TypeOf(matrix) {
-    //     const Rows: usize = @typeInfo(@TypeOf(matrix)).@"struct".fields[1].defaultValue().?;
-    //     const Cols: usize = @typeInfo(@TypeOf(matrix)).@"struct".fields[2].defaultValue().?;
-    //     const MatType = Matrix(T, Rows, Cols);
-    // }
-
     /// The `ReLU` activation function is defined as `ReLU = max(0, x)`.
     /// This pass a modifiable slice and a type parameter such as f16.
-    fn relu(comptime T: type, mut_data: []T, derive_flag: bool) void {
+    inline fn relu(comptime T: type, mut_data: []T, derive_flag: bool) void {
         for (mut_data) |*val| {
             const x = val.*;
             if (derive_flag == true) {
@@ -53,8 +68,10 @@ pub const ActivationFunction = enum {
     /// due to when the data x < 0. By adding a small `alpha` value we address this problem.
     /// The function is defined as: `f(x) = ((1 + α)/2)x + ((1 - α)/2)|x|`.
     /// Or as: `f(x) = x if x > 0 or αx if x <= 0`.
-    fn leaky_relu(comptime T: type, mut_data: []T, alpha: T, derive_flag: bool) void {
-        const alpha_val: T = std.math.clamp(alpha, 0.01, 0.3);
+    inline fn leaky_relu(comptime T: type, mut_data: []T, alpha: T, derive_flag: bool) void {
+        // const alpha_val: T = std.math.clamp(alpha, 0.01, 0.3);
+        // std.debug.print("Alpha value in leaky_relu: {d}\n", .{alpha_val});
+
         const derive = struct {
             pub fn call(val: T, alpha_value: T) T {
                 return if (val > 0) @as(T, 1.0) else alpha_value;
@@ -63,11 +80,13 @@ pub const ActivationFunction = enum {
 
         for (mut_data) |*val| {
             if (derive_flag == true) {
-                const x_derive = derive(val.*, alpha_val);
+                // const x_derive = derive(val.*, alpha_val);
+                const x_derive = derive(val.*, alpha);
                 val.* = x_derive;
             } else {
                 const x = val.*;
-                const leaky_func: T = ((1 + alpha_val) / @as(T, 2.0)) * x + ((1 - alpha_val) / @as(T, 2.0)) * @abs(x);
+                // const leaky_func: T = ((1 + alpha_val) / @as(T, 2.0)) * x + ((1 - alpha_val) / @as(T, 2.0)) * @abs(x);
+                const leaky_func: T = ((1 + alpha) / @as(T, 2.0)) * x + ((1 - alpha) / @as(T, 2.0)) * @abs(x);
                 // std.debug.print("Provided Leaky ReLu output: {any}\n", .{leaky_func});
 
                 val.* = leaky_func;
@@ -76,7 +95,7 @@ pub const ActivationFunction = enum {
     }
 
     /// The sigmoid function is defined as: `σ(x) = 1 / (1 + exp(-x)) ←→ e^x / (1 + e^x)`.
-    fn sigmoid(comptime T: type, mut_data: []T, derive_flag: bool) void {
+    inline fn sigmoid(comptime T: type, mut_data: []T, derive_flag: bool) void {
         for (mut_data) |*val| {
             const x = val.*;
             const sigmoid_func: T = 1.0 / (1.0 + @exp(-x));
@@ -89,16 +108,13 @@ pub const ActivationFunction = enum {
     }
 
     /// The softmax is defined as: σ(z)_i = exp(z_i) / Sum(exp(z_j))
-    fn softmax(comptime T: type, comptime N: usize, z: []T) void {
+    inline fn softmax(comptime T: type, comptime N: usize, z: []T) void {
         var exp_vec: @Vector(N, T) = undefined;
         // var max_logit: T = 0.0;
         // const now = std.time.microTimestamp(); 
         const z_vec: @Vector(N, T) = z[0..N].*;
         const max_z = @reduce(.Max, z_vec);
         // const end = std.time.microTimestamp(); 
-
-        //NOTE: - Make sure we subtract max value per row (per sample) - RowSampleOrdering.
-        // And subtracting max value per column (per sample) - ColumnFeatureOrdering.
 
         // Iteration of the K number of classes in the output layer.
         for (z, 0..) |*val, i| {
@@ -109,10 +125,6 @@ pub const ActivationFunction = enum {
         const sum_vec: @Vector(N, T) = @splat(sum_scalar);
         const softmax_vector = exp_vec / sum_vec;
 
-        //TODO: - Remove prints after finished debugging. 
-        // std.debug.print("Sum(exp(zj)): {d}, sum_vec: {any}\n", .{sum_scalar, sum_vec});
-        // std.debug.print("softmax_vector: {any}\n", .{softmax_vector});
-        // std.debug.print("sum of softmax_vector: {d}\n", .{@reduce(.Add, softmax_vector)});
         const softmax_arr: [N]T = softmax_vector;
         @memcpy(z, softmax_arr[0..z.len]);
     }
@@ -152,6 +164,109 @@ pub const ActivationFunction = enum {
     }
 };
 
+pub fn Evaluation(comptime T: type, comptime TimeW: usize) type{
+    return struct {
+
+        pub const MetricScores = struct {
+            mse: T,
+            cos_similarity: T,
+            cos_distance: T,
+            anomaly_score: T,
+        };
+
+        pub fn mse_window(x: *const Matrix(T, TimeW, 1), y: *const Matrix(T, TimeW, 1)) T{
+            comptime {
+                if(@typeInfo(T) != .float){
+                    @compileError("Expected a floating point type!");
+                }
+            }
+
+            var accumulated_val: T = 0;
+            inline for (0..TimeW) |t| {
+                const err = y.mat[t][0] - x.mat[t][0];
+                accumulated_val += err * err;
+            }
+            const denominator: T = @as(T, @floatFromInt(TimeW));
+            return accumulated_val / denominator;
+        }
+
+        // pub fn mean(x: *const Matrix(T, TimeW, 1))
+
+        /// (A * B) / (||A|| * ||B||)
+        /// Where ||A|| = magnitude of A = sqrt(x1^2 + x2^2 + ... xn^2) = sqrt(x * x)
+        pub fn cosine_similarity_score(x: *const Matrix(T, TimeW, 1), y: *const Matrix(T, TimeW, 1)) T{
+            comptime {
+                if(@typeInfo(T) != .float){
+                    @compileError("Expected a floating point type!");
+                }
+            }
+
+            var dot_xy: T = 0; // x * y → dot product
+            var sum_x: T = 0; // x * x → dot product 
+            var sum_y: T = 0; // y * y → dot product
+
+            inline for(0..TimeW) |t|{
+                sum_x += x.mat[t][0] * x.mat[t][0]; 
+                sum_y += y.mat[t][0] * y.mat[t][0];
+                dot_xy += x.mat[t][0] * y.mat[t][0];
+            }
+            const bits = @typeInfo(T).float.bits;
+            const eps: T = if (bits <= 16) @as(T, 1e-3)
+                else if (bits <= 32) @as(T, 1e-8)
+                else @as(T, 1e-12);
+
+            const euclidean_norm_x: T = @sqrt(sum_x); // ||X||
+            const euclidean_norm_y: T = @sqrt(sum_y); // ||Y||
+            const magnitude_xy: T = (euclidean_norm_x * euclidean_norm_y) + eps;
+            
+            return (dot_xy) / (magnitude_xy);
+        }
+
+        /// The weighted anomaly score, is a weighted score by combining several 
+        /// different metrics. E.g., anom_score = 0.7 * MSE + 0.3 * (1 − cosine_similarity)
+        pub fn weighted_score(mse: T, cosine_dist: T) T{
+            return (0.7 * mse) + (0.3 * cosine_dist);
+        }
+
+        pub fn is_anomaly(score_val: f32, thr: f32, num_trigger: *usize, comptime exceed_amount: usize) bool {
+            if (score_val > thr) {
+                num_trigger.* += 1;
+            } else {
+                num_trigger.* = 0;
+            }
+            return num_trigger.* >= exceed_amount;
+        }
+
+        pub fn evaluation(x: *const Matrix(T, TimeW, 1), y: *const Matrix(T, TimeW, 1)) MetricScores{
+            const err = mse_window(x, y);
+            const cosine_sim_score = cosine_similarity_score(x, y);
+            const cosine_distance = @as(T, 1) - cosine_sim_score;
+            const anomaly_score = weighted_score(err, cosine_distance);
+
+            const z_score = struct {
+                pub fn standardization(score: T, mean: T, stdd: T) T {
+                    return (score - mean) / stdd; 
+                }
+            }.standardization;
+            _ = z_score;
+            
+            // std.debug.print("Evaluation Metrics:\n\tMSE: {d}\n\tCosine Similarity Score: {d}\n\tCosine Distance: {d}\n\tWeighted Anomaly Score: {d}\n", .{
+            //     err,
+            //     cosine_sim_score,
+            //     cosine_distance,
+            //     anomaly_score,
+            // });
+
+            return MetricScores{
+                .mse = err,
+                .cos_similarity = cosine_sim_score,
+                .cos_distance = cosine_distance,
+                .anomaly_score = anomaly_score,
+            };
+        }
+    }; 
+}
+
 pub const LossType = enum {
     /// Cross-Entropy Loss - measure the average number of bits needed to identify an event.
     CrossEntropy,
@@ -187,6 +302,7 @@ pub fn LossFunction(comptime T: type, comptime loss_type: LossType, comptime Out
             const index_max = std.mem.indexOfMax(T, target_vector);
             return index_max;
         }
+
 
         pub fn get(predict_vec: []const T, y_actual: []const T, derive_flag: bool) ?T {
             std.debug.assert(y_actual.len == predict_vec.len); 
@@ -280,14 +396,6 @@ pub fn LossFunction(comptime T: type, comptime loss_type: LossType, comptime Out
                     const sample_loss = get(batch_probs[0..], y_batch[0..], false);
                     losses_arr[batch] = sample_loss.?; 
                 }
-                // const argmax = LossObject.argmax(losses_arr[0..]);
-                // const batch_loss = losses_arr[argmax];
-                // batch_losses[batch] = batch_loss;  
-
-                // const batch_sum = @reduce(.Add, batch_losses); 
-                // const batch_avg_loss = batch_scalar * batch_sum; 
-                // std.debug.print("Batch Loss Vector: {any}\n", .{batch_losses}); 
-                // std.debug.print("Average Batch Loss: {d}\n", .{batch_avg_loss});
             }
             return average_batchloss(losses_arr);
         }
@@ -366,7 +474,6 @@ pub fn LossFunction(comptime T: type, comptime loss_type: LossType, comptime Out
             return y - y_hat;
         }
 
-        //TODO: - Not done.
         fn mse(yhat: T, y: T, n: ?T) T {
             const err: T = y - yhat;
             if (n != null) {
@@ -385,49 +492,11 @@ pub fn LossFunction(comptime T: type, comptime loss_type: LossType, comptime Out
                 .NLL => {
                     return nll(yhat, y);
                 },
+                // .MSE => return mse(yhat, y),
                 .CosineSimilarity => {
                     return cosine_similarity(yhat, y);
                 },
             }
-        }
-    };
-}
-
-
-pub fn ModelVariable(comptime T: type) type {
-    return struct {
-        const Self = @This();
-        value: T,
-
-        pub fn get_weight(layer_number: usize, mat_indices: struct { usize, usize }) []const T {
-            // const layer: Layer(T, comptime LayerObject: LayerInfo)
-            _ = layer_number;
-            _ = mat_indices;
-            unreachable;
-        }
-    };
-}
-
-/// Should return ∂z/∂x, if `expression` = z and `variable` = x. So it would calculate the partial
-/// derivative of something with respect to the passed value.
-pub fn PartialDerivative(comptime T: comptime_float, expression: anytype) type {
-    return struct {
-        const Self = @This();
-        const ExpressionType = @TypeOf(expression);
-
-        pub fn withRespectTo(variable: *ModelVariable(T)) struct { T, T } {
-            _ = variable;
-
-            //TODO: - Define if the Model Variable is of "Scalar" or "Matrix/Vector" type.
-            // Then run the specific anonymous function within this scope.
-        }
-
-        pub fn compose(f: fn (T) T, g: fn (T) T) fn (T) T {
-            return struct {
-                fn call_compose(x: T) T {
-                    return f(g(x));
-                }
-            }.call_compose;
         }
     };
 }
@@ -452,17 +521,6 @@ test "Activation Function logic validation" {
     const loss_vec = LossObject.cross_entropy(softmax_out[0..], y_true[0..], false);
     std.debug.print("Cross entropy: {any}\n", .{loss_vec});
     // std.math.approxEqAbs(comptime T: type, x: T, y: T, tolerance: T)
-   
-    // LossOutputType test: 
-    // const matrix = layers.Matrix(f16, 1, 1).create([1][1]f16{.{1.0}});
-    // const output_type1 = LossObject.LossOutputType{.scalar = 0.1}; 
-    // const output_type2 = LossObject.LossOutputType{.vector = @Vector(N, f16){1.0, 2.0, 3.0}}; 
-    // const output_type3 = LossObject.LossOutputType{.matrix = matrix}; 
-
-    // std.debug.print("LossOutputType 1: {any}, value: {d}\n", .{@TypeOf(output_type1.loss_output()), output_type1.loss_output()});
-    // std.debug.print("LossOutputType 2: {any}, value: {any}\n", .{@TypeOf(output_type2.loss_output()), output_type2.loss_output()});
-    // std.debug.print("LossOutputType 3: {any}, value: {any}\n", .{@TypeOf(output_type3.loss_output()), output_type3.loss_output()});
-
 
 }
 
@@ -478,47 +536,48 @@ test "LossTest" {
     //  → Y_TRUE = (NumberOfClasses, BatchSize) ←→ (OutputLayerSize, BatchSize)
     //  → LOSS_OUTPUT = (1, BatchSize) → Reduced to a scalar loss value → 1 / BatchSize. 
 
-    const BatchSize: usize = 3;
+    // const BatchSize: usize = 3;
     // const InputSize: usize = 2;
     // const FeatureSize: usize = 2; 
 
-    const LossObject = LossFunction(f16, LossType.CrossEntropy, 3, BatchSize, InputConvention.ColumnFeatureOrdering);
+    // const LossObject = LossFunction(f16, LossType.CrossEntropy, 3, BatchSize, InputConvention.ColumnFeatureOrdering);
     // const y_true = [_]f16{ 0.0, 1.0, 0.0 }; // as one-hot encoded vector.
-    const y_true_batch = [3][3]f16{
-        .{ 1.0, 0.0, 0.0},
-        .{ 0.0, 1.0, 0.0},
-        .{ 0.0, 0.0, 1.0},
-    }; // as one-hot encoded vector.
-    const y_matrix = Matrix(f16, 3, 3).create(y_true_batch); // Must match the Softmax output dimension.  
-    std.debug.print("Y Matrix as One-Hot Encoding: \n", .{});
-    y_matrix.print_matrix(); 
+    // const y_true_batch = [3][3]f16{
+    //     .{ 1.0, 0.0, 0.0},
+    //     .{ 0.0, 1.0, 0.0},
+    //     .{ 0.0, 0.0, 1.0},
+    // }; // as one-hot encoded vector.
+
+    // const y_matrix = Matrix(f16, 3, 3).create(y_true_batch); // Must match the Softmax output dimension.  
+    // std.debug.print("Y Matrix as One-Hot Encoding: \n", .{});
+    // y_matrix.print_matrix("", .debug_print); 
     
-    const dummy_probs = Matrix(f16, 3, 3).create([3][3]f16{
-        .{0.7188, 0.81, 0.877},
-        .{0.0828, 0.04846, 0.0271},
-        .{0.1987, 0.1414, 0.0961},
-    });
+    // const dummy_probs = Matrix(f16, 3, 3).create([3][3]f16{
+    //     .{0.7188, 0.81, 0.877},
+    //     .{0.0828, 0.04846, 0.0271},
+    //     .{0.1987, 0.1414, 0.0961},
+    // });
 
-    var batch_predictions: [BatchSize]f16 = undefined;  
-    var batch_losses: @Vector(BatchSize, f16) = undefined;  
-    const batch_scalar: f16 = 1.0 / @as(f16, BatchSize); 
-    if (BatchSize > 1){
-        for (0..BatchSize) |batch| {
-            const batch_probs = dummy_probs.get_colvec(batch);
-            batch_predictions = batch_probs; 
-            const batch_losses_vec = LossObject.get(batch_probs[0..], y_true_batch[batch][0..], false);
-            const losses_arr: [BatchSize]f16 = batch_losses_vec.?; 
-            const argmax = LossObject.argmax(losses_arr[0..]);
-            const batch_loss = losses_arr[argmax];
-            batch_losses[batch] = batch_loss;  
+    // var batch_predictions: [BatchSize]f16 = undefined;  
+    // var batch_losses: @Vector(BatchSize, f16) = undefined;  
+    // const batch_scalar: f16 = 1.0 / @as(f16, BatchSize); 
+    // if (BatchSize > 1){
+    //     for (0..BatchSize) |batch| {
+            // const batch_probs = dummy_probs.get_colvec(batch);
+            // batch_predictions = batch_probs; 
+            // const batch_losses_vec = LossObject.get(batch_probs[0..], y_true_batch[batch][0..], false);
+            // const losses_arr: [BatchSize]f16 = batch_losses_vec.?; 
+            // const argmax = LossObject.argmax(losses_arr[0..]);
+            // const batch_loss = losses_arr[argmax];
+            // batch_losses[batch] = batch_loss;  
+            //
+            // std.debug.print("Batch {d}, loss: {d}\n", .{batch, batch_loss}); 
+            // std.debug.print("Softmax probabilities: {any}\nCross entropy loss: {any}\n", .{batch_predictions, batch_losses });
+        // }
 
-            std.debug.print("Batch {d}, loss: {d}\n", .{batch, batch_loss}); 
-            std.debug.print("Softmax probabilities: {any}\nCross entropy loss: {any}\n", .{batch_predictions, batch_losses });
-        }
-
-        const batch_sum = @reduce(.Add, batch_losses); 
-        const batch_avg_loss = batch_scalar * batch_sum; 
-        std.debug.print("Batch Loss Vector: {any}\n", .{batch_losses}); 
-        std.debug.print("Average Batch Loss: {d}\n", .{batch_avg_loss});
-    }
+        // const batch_sum = @reduce(.Add, batch_losses); 
+        // const batch_avg_loss = batch_scalar * batch_sum; 
+        // std.debug.print("Batch Loss Vector: {any}\n", .{batch_losses}); 
+        // std.debug.print("Average Batch Loss: {d}\n", .{batch_avg_loss});
+    // }
 }

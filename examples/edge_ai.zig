@@ -5,6 +5,9 @@ const startup = core.startup;
 const Testing = core.Testing;
 const Hardware = core.Hardware;
 const hal = core.DriversImpl;
+const Model = core.Model;
+const MemoryStack = core.MemoryStack;
+
 pub const std_options = core.std_options; // Custom logging over usb-jtag.
 
 const Peripheral = Hardware.Peripheral;
@@ -16,12 +19,21 @@ const CSR = Hardware.CSR;
 extern var _mtvt_table: [48]TrapVector; // extern var _mtvt_table: [48]TrapVector;
 extern fn _vector_table() callconv(.naked) noreturn;
 
+
 comptime {
     startup.getStartupSymbols();
 }
 
 const XTAL_CLK_FREQ: u64 = 40_000_000; // 40 MHz.
 const FREQ_HZ: u64 = 16_000_000; // Average clock frequency: 16 MHz XTAL clk
+
+const BATCH: usize = 1;
+const TIMEWINDOW: usize = 25; 
+const INPUT_FEATURES: usize = 1;
+const NUM_LAYERS: usize = 4;
+
+// const ModelBuilder = Model.Builder(f32, "assets/model.bin", .RowSampleOrdering);
+const InputOutputMatrix = Model.Matrix(f32, TIMEWINDOW, INPUT_FEATURES);
 
 /// Shared global context
 const Shared = struct {
@@ -37,13 +49,19 @@ const Shared = struct {
         .target_mode = .periodic,
         .target_num = .target0,
         .core0_stall_enabled = true,
-        // .core0_stall_enabled = false,
     };
 
     systimer: SystemTimer,
     clic: Clic,
     timergroup: DriverApi(.TIMERG0, hal.TimerGroup),
     usb_jtag: DriverApi(.USB_JTAG, hal.UsbJtag),
+    nn: Model.LoadedModel(f32, .{
+        .batch = BATCH,
+        .timewindow = TIMEWINDOW,
+        .layer_count = NUM_LAYERS,
+        .convention = .RowSampleOrdering,
+        .path = "assets/model.bin",
+    }),
 };
 
 var shared: Shared = undefined;
@@ -57,9 +75,6 @@ pub export fn isr1_handler() linksection(".iram0.isr_handler") callconv(INTERRUP
     int_counter +=1;
     // clear interrupt bit. 
     shared.systimer.clear_interrupt();
-    // shared.systimer.enable_interrupt(true);
-    // shared.systimer.clear_interrupt();
-    
 
     // asm volatile ("mret");
     // core.exit_trap();
@@ -85,11 +100,11 @@ inline fn idle() void{
 /// 3. After step(2) is completed it jumps to the main() function (our application code).
 /// -----------------------------------------------------------
 pub export fn app_main() callconv(.c) void {
+    const main_frame = @frameAddress();
+
     //Run embedded firmware below:
     const Interrupt = Hardware.Interrupt; 
     const TimerCfg = Shared.SysTimeCfg;
-    // const GenericSystemTimer = Hardware.DriverApi(.SYSTIMER, hal.SystemTimer);
-    // const system_timer = GenericSystemTimer.new(TimerCfg);
 
     shared = .{
         // .systimer = system_timer.driver,
@@ -97,26 +112,66 @@ pub export fn app_main() callconv(.c) void {
         .clic = .init(&_mtvt_table),
         .timergroup = .new(.{}),
         .usb_jtag = .new(.{}),
+        .nn = .init(),
     };
 
     pre_setup(shared, &.{
         Peripheral.TIMERG0,
-        // Peripheral.SYSTIMER,
         Peripheral.USB_JTAG,
     });
 
-    // shared.clic.debug_info();
+    const data_rowmajor = [TIMEWINDOW][INPUT_FEATURES]f32{
+        [_]f32 {-0.4876859188},
+        [_]f32 {-0.3020118475},
+        [_]f32 {0.7061636448},
+        [_]f32 {0.4359272718},
+        [_]f32 {-0.0697299242},
+        [_]f32 {-0.5836150646},
+        [_]f32 {-0.2674875259},
+        [_]f32 {0.2294212580},
+        [_]f32 {-0.8611040115},
+        [_]f32 {-0.3987681866},
+        [_]f32 {0.6154536009},
+        [_]f32 {0.9459179640},
+        [_]f32 {0.3141608238},
+        [_]f32 {-0.7647800446},
+        [_]f32 {0.9386945963},
+        [_]f32 {0.4245246649},
+        [_]f32 {-0.2712689638},
+        [_]f32 {0.8509542942},
+        [_]f32 {0.2871456146},
+        [_]f32 {0.3422226906},
+        [_]f32 {0.5088747740},
+        [_]f32 {0.8308023214},
+        [_]f32 {0.2569303513},
+        [_]f32 {0.7799508572},
+        [_]f32 {-0.1205641031},
+    };
 
+    const X = Model.Matrix(f32, TIMEWINDOW, INPUT_FEATURES).create(data_rowmajor);
 
-    // Set the alarm period + synchronize the alarm period + sets period mode. 
-    // shared.systimer.setup_timer(.{ .time = 500_000 * 4, .unit = .Micro }) catch {};
-    // shared.systimer.start_enable_work(); // COMPx starts comparing the count value of SUM(start value + n*δt) (n = 1, 2, 3...)
-    // shared.systimer.enable_interrupt();
-   
+    // const ModelBuilder = Model.Builder(
+    //     f32, 
+    //     "assets/model.bin",
+    //     .RowSampleOrdering,
+    // );
+
+    // ModelBuilder.LoadedModel(comptime Batches: usize, comptime Timewindow: usize, comptime NumLayers: usize)
+
+    // var model = shared.nn;
+    // var model = ModelBuilder.loaded_model;
+
+    // const model_graph_addr = @intFromPtr(&model);
+    // const model_blob_addr = @intFromPtr(&model.loader.model_bin);
+    const model_size = @sizeOf(@TypeOf(shared.nn.model));
+    
+    // const inference_result = core.BenchMark.Tests.run_inference(@TypeOf(model), &X, &model);
+
+    // const systimer_interrupt_v2: Interrupt = Interrupt.init(Interrupt.Config{
     const systimer_interrupt: Interrupt = Interrupt.init(.{
         .trigger_mode = Hardware.TriggerMode.level,
         .id = @as(u5, 1), // 0..31, id = 1 → _mtvt_table[17]
-        .mtvt_index = @as(u6, 0), //TODO: : Change this to optional for initially setting to null.
+        .mtvt_index = @as(u6, 0), 
         .isr = @as(ISR, isr1_handler),
         .priority = @as(?u3, null),
         .level = @as(u3, 1),
@@ -124,34 +179,10 @@ pub export fn app_main() callconv(.c) void {
         .threshold = @as(?u4, null),
     });
 
-    // systimer_interrupt.sourceMappingDebug() catch |err|{
-    //     std.log.err("Failed! Got Error: {s}\n", .{@errorName(err)});
-    // };
-
-    // const systimer_interrupt_v2: Interrupt = Interrupt.init(Interrupt.Config{
-    //     .trigger_mode = .level,
-    //     .id = 1,
-    //     .mtvt_index = 0,
-    //     .isr = isr1_handler,
-    //     .priority = Interrupt.DefaultConfig.priority,
-    //     .level = 1,
-    //     .source = .SYSTIMER_TARGET0_INTR_SOURCE,
-    //     .threshold = null, 
-    // });
-
-    // const cfg_parsed = hal.SystemTimerConfig.parse_v2(TimerCfg);
-    // std.log.warn("usb_jtag: {any}\n", .{shared.usb_jtag});
-    // std.log.warn("systimer cfg parsed: {any}\n", .{cfg_parsed});
-
     shared.systimer.setup_clock(.{.time = @as(u64, 500_000 * 4), .unit = .Micro}) catch |err|{
         std.log.err("Failed setting up clock. Got: {s}\n", .{@errorName(err)});
         startup.panic("Hell noooooo...", null, null);
     };
-
-    const dt_old = shared.systimer.intoDeltaTimeTicks(.{.time = 500_000 * 15, .unit = .Micro});
-    const dt_new = shared.systimer.intoDeltaTimeTicksNew(.{.time = 500_000 * 15, .unit = .Micro});
-    std.log.warn("intoDeltaTimeTicks: {d} vs intoDeltaTimeTicksNew: {d}\n", .{dt_old, dt_new});
-
     
     shared.clic.configure_interrupt(systimer_interrupt) catch |err| {
         std.log.err("Got Error: {s}\n", .{@errorName(err)});
@@ -168,9 +199,82 @@ pub export fn app_main() callconv(.c) void {
         &shared.clic.mtvt[systimer_interrupt.config.mtvt_index],
         shared.clic.mtvt.ptr
     });
+    
+    // Non-Quantized(f32) model size:
+    // Params: 3.410156 KiB, Buffers: 0.000000 KiB, Total: 3.410156 KiB
+    const model_kb: f32 = @as(f32, @floatFromInt(model_size)) / @as(f32, 1024);
 
-    const result_vec = core.SIMD.vec_op(u32, 4, .Mul, [_]u32{1, 2, 3, 4}, [_]u32{5, 6, 7, 8});
-    std.log.warn("SIMD Multiplication Test: {}\n", .{result_vec});
+    std.log.warn("Main stack frame Address: 0x{x}\n", .{main_frame});
+    std.log.warn("Loaded Model Size: {d:.6} KiB\n", .{model_kb});
+
+    // const inference_result = core.BenchMark.Tests.run_inference(@TypeOf(shared.nn.model), &X, &shared.nn.model);
+    const NUM_ITER: usize = 10;
+    const inference_result = core.BenchMark.Tests.run_inference(@TypeOf(shared.nn.model), &X, &shared.nn.model, NUM_ITER, &shared.systimer);
+    
+    // IPC (Instructions Per Cycle) = Δminstret / Δmcyle.
+    // const cpu_test = core.BenchMark.Cpu.calculate_delta(core.BenchMark.Tests.inference_test.dummy_test);
+    // cpu_test.log_result("CPU Dummy Test");
+
+    // core.BenchMark.Tests.matmul_test();
+    // core.BenchMark.Tests.transpose_test();
+    // core.BenchMark.Tests.inference_performance(&X);
+
+
+    // std.log.warn("Loaded Model addresses:\r\n\tModel Graph Address: 0x{x} → (L2MEM - RAM)\r\n\tModel Blob Address: 0x{x} → (FLASH Memory)\n", .{
+    //     model_graph_addr,
+    //     model_blob_addr,
+    // });
+
+    
+    std.log.warn("---Inference Benchmark Performance (iter = {d})---\n", .{NUM_ITER});
+
+    // if(NUM_ITER > 1){
+    if(inference_result.performance) |inference_performance| {
+        std.log.info("Average Inference Result - CPU: \r\n\t\tΔTime = {d:.3}µs\r\n\t\tΔmcyle = {d:.0}\r\n\t\tΔminstret = {d:.0}\r\n\t\tIPC (Δminstret / Δmcyle) = {d:.3}\r\n\t\tPPS = {d:.3} predicts/sec\n", .{
+            inference_performance.avg_cpu.delta_time,
+            inference_performance.avg_cpu.mcycle,
+            inference_performance.avg_cpu.minstret,
+            inference_performance.avg_cpu.ipc,
+            inference_performance.avg_cpu.pps,
+        });
+
+        std.log.info("Average Inference - Stack report:\r\n\t\tUsed = {d}\r\n\t\tfree bytes = {d}\r\n\t\tmem utilization = {d:.3} = {d:.3}%\n", .{ 
+            inference_performance.avg_mem.used, 
+            inference_performance.avg_mem.free, 
+            inference_performance.avg_mem.utilization, 
+            100 * (inference_performance.avg_mem.utilization), 
+        });
+    }else{
+        std.log.info("Inference - CPU: \r\n\t\tΔTime = {d:.3}µs\r\n\t\tΔmcyle = {d}\r\n\t\tΔminstret = {d}\r\n\t\tIPC (Δminstret / Δmcyle) = {d:.3}  \n", .{
+            inference_result.cpu.time_conversion(&shared.systimer, .Micro),
+            inference_result.cpu.delta_mcycle,
+            inference_result.cpu.delta_minstret,
+            inference_result.cpu.ipc_f32(),
+        });
+
+        std.log.info("Inference - Stack report: Used = {d} / {d} bytes ({d} free bytes)\n", .{ 
+            inference_result.stack.used, 
+            inference_result.stack.len, 
+            inference_result.stack.free, 
+        });
+    }
+
+    std.log.info("\tInference - Prediction (Window) Output: {any}\n", .{inference_result.y.mat});
+    
+    shared.nn.model.eval_summary(&X, &inference_result.y);
+
+
+    // const Y = model.predict(&X);
+    // std.log.warn("Prediction (Window): {any}\n", .{Y.mat});
+    // model.eval_summary(&X, &Y);
+
+    // const stack_utilization = MemoryStack.getStackUtilization();
+    // std.log.info("Stack report (Inference): Used = {d} / {d} bytes ({d} free bytes)\n", .{ 
+    //     stack_utilization.used, 
+    //     stack_utilization.len, 
+    //     stack_utilization.free, 
+    // });
+
 
     // var iteration_num: usize = 0;
     while (true) {
@@ -231,4 +335,12 @@ fn run_benchmarks(shared_ctx: Shared) void {
     const fn1_performance = core.BenchMark.getFunctionClockCycleCount("Clic Tests",Testing.test_clic);
     std.log.info("Benchmark of '{s}': {d} cycle count, {d:.3}µs\n", .{fn1_performance.benchmark_name, fn1_performance.raw_cc, fn1_performance.time_us});
 }
+
+// pub fn full_measure(comptime LoadedModel: type, x: *const InputOutputMatrix, parsed_model: *LoadedModel, shared_ctx: Shared) void{
+//     _ = Model;
+//     const t0_cycles = core.BenchMark.Cpu.read_mcycle(); 
+//     const t0_us = shared_ctx.systimer.now_v2(.Micro).time;
+//
+// }
+
 

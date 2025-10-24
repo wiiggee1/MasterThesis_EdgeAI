@@ -4,6 +4,7 @@ const root = @import("root");
 const CSR = @import("csr.zig").CSR;
 const InterruptCSRs = @import("interrupts.zig").InterruptCSRs;
 const Clic = @import("interrupts.zig").Clic;
+const MemoryStack = @import("memory.zig").MemoryStack;
 
 const Interrupt_callconv = std.builtin.CallingConvention.Interrupt.riscv32_interrupt;
 pub const INTERRUPT: std.builtin.CallingConvention = if (builtin.cpu.arch == .riscv32) .{.riscv32_interrupt = .{.mode = .machine}} else .c;
@@ -30,6 +31,7 @@ fn show_stacktrace(writer: std.Io.Writer, stack_trace: ?*std.builtin.StackTrace)
     if(stack_trace) |trace|{
         _ = trace;
     }
+    
 }
 
 fn default_panic() linksection(".iram0.isr_handler") noreturn {
@@ -269,11 +271,32 @@ export fn _start() linksection(".iram0.entry") callconv(.naked) noreturn {
     // The start-up code must initialize the stack before the compiler generated code is executed. 
     // 1. This would set the stack pointer to the start of the stack. 
     // The `jal` instruction - "Jump And Link" : jump to a function and setting PC to the function to execute. 
+    // asm volatile (
+    //                 \\.option push;
+    //                 \\.option norelax;
+    //                 \\la gp, __global_pointer$;
+    //                 \\.option pop;
+    //                 \\la sp, _stack_top;
+    //                 \\add s0, sp, zero;
+    //                 \\jal zero, startup_init; 
+    //             ); 
+
+    //TODO: - Make the watermark fill directly in the naked handler.
     asm volatile (
                     \\.option push;
                     \\.option norelax;
                     \\la gp, __global_pointer$;
                     \\.option pop;
+
+                    \\la t0, _stack_bottom;
+                    \\la t1, _stack_top;
+                    \\li t2, 0xA5;
+                    
+                    \\1:
+                    \\sb t2, 0(t0);
+                    \\addi t0, t0, 1;
+                    \\blt t0, t1, 1b;
+
                     \\la sp, _stack_top;
                     \\add s0, sp, zero;
                     \\jal zero, startup_init; 
@@ -299,6 +322,8 @@ pub fn startup_init() linksection(".iram0.startup") callconv(.c) noreturn {
     mem_setup();
     // InterruptCSRs.set_mie(.Off);
 
+    enable_fpu();
+
     // 2. Setup Clic + `mtvec` + `mtvt`.
     // irq_setup();
     Clic.initial_setup(
@@ -311,6 +336,32 @@ pub fn startup_init() linksection(".iram0.startup") callconv(.c) noreturn {
     
     // 4. Trap Loop: Infinite loop
     _exit_trap();
+}
+
+pub fn enable_fpu() void{
+    if(builtin.abi.float() == .hard){
+        const FS_SHIFT = 13;
+        const FS_MASK: u32 = 0b11 << FS_SHIFT;
+        const FS_INIT: u32 = 0b01 << FS_SHIFT;
+        const FS_CLEAN: u32 = 0b10 << FS_SHIFT;
+
+        var fs_mask = CSR.mstatus.read_csrr();
+        
+        // std.log.info("Step 1: ~FS_MASK: 0b{b}\n", .{~FS_MASK});
+        // const step2_log = fs_mask & ~FS_MASK;
+        // std.log.info("Step 2: mstatus & ~FS_MASK: 0b{b}\n", .{step2_log});
+        fs_mask = (fs_mask & ~FS_MASK) | FS_INIT;
+        // std.log.info("Step 3: (mstatus & ~FS_MASK) | FS_INIT: 0b{b}\n", .{fs_mask});
+        CSR.mstatus.write_csrw(fs_mask);
+        // CSR.fcsr.write_csrw(0); // Writing to `fcsr` makes FS dirty.
+        CSR.fcsr.write_csrw(1); // Writing to `fcsr` makes FS dirty.
+       
+        fs_mask = CSR.mstatus.read_csrr();
+        // std.log.info("mstatus (dirty): 0b{b}\n", .{fs_mask});
+        fs_mask = (fs_mask & ~FS_MASK) | FS_CLEAN;
+        CSR.mstatus.write_csrw(fs_mask);
+    }
+
 }
 
 pub export fn early_trap() linksection(".iram0.isr_handler") noreturn {

@@ -113,7 +113,8 @@ pub const InterruptConfig = struct {
                 const valid_info = @typeInfo(DestinationType);
                 const field_info = @typeInfo(CfgFieldType);
                 
-                std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
+                // std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
+                _ = i;
                 
                 const child_match: bool = (
                     valid_info == .optional and (valid_info.optional.child == field.type or
@@ -132,13 +133,10 @@ pub const InterruptConfig = struct {
                             }
                         };
                         @field(interrupt_config, field.name) = config_entry;
-                        // std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
                     }else{
-                        // std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
                         @field(interrupt_config, field.name) = cfg_val;
                     }
                 }else if(CfgFieldType == DestinationType){
-                    // std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
                     @field(interrupt_config, field.name) = cfg_val;
                 }
             }
@@ -160,16 +158,6 @@ pub const Interrupt = struct {
     register: InterruptMatrixRegister, 
 
     pub fn init(config: anytype) Interrupt{
-        // if (!@hasField(@TypeOf(config), "source")) return error.MissingSource;
-        // if (!@hasField(@TypeOf(config), "id")) return error.MissingId;
-        // if (!@hasField(@TypeOf(config), "level")) return error.MissingLevel;
-
-        // const default_conf = Clic.DefaultConfig;
-        // const trigger = if (@hasField(@TypeOf(config), "trigger_mode")) config.trigger_mode else default_conf.trigger_mode;
-        // const priority_value = if (@hasField(@TypeOf(config), "priority")) config.priority else default_conf.priority; // Defaults to 0.
-        // const isr_handler = if (@hasField(@TypeOf(config), "isr")) @as(ISR, config.isr) else null;
-        // const threshold_value = if (@hasField(@TypeOf(config), "threshold")) @as(u4, config.threshold) else null;
-
         const parsed_conf: InterruptConfig = if(@TypeOf(config) == InterruptConfig) @as(InterruptConfig, config) 
             else InterruptConfig.parse_v2(config);
         
@@ -185,12 +173,6 @@ pub const Interrupt = struct {
                 .register = InterruptMatrixRegister{},
             };
         }
-
-        // self.routeInterruptSource() catch {};
-        // self.sourceMappingDebug() catch {};
-        
-        // Register the external interrupt to the associated ISR handler.
-        // return self; 
     }
 
     /// Try to get the address of the ISR handler symbol.

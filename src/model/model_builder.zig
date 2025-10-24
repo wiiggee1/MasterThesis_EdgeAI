@@ -12,11 +12,12 @@ const LayerDim = layer_types.LayerDim;
 const LayerSize = layer_types.LayerSize;
 const LayerDimension = layer_types.LayerDimension;
 const LayerDataShapes = layer_types.LayerDataShapes;
+const LayerShapes = layer_types.LayerShapes;
 const Matrix = layer_types.Matrix;
 const InputShapeConvention = layer_types.InputShapeConvention;
 
-const loader = @import("dataloader.zig");
-const DataLoader = loader.DataLoader; 
+// const loader = @import("dataloader.zig");
+// const DataLoader = loader.DataLoader; 
 
 const common = @import("common_functions.zig");
 const LossType = common.LossType;
@@ -24,6 +25,47 @@ const LossFunction = common.LossFunction;
 const ActivationFunction = common.ActivationFunction;
 
 const OptimizerType = @import("optimizer.zig").OptimizerType;
+
+pub fn NNModelV2(comptime T: type, comptime Config: ModelConfig) type {
+    return struct {
+        const Self = @This();
+        pub const config = Config; 
+        pub const LossFn = LossFunction(T, Config.loss_fn, Config.output_size, Config.batchsize, Config.convention);
+        // const total_capacity = Config.num_layers * ...
+        buffer: []T,
+        /// Represent the layer index offset for each layers that need memory allocation.
+        layer_index: usize = 0,
+        layer_weights: [Config.num_layers]std.heap.FixedBufferAllocator = undefined,
+        // std.heap.FixedBufferAllocator.
+
+        pub fn init(buf: []T) Self{
+            // var buffer: [1000]u8 = undefined;
+            // var fba = std.heap.FixedBufferAllocator.init(&buffer);
+
+            var self = Self{
+                .buffer = buf,
+                .layer_weights = undefined,
+            };
+
+            for(0..Config.num_layers) |i|{
+                self.layer_weights[i] = .init();
+            }
+        }
+
+        // pub fn add_layer(self: *Self, layer: LayerInfo) void{
+        //     // layer.get_shape_of(.batch_size) 
+        //     const offset = self.layer_index;
+        //     // @sizeOf
+        //     self.layer_weights[offset] = .init(buffer: []u8);
+        //     self.layer_index += 1; 
+        // }
+    };
+}
+
+// pub const GenericLayer = union(enum){
+//
+// };
+
 
 /// This act as the base model, for building a deep learning model.
 /// The provided `LayerData` slice need to be mutable for modifying internal layer data. 
@@ -122,6 +164,7 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type, comptime Conv
                 .model_buffer = ModelBuffer(T, FixedBufferSize, NumLayers).init(), 
             };
 
+            // LayerData → []const type
             inline for (LayerData, 0..) |val, idx| {
                 if (idx < LayerData.len) {
                     self.layers[idx] = val.init(idx);
@@ -182,7 +225,7 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type, comptime Conv
                 const weight_grad: WeightGradMatrix = WeightGradMatrix.from_array(wgrad_arr, Convention); 
                 std.debug.print("Layer: {d}\n", .{i});
                 std.debug.print("Weight grad array: {any}\n", .{wgrad_arr}); 
-                weight_grad.print_matrix("Weight grad");
+                weight_grad.print_matrix("Weight grad", .debug_print);
             }
         }
 
@@ -219,7 +262,6 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type, comptime Conv
         pub fn predict_y(self: *Self, input_data: *const InputMatrix) Matrix(T, OutputLayerDimension[0], OutputLayerDimension[1]){
             //WARN: - self.get_layer(i) → returns a runtime value!!! 
 
-            //WARN: - The var output is redundant and not needed since we cache the values. 
             const output_matrix = blk: {
                 // This is iterating over the types, not the Layer instances. 
                 inline for (LayerData[1..NumLayers], 1..NumLayers) |CurrentLayer, i| {
@@ -238,14 +280,6 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type, comptime Conv
                         // Z2 → H2 → [B][H1] x [H1][LayerSize] = [B][LS] 
                         if (true) {
                             std.debug.print("Layer: {d} Feedforward - Expected Output Matrix: {any}\n", .{i, OutputMatrixType});
-
-
-                            // std.debug.print("    \u{2022} Layer Type: {s}\n    \u{2022} Weight Matrix: {}x{}\n    \u{2022} Activation Function: {s}\n    \u{2022} Prior Layer Dimension: {}x{}, ({s} x {s})\n    \u{2022} Expected Output Dimension: {}x{}\n    \u{2022} Input Shape Convention: {s}\n", .{ @tagName(info[0]), WeightDimension[0], WeightDimension[1], @tagName(info[2]), InputDimension[0], InputDimension[1], prior_dim0, prior_dim1, OutputDimension[0], OutputDimension[1], @tagName(Convention)});
-
-                            // std.debug.print("Layer: {d}, OutputMatrixType: {any}, InputMatrixType: {any}\n", .{i, OutputMatrixType, InputMatrixType});
-                            // std.debug.print("Prior output: {any}\n", .{@TypeOf(output)});
-                            // std.debug.print("Prior Layer type: {any}\n", .{prior_layer}); 
-                            // @panic("");
                         }
                         // Here we obtain or get the address of pointer to the prior output or cached activation. 
                         const prior_output: *const InputMatrixType = &self.layers[i - 1].cached_activation.?; 
@@ -262,7 +296,7 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type, comptime Conv
                     } 
                 }
             };
-            output_matrix.print_matrix("Feedforward Prediction");
+            output_matrix.print_matrix("Feedforward Prediction", .debug_print);
             return output_matrix;
         }
 
@@ -297,24 +331,18 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type, comptime Conv
             if (self.layers[layer_index].cached_activation == null) {
                 return error.FeedforwardNotRunned;
             }
-            // std.debug.print("Size of GradBuffer Weights: {d}\n", .{GradBufferSize[0]});
-            // try self.model_buffer.new_buffer(.weight_grad, @sizeOf(T)*GradBufferSize[0]);
-            // try self.model_buffer.new_buffer(.bias_grad, @sizeOf(T)*GradBufferSize[1]);
             defer self.model_buffer.deinit(); // This would free the upstream buffer. 
 
-            // inline while (layer_index != 0) : (layer_index -= 1) {
             inline while (layer_index > 0) {
                 const upstream_index: usize = layer_index + 1;
 
                 if (comptime layer_index == OutputLayerIndex) {
                     // δ = ∂L/∂Z = Upstream gradient. 
-                    // std.debug.print("Layer Index: {d}, Upstream Index: None - At Output Layer\n", .{layer_index});
 
                     const upstream_propagator = try self.backward_loss(y_predict.*, y_labels.*); 
-                   
                     try self.model_buffer.store_item(.loss_upstream, upstream_propagator.flatten_array()[0..]);
+
                     layer_index -= 1; 
-                    // std.debug.print("-----------------------------\n", .{});
                     continue; 
                 } 
                 
@@ -336,7 +364,6 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type, comptime Conv
 
                 try self.model_buffer.store_item(.loss_upstream, upstream_propagator.flatten_array()[0..]);
                 layer_index -= 1; 
-                // std.debug.print("-----------------------------\n", .{});
             }
         }
 
@@ -359,42 +386,31 @@ pub fn NNModel(comptime T: type, comptime LayerData: []const type, comptime Conv
             _ = self; 
         }
 
-        /// The train function, would run over the provided number of epochs. 
-        /// Where one epoch means the model has seen the entire training dataset once, from start to finish.
-        /// If batch size is defined, we divide the input data into sub-samples in each iteration. 
-        /// Other terminology: 
-        /// • Batch Size: Same as a sub-sample of the total number of samples.
-        /// •
-        /// •
-        /// ---------------------
-        /// param: `input_data` - Should Load the entire (or optional part of the full dataset for the embedded target) dataset. 
-        /// pub fn train(self: *Self, dataset: *const InputMatrix, y_true: *const OutputLayerMatrix, optimizer: OptimizerType) !void{
-        pub fn train(self: *Self, comptime NumSamples: usize,  dataset: *DataLoader(T, NumSamples, InputFeatures, OutputLayerSize, Convention).Dataset, optimizer: OptimizerType) !void{
-            // DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureSize: usize, comptime NumClasses: usize, comptime Convention: InputShapeConvention)
-            const Epochs = self.hypr_params.epochs; 
-            const Alpha = self.hypr_params.alpha; 
-            _ = Alpha;
-            // std.debug.print("Number of epochs: {d}\n", .{Epochs});
-            for (0..Epochs) |epoch| {
-                // for (0..BatchSize) |batch_num| {
-                if (true) {
-                    // const batch = dataset.next_batch(BatchSize);
-                    // std.debug.print("State of Dataset: {any}\n", .{dataset});
-                    // std.debug.print("State of next batch: {any}\n", .{batch});
-                    // @panic("In training loop before fetching batch!");
-                }
-                std.debug.print("\n---Training Iteration({d})---\n", .{epoch + 1});
-                while (dataset.next_batch(BatchSize)) |batch| {
-                    // Get feedforward prediction. 
-                    const prediction = self.predict_y(&batch.data); // y_predict
-                    const loss: T = LossFn.batch_loss(&prediction, &batch.y_true);
-                    std.debug.print("Epoch {d}, Batch Loss: {d}\n", .{epoch + 1, loss});
-                    try self.backward_pass(&prediction, &batch.y_true); 
-                }
-                std.debug.print("---End Of Training Iteration({d})---\n", .{epoch + 1});
-                _ = optimizer;
-            }
-        }
+        // pub fn train(self: *Self, comptime NumSamples: usize,  dataset: *DataLoader(T, NumSamples, InputFeatures, OutputLayerSize, Convention).Dataset, optimizer: OptimizerType) !void{
+        //     // DataLoader(comptime T: type, comptime NumSample: usize, comptime FeatureSize: usize, comptime NumClasses: usize, comptime Convention: InputShapeConvention)
+        //     const Epochs = self.hypr_params.epochs; 
+        //     const Alpha = self.hypr_params.alpha; 
+        //     _ = Alpha;
+        //     // std.debug.print("Number of epochs: {d}\n", .{Epochs});
+        //     for (0..Epochs) |epoch| {
+        //         // for (0..BatchSize) |batch_num| {
+        //         if (true) {
+        //             // const batch = dataset.next_batch(BatchSize);
+        //             // std.debug.print("State of Dataset: {any}\n", .{dataset});
+        //             // std.debug.print("State of next batch: {any}\n", .{batch});
+        //         }
+        //         std.debug.print("\n---Training Iteration({d})---\n", .{epoch + 1});
+        //         while (dataset.next_batch(BatchSize)) |batch| {
+        //             // Get feedforward prediction. 
+        //             const prediction = self.predict_y(&batch.data); // y_predict
+        //             const loss: T = LossFn.batch_loss(&prediction, &batch.y_true);
+        //             std.debug.print("Epoch {d}, Batch Loss: {d}\n", .{epoch + 1, loss});
+        //             try self.backward_pass(&prediction, &batch.y_true); 
+        //         }
+        //         std.debug.print("---End Of Training Iteration({d})---\n", .{epoch + 1});
+        //         _ = optimizer;
+        //     }
+        // }
 
     };
 }
@@ -735,8 +751,6 @@ pub fn ModelBuffer(comptime T: type, comptime BufferSize: usize, comptime NumLay
 }
 
 pub const HyperParameters = struct {
-    input_size: usize,
-    input_shape: InputShapeConvention,
     optimizer: OptimizerType,
     learning_rate: f16,
     gamma: f16, 
@@ -744,7 +758,7 @@ pub const HyperParameters = struct {
     /// One epoch means the model has seen the entire training dataset once, from start to finish.
     epochs: usize, 
     epsilon: f16,
-    alpha: f16,
+    alpha: f32,
 };
 
 /// Standardized config format, for parsing and loading model config 
@@ -755,14 +769,54 @@ pub const HyperParameters = struct {
 /// Further it can be represented as a set of tuple pairs: 
 /// < (kind: []const u8, size: u8) >
 pub const ModelConfig = struct {
-    batchsize: u8,
-    input_features: u8,
-    layer_info: []const LayerMetaInfo,
+    batchsize: usize,
+    /// Same as input features
+    input_size: usize,
+    /// Same as the size of the output layer. 
+    output_size: usize, 
+    num_layers: usize,
+    convention: InputShapeConvention,
+    /// Represent the model kind, meaning if the model is already 
+    /// pretrained and should be loaded. Or a new custom not yet 
+    /// trained model. 
+    kind: enum {
+        pretrained,
+        new_model,
+    },
+    hyper_params: HyperParameters,
+    loss_fn: LossType,
 
-    // std.fmt.parseIntWithGenericCharacter(comptime Result: type, comptime Character: type, buf: []const Character, base: u8)
-    pub const LayerMetaInfo = struct{kind: []const u8, size: u8};
+    pub const OptimizationOptions = struct {
+        pruning: bool = false, 
+        quantization: bool = false,
+        dma: bool = false,
+    };
     
 };
+
+test "NetworkBuilding" {
+    const config = ModelConfig{
+        .batchsize = 3,
+        .input_size = 2,
+        .output_size = 2,
+        .num_layers = 8,
+        .convention = .RowSampleOrdering,
+        .kind = .new_model,
+        .hyper_params = .{
+            .optimizer = OptimizerType.Adam,
+            .learning_rate = 0.001,
+            .gamma = 0.1,
+            .dropout_rate = 0.1,
+            .epochs = 100,
+            .epsilon = 0.01,
+            .alpha = 0.01,
+        },
+        .loss_fn = .MSE,
+    };
+    _ = config;
+    // var net = NNModel(f16, layers[0..], .RowSampleOrdering, FixedBufferSize).init(params);
+
+}
 
 
 test "ModelBuilderPredict" {
@@ -772,6 +826,18 @@ test "ModelBuilderPredict" {
     const FeatureSize = 2; 
     const H1_SIZE = 3; 
     const H2_SIZE = 2; 
+    
+    const params = HyperParameters{
+        // .input_size = 2,
+        // .input_shape = .RowSampleOrdering,
+        .optimizer = OptimizerType.Adam,
+        .learning_rate = 0.001,
+        .gamma = 0.1,
+        .dropout_rate = 0.1,
+        .epsilon = 0.01,
+        .epochs = 100,
+        .alpha = 0.01,
+    };
 
     const layers = comptime [_]type{
         // Input X dimension → X(3, 2)
@@ -794,7 +860,7 @@ test "ModelBuilderPredict" {
                     LayerDataShapes{.prev_size = FeatureSize}, 
                     LayerDataShapes{.batch_size = BatchSize }
                 }, 
-                ActivationFunction.LeakyRelu 
+                ActivationFunction{.LeakyRelu = params.alpha} 
             }}, 
             .RowSampleOrdering),
         // H2 → W(FeatureSize, LayerSize) → W(H1, H2) → W(3, 2), Z = X*W → (3 x 3) * (3 x 2) → H2_OUT = 3 x 2. 
@@ -806,7 +872,7 @@ test "ModelBuilderPredict" {
                     LayerDataShapes{.prev_size = H1_SIZE}, 
                     LayerDataShapes{.batch_size = BatchSize }
                 }, 
-                ActivationFunction.LeakyRelu 
+                ActivationFunction{.LeakyRelu = params.alpha} 
             }}, 
             .RowSampleOrdering),
         // OUTPUT LAYER → W(FeatureSize, LayerSize) → W(H2, LayerSize) → W(2, 3), S = X*W → (3 x 2) * (2, 3) → 3 x 3. 
@@ -823,20 +889,6 @@ test "ModelBuilderPredict" {
             .RowSampleOrdering),
     };
 
-    const params = HyperParameters{
-        .input_size = 2,
-        .input_shape = .RowSampleOrdering,
-        // .input_samples = 100,
-        // .num_features = 10,
-        // .hidden_layers = 3,
-        .optimizer = OptimizerType.Adam,
-        .learning_rate = 0.001,
-        .gamma = 0.1,
-        .dropout_rate = 0.1,
-        .epsilon = 0.01,
-        .epochs = 100,
-        .alpha = 0.01,
-    };
 
     const FixedBufferSize: usize = 150; 
     // var buffer: [FixedBufferSize]u8 = undefined; 
@@ -864,169 +916,171 @@ test "ModelBuilderPredict" {
     }; // as one-hot encoded vector.
     // RowSampleOrdering → X(BatchSize, Features), W(Features, LayerSize), Z(BatchSize, LayerSize) = Input next layer
     
-    const y_matrix = Matrix(f16, 3, 3).create(y_true_batch);
+    _ = dummy_input_rowmajor;
+    _ = y_true_batch;
 
-    const input_matrix = Matrix(f16, BatchSize, FeatureSize).create(dummy_input_rowmajor); 
-    input_matrix.print_matrix("");
+    // const y_matrix = Matrix(f16, 3, 3).create(y_true_batch);
 
-    const predictions = net.predict_y(&input_matrix);
-    std.debug.print("Running predict_y logic we get the feedforward output matrix: \n", .{}); 
-    predictions.print_matrix("");
+    // const input_matrix = Matrix(f16, BatchSize, FeatureSize).create(dummy_input_rowmajor); 
+    // input_matrix.print_matrix("", .debug_print);
+    //
+    // const predictions = net.predict_y(&input_matrix);
+    // std.debug.print("Running predict_y logic we get the feedforward output matrix: \n", .{}); 
+    // predictions.print_matrix("", .debug_print);
 
-    const LossObject = LossFunction(f16, LossType.CrossEntropy, 3, BatchSize, InputShapeConvention.RowSampleOrdering);
-    const loss = LossObject.batch_loss(&predictions, &y_matrix);
-    std.debug.print("Batch Loss: {d}\n", .{loss});
-    try net.backward_pass(&predictions, &y_matrix);
-    std.debug.print("Atempting to print weight grads below: \n", .{}); 
+    // const LossObject = LossFunction(f16, LossType.CrossEntropy, 3, BatchSize, InputShapeConvention.RowSampleOrdering);
+    // const loss = LossObject.batch_loss(&predictions, &y_matrix);
+    // std.debug.print("Batch Loss: {d}\n", .{loss});
+    // try net.backward_pass(&predictions, &y_matrix);
+    // std.debug.print("Atempting to print weight grads below: \n", .{}); 
     // net.print_grads(); 
 
 }
 
 test "TrainingLogic" {
     // const NumSamples = 4; 
-    const NumClasses = 2; // Two unique layers.
-    const InputSize = 3; 
-    const FeatureSize = 3; 
-    const BatchSize = 2; 
-    const H1_SIZE = 3; 
-    const H2_SIZE = 2; 
+    // const NumClasses = 2; // Two unique layers.
+    // const InputSize = 3; 
+    // const FeatureSize = 3; 
+    // const BatchSize = 2; 
+    // const H1_SIZE = 3; 
+    // const H2_SIZE = 2; 
+    //
+    // const params = HyperParameters{
+    //     .optimizer = OptimizerType.SGD,
+    //     .learning_rate = 0.001,
+    //     .gamma = 0.1,
+    //     .dropout_rate = 0.1,
+    //     .epochs = 5,
+    //     .epsilon = 0.01,
+    //     .alpha = 0.01,
+    // };
     
-    const layers = comptime [_]type{
-        // Input X dimension → X(2, 3) → X(BatchSize, FeatureSize)
-        Layer(f16, 
-            LayerInfo{ .input = .{ 
-                LayerType.Embedding, 
-                LayerDimension{
-                    LayerDataShapes{.layer_size = 2}, 
-                    LayerDataShapes{.feature_size = InputSize}, 
-                    LayerDataShapes{.batch_size = BatchSize }
-                } 
-            }}, 
-            .RowSampleOrdering),
-        // H1 → W(2, 3), Z = X*W → (2, 3) * (3, 3) → OUT SIZE = 2 x 3. 
-        Layer(f16, 
-            LayerInfo{ .hidden = .{ 
-                LayerType.Linear, 
-                LayerDimension{
-                    LayerDataShapes{.layer_size = H1_SIZE}, 
-                    LayerDataShapes{.prev_size = FeatureSize}, 
-                    LayerDataShapes{.batch_size = BatchSize }
-                }, 
-                ActivationFunction.LeakyRelu 
-            }}, 
-            .RowSampleOrdering),
-        // H2 → W(FeatureSize, LayerSize) → W(H1, H2) → W(3, 2), Z = X*W → (2 x 3) * (3 x 2) → H2_OUT = 2 x 2. 
-        Layer(f16, 
-            LayerInfo{ .hidden = .{ 
-                LayerType.Linear, 
-                LayerDimension{
-                    LayerDataShapes{.layer_size = H2_SIZE}, 
-                    LayerDataShapes{.prev_size = H1_SIZE}, 
-                    LayerDataShapes{.batch_size = BatchSize }
-                }, 
-                ActivationFunction.LeakyRelu 
-            }}, 
-            .RowSampleOrdering),
-        // OUTPUT LAYER → W(FeatureSize, LayerSize) → W(H2, LayerSize) → W(2, 2), S = X*W → (2 x 2) * (2, 2) → 2 x 2. 
-        Layer(f16, 
-            LayerInfo{ .output = .{ 
-                LayerType.SoftMax, 
-                LayerDimension{
-                    LayerDataShapes{.layer_size = NumClasses}, 
-                    LayerDataShapes{.prev_size = H2_SIZE}, 
-                    LayerDataShapes{.batch_size = BatchSize }
-                }, 
-                LossType.CrossEntropy 
-            }}, 
-            .RowSampleOrdering),
-    };
+    // const layers = comptime [_]type{
+    //     // Input X dimension → X(2, 3) → X(BatchSize, FeatureSize)
+    //     Layer(f16, 
+    //         LayerInfo{ .input = .{ 
+    //             LayerType.Embedding, 
+    //             LayerDimension{
+    //                 LayerDataShapes{.layer_size = 2}, 
+    //                 LayerDataShapes{.feature_size = InputSize}, 
+    //                 LayerDataShapes{.batch_size = BatchSize }
+    //             } 
+    //         }}, 
+    //         .RowSampleOrdering),
+    //     // H1 → W(2, 3), Z = X*W → (2, 3) * (3, 3) → OUT SIZE = 2 x 3. 
+    //     Layer(f16, 
+    //         LayerInfo{ .hidden = .{ 
+    //             LayerType.Linear, 
+    //             LayerDimension{
+    //                 LayerDataShapes{.layer_size = H1_SIZE}, 
+    //                 LayerDataShapes{.prev_size = FeatureSize}, 
+    //                 LayerDataShapes{.batch_size = BatchSize }
+    //             }, 
+    //             ActivationFunction{.LeakyRelu = params.alpha}
+    //         }}, 
+    //         .RowSampleOrdering),
+    //     // H2 → W(FeatureSize, LayerSize) → W(H1, H2) → W(3, 2), Z = X*W → (2 x 3) * (3 x 2) → H2_OUT = 2 x 2. 
+    //     Layer(f16, 
+    //         LayerInfo{ .hidden = .{ 
+    //             LayerType.Linear, 
+    //             LayerDimension{
+    //                 LayerDataShapes{.layer_size = H2_SIZE}, 
+    //                 LayerDataShapes{.prev_size = H1_SIZE}, 
+    //                 LayerDataShapes{.batch_size = BatchSize }
+    //             }, 
+    //             ActivationFunction{.LeakyRelu = params.alpha} 
+    //         }}, 
+    //         .RowSampleOrdering),
+    //     // OUTPUT LAYER → W(FeatureSize, LayerSize) → W(H2, LayerSize) → W(2, 2), S = X*W → (2 x 2) * (2, 2) → 2 x 2. 
+    //     Layer(f16, 
+    //         LayerInfo{ .output = .{ 
+    //             LayerType.SoftMax, 
+    //             LayerDimension{
+    //                 LayerDataShapes{.layer_size = NumClasses}, 
+    //                 LayerDataShapes{.prev_size = H2_SIZE}, 
+    //                 LayerDataShapes{.batch_size = BatchSize }
+    //             }, 
+    //             LossType.CrossEntropy 
+    //         }}, 
+    //         .RowSampleOrdering),
+    // };
 
-    const params = HyperParameters{
-        .input_size = 2,
-        .input_shape = .RowSampleOrdering,
-        // .input_samples = 100,
-        // .num_features = 10,
-        .optimizer = OptimizerType.SGD,
-        .learning_rate = 0.001,
-        .gamma = 0.1,
-        .dropout_rate = 0.1,
-        .epsilon = 0.01,
-        .epochs = 5,
-        .alpha = 0.01,
-    };
 
-    const FixedBufferSize: usize = 150; 
-    var net = NNModel(f16, layers[0..], .RowSampleOrdering, FixedBufferSize).init(params);
+    // const FixedBufferSize: usize = 150; 
+    // var net = NNModel(f16, layers[0..], .RowSampleOrdering, FixedBufferSize).init(params);
 
     // ***TRAINING TEST CASE***
     // Total samples = 4
     // Batch size = 2
     // Each input has 3 features
     // Each label is one-hot encoded for 2 classes
-    const input_data = [_][3]f16{
-        // 4 samples with 3 input features each
-        [3]f16{ 0.1, 0.2, 0.3 },
-        [3]f16{ 0.9, 0.8, 0.7 },
-        [3]f16{ 0.4, 0.5, 0.6 },
-        [3]f16{ 0.6, 0.5, 0.4 },
-    };
+    // const input_data = [_][3]f16{
+    //     // 4 samples with 3 input features each
+    //     [3]f16{ 0.1, 0.2, 0.3 },
+    //     [3]f16{ 0.9, 0.8, 0.7 },
+    //     [3]f16{ 0.4, 0.5, 0.6 },
+    //     [3]f16{ 0.6, 0.5, 0.4 },
+    // };
 
-    const true_labels = [_][2]f16{
-        // One-hot encoded target for 2 classes
-        [2]f16{ 1.0, 0.0 }, // Class 0
-        [2]f16{ 0.0, 1.0 }, // Class 1
-        [2]f16{ 1.0, 0.0 }, // Class 0
-        [2]f16{ 0.0, 1.0 }, // Class 1
-    }; 
+    // const true_labels = [_][2]f16{
+    //     // One-hot encoded target for 2 classes
+    //     [2]f16{ 1.0, 0.0 }, // Class 0
+    //     [2]f16{ 0.0, 1.0 }, // Class 1
+    //     [2]f16{ 1.0, 0.0 }, // Class 0
+    //     [2]f16{ 0.0, 1.0 }, // Class 1
+    // }; 
     
-    const NumSamples = 2; 
-    const NumWordsPerSample = 3; 
-    const WordEmbeddingSize = 3; 
+    // const NumSamples = 2; 
+    // const NumWordsPerSample = 3; 
+    // const WordEmbeddingSize = 3; 
 
-    const input_logdata = [NumSamples][NumWordsPerSample][WordEmbeddingSize]f16{
-        // 4 samples with 3 input features each
-        [_][3]f16{
-            [3]f16{ 0.1, 0.2, 0.3 },
-            [3]f16{ 0.9, 0.8, 0.7 },
-            [3]f16{ 0.4, 0.5, 0.6 },
-            [3]f16{ 0.6, 0.5, 0.4 },
-        }, 
-        [_][3]f16{
-            [3]f16{ 0.1, 0.2, 0.3 },
-            [3]f16{ 0.9, 0.8, 0.7 },
-            [3]f16{ 0.4, 0.5, 0.6 },
-            [3]f16{ 0.6, 0.5, 0.4 },
-        },
-    };
-
-    _ = input_logdata; 
+    // const input_logdata = [NumSamples][NumWordsPerSample][WordEmbeddingSize]f16{
+    //     // 4 samples with 3 input features each
+    //     [_][3]f16{
+    //         [3]f16{ 0.1, 0.2, 0.3 },
+    //         [3]f16{ 0.9, 0.8, 0.7 },
+    //         [3]f16{ 0.4, 0.5, 0.6 },
+    //         [3]f16{ 0.6, 0.5, 0.4 },
+    //     }, 
+    //     [_][3]f16{
+    //         [3]f16{ 0.1, 0.2, 0.3 },
+    //         [3]f16{ 0.9, 0.8, 0.7 },
+    //         [3]f16{ 0.4, 0.5, 0.6 },
+    //         [3]f16{ 0.6, 0.5, 0.4 },
+    //     },
+    // };
+    //
+    // _ = input_logdata; 
          
     //TODO: - Fix logic to distinguish between number of samples vs batch size. 
     // Where batch size has to be even divisable with number of samples. 
-    const num_samples: usize = input_data.len;
-    const input_dim = 3; // input_dim = feature size for one sample. 
-    const output_dim = 2; // One-hot encoded, for 2 classes. 
+    
+    // const num_samples: usize = input_data.len;
+    // const input_dim = 3; // input_dim = feature size for one sample. 
+    // const output_dim = 2; // One-hot encoded, for 2 classes. 
+
     // const batch_size = 2; // Same as a sub-sample of the total num_samples.
     // const num_batches = num_samples / batch_size;
     // const num_epochs = 5; // One epoch means the model has seen the entire training dataset once, from start to finish.
 
-    var training_data = DataLoader(f16, num_samples, input_dim, output_dim, .RowSampleOrdering).Dataset{
-        .data = input_data, 
-        .true_labels = true_labels,
-        .metadata = .{
-            .num_samples = num_samples, // Default value = num_samples = NumSample.
-            .input_dim = input_dim, // Default value = input_dim = FeatureSize.
-            .output_dim = output_dim,
-            .num_batches = null,
-        }
-    };
+    // var training_data = DataLoader(f16, num_samples, input_dim, output_dim, .RowSampleOrdering).Dataset{
+    //     .data = input_data, 
+    //     .true_labels = true_labels,
+    //     .metadata = .{
+    //         .num_samples = num_samples, // Default value = num_samples = NumSample.
+    //         .input_dim = input_dim, // Default value = input_dim = FeatureSize.
+    //         .output_dim = output_dim,
+    //         .num_batches = null,
+    //     }
+    // };
     // EXPECTED DIMS: 
     // Input X dimension → X(2, 3) → X(BatchSize, FeatureSize)
     // H1 → W(2, 3), Z = X*W → (2, 3) * (3, 3) → OUT SIZE = 2 x 3. 
     // H2 → W(FeatureSize, LayerSize) → W(H1, H2) → W(3, 2), Z = X*W → (2 x 3) * (3 x 2) → H2_OUT = 2 x 2. 
     // OUTPUT LAYER → W(FeatureSize, LayerSize) → W(H2, LayerSize) → W(2, 2), S = X*W → (2 x 2) * (2, 2) → 2 x 2. 
  
-    try net.train(num_samples, &training_data, .SGD); 
+    // try net.train(num_samples, &training_data, .SGD); 
 }
 
 test "MemoryFootprint" {
@@ -1037,8 +1091,8 @@ test "MemoryFootprint" {
     };
     var dummy_transposition =  Matrix(f16, 3, 3).create(dummy_transposition_mat);
 
-    dummy_transposition.print_matrix("");
-    dummy_transposition.transpose().print_matrix("");
+    dummy_transposition.print_matrix("", .debug_print);
+    dummy_transposition.transpose().print_matrix("", .debug_print);
     dummy_transposition.memory_layout();
 
     return error.SkipZigTest; 

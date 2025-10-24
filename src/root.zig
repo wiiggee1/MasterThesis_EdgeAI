@@ -13,26 +13,20 @@ const csr = @import("csr.zig");
 
 pub const Testing = @import("testing.zig");
 pub const BenchMark = @import("benchmarks.zig").BenchMark;
+pub const MemoryStack = @import("memory.zig").MemoryStack;
 
+pub const std_options: std.Options = .{
+    .logFn = logging.loggerFn,
+};
 
-pub const SIMD = struct{
-    pub const Operation = enum {
-        Add,
-        Mul,
-        Sub,
-    };
+pub const exit_trap = startup._exit_trap;
 
-    pub fn vec_op(comptime T: type, comptime Cols: usize, op: Operation, arr1: [Cols]T, arr2: [Cols]T) @Vector(Cols, T){
-        var row_vector: @Vector(Cols, T) = arr1;
-        const other_vector: @Vector(Cols, T) = arr2;
-        switch (op) {
-            .Add => row_vector += other_vector, // row_vector = row_vector + other_vector.
-            .Mul => row_vector *= other_vector,
-            .Sub => row_vector -= other_vector, 
-        }
-        return row_vector;
-    }
-
+pub const Model = struct {
+    pub const Matrix = model.Matrix;
+    pub const Evaluation = model.common.Evaluation;
+    pub const Builder = model.Builder;
+    pub const ParsedModelGraph = model.ParsedModelGraph;
+    pub const LoadedModel = model.LoadedModel;
 };
 
 pub const Hardware = struct {
@@ -65,14 +59,6 @@ pub const DriversImpl = struct {
     };
 };
 
-
-pub const std_options: std.Options = .{
-    .logFn = logging.loggerFn,
-};
-
-
-pub const exit_trap = startup._exit_trap;
-
 pub const Rom = struct {
     pub extern fn ets_printf(fmt: [*:0]const u8, ...) callconv(.C) void;
     pub extern fn ets_install_uart_printf() callconv(.C) void;
@@ -87,12 +73,10 @@ pub fn delay_us(micro_sec: u32) void {
     Rom.ets_delay_us(micro_sec);
 }
 
-
 pub fn wfe() void {
     asm volatile ("csrs 0x810, 0x1");
     asm volatile ("wfi");
     asm volatile ("csrs 0x810, 0x1");
 }
-
 
 

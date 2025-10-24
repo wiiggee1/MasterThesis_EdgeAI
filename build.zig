@@ -6,6 +6,51 @@ const BuildConfig = build_types.BuildConfig;
 const Toolchain = build_types.Toolchain; 
 const Firmware = build_types.Firmware; 
 
+//     {
+//   "dimensions": {
+//     "input_features": 1,
+//     "timesteps": 10,
+//     "hidden_encoder": 16,
+//     "latent": 8,
+//     "hidden_decoder": 16
+//   },
+//   "batch_size": 128,
+//   "convention": "ColumnFeatureOrdering",
+//   "alpha": 0.1,
+//   "learning_rate": 0.0001,
+//   "epochs": 750,
+//   "optimizer": "AdamW",
+//   "loss_fn": "MSELoss",
+//   "scheduler": "ReduceLROnPlateau",
+//   "dtype": "f32",
+//   "threshold_quantile": 0.98,
+//   "threshold": 2.7395969937060727e-06,
+//   "persistence": 3,
+//   "split_ratio": 0.2
+// }
+const ModelRuntimeConfig = struct {
+    dimensions: struct {
+        input_features: usize,
+        timesteps: usize,
+        hidden_encoder: usize,
+        latent: usize,
+        hidden_decoder: usize,
+    },
+    batch_size: usize,
+    convention: []const u8,
+    alpha: f32,
+    learning_rate: f32,
+    epochs: u8,
+    optimizer: []const u8,
+    loss_fn: []const u8,
+    scheduler: []const u8,
+    dtype: []const u8,
+    threshold_quantile: f32,
+    threshold: f32,
+    persistence: u8,
+    split_ratio: f32,
+};
+
 // Although this function looks imperative, note that its job is to
 // declaratively construct a build graph that will be executed by an external
 // runner.
@@ -40,18 +85,18 @@ pub fn build(b: *std.Build) !void {
         .cpu_arch = .riscv32,
         .cpu_model = .{ .explicit = &std.Target.riscv.cpu.generic_rv32 },
         // .cpu_model = .{ .explicit = &std.Target.riscv.cpu.esp32p4 },
-        // .cpu_model = .{ .explicit = &std.Target.riscv.cpu.baseline_rv32 },
         .os_tag = .freestanding,
         // .abi = .eabi,
         .abi = .none,
         // .abi = .ilp32,
         // .abi = .eabihf,
-        // .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, }),
+        .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, .d,}),
         // Testing without F extension. 
-        .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, .f }),
+        // .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, .f }),
         .cpu_features_add = std.Target.riscv.featureSet(&.{
-            .i, .a, .m, .c,
+            .i, .a, .m, .c, .f,
             .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc, 
+            // .xcvsimd,
             // .zve64d, .zvl128b,
         }),
         // .cpu_features_add = std.Target.riscv.featureSet(&.{
@@ -59,8 +104,6 @@ pub fn build(b: *std.Build) !void {
         //     .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc,
         // }),
     };
-
-    // std.Target.riscv.Feature.v
 
     // ===================================== Supported Targets.
     const supported_targets: []const std.Target.Query = supported:{
@@ -124,6 +167,17 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimization_profile,
     });
 
+    // const cfg_file = std.fs.cwd().readFileAlloc(b.allocator, "config/model_runtime_config.json", 10*1024) catch |err| {
+    //     std.process.fatal("Failed reading '{s}': {s}", .{ "config/model_runtime_config.json", @errorName(err) });
+    // };
+    //
+    // var parsed_config = try std.json.parseFromSlice(ModelRuntimeConfig, b.allocator, cfg_file, .{.allocate = .alloc_always});
+    // defer b.allocator.free(cfg_file);
+    // defer parsed_config.deinit();
+    //
+    // const model_config = b.addOptions();
+    // model_config.addOption(ModelRuntimeConfig, "runtime_config", parsed_config);
+    
     const gpio_mod = b.createModule(.{
         .root_source_file = b.path("src/gpio.zig"),
     });
@@ -133,12 +187,18 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimization_profile,
         .root_source_file = b.path("src/model/model.zig"),
     });
+    
 
     const nn_lib = b.addLibrary(.{
         .linkage = .static,
         .name = "model",
         .root_module = nn_mod,
     });
+
+
+
+    // nn_lib.root_module.addObjectFile
+    // nn_lib.root_module.addEmbedPath(lazy_path:
 
     const imports = [_]std.Build.Module.Import{
         .{.name = "startup", .module = b.createModule(.{
@@ -185,12 +245,16 @@ pub fn build(b: *std.Build) !void {
     
     // firmware.root_module.error_tracing = true; 
     firmware.entry = .{.symbol_name = "_start"};
-    firmware.link_gc_sections = true;
+    // firmware.link_gc_sections = true;
     // firmware.lto = .none;
-    // firmware.link_gc_sections = false;   // keep unreferenced sections
+    firmware.link_gc_sections = false;   // keep unreferenced sections
     firmware.link_data_sections = true;
     firmware.link_function_sections = true;
     firmware.linker_allow_shlib_undefined = false;
+
+    // firmware.root_module.addAnonymousImport("assets/model", .{
+    //     .root_source_file = b.path("src/assets/model.bin"),
+    // });
 
     b.installArtifact(firmware); // Installs the .elf file [WORKING CODE LINE]
 
@@ -246,9 +310,6 @@ pub fn build(b: *std.Build) !void {
                     const target_kind = build_settings.target orelse step.owner.standardTargetOptions(.{});
                     const target_result = target_kind.result; 
                     const target_features = target_result.cpu.model.features.asBytes().*;
-                    // -mcpu generic_rv32+a+c+f+i+m+zaamo+zalrsc-zca-zcb-zcmp-zcmt+zicsr+zifencei+zmmul
-                    // const end = target_features.len; 
-                    // const feature_slice = target_features[0..end];
 
                     const target_info = step.owner.fmt("Target Info:\n\t\tABI: {s}\n\t\tObject kind: {s}\n\t\tCPU Arch: {s}\n\t\tFeatures: {s}", .{
                         @tagName(target_result.abi),

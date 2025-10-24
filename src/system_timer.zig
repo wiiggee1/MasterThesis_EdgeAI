@@ -207,9 +207,6 @@ pub const SystemTimer = struct{
             @intCast(q);
     }
 
-    inline fn now_ticks(self: Self) u64{
-        return self.now_v2(.Ticks).time & COUNTER_MASK;
-    }
 
     pub fn set_delay(_: Self, unit: TimeUnit, amount: u32) void{
         unit.delay(amount);
@@ -551,11 +548,11 @@ pub const SystemTimer = struct{
         
         const mask: u32 = (@as(u32, 1) << 26) - 1; // bits[25:0], -1 turns all lower bits into 1
         const updated_bits: u32 = (conf_reg & ~mask) | (period_ticks & mask); // keep upper bits.
-        std.log.warn("At (setup_period): setting period bits[25:0] to: 0b{b} = {d}, from: {d}\n", .{
-            @as(u32, updated_bits), 
-            @as(u32, updated_bits), 
-            @as(u32, period_ticks),
-        });
+        // std.log.warn("At (setup_period): setting period bits[25:0] to: 0b{b} = {d}, from: {d}\n", .{
+        //     @as(u32, updated_bits), 
+        //     @as(u32, updated_bits), 
+        //     @as(u32, period_ticks),
+        // });
 
         Peripheral.SYSTIMER.write_register(offset, updated_bits);
     }
@@ -659,8 +656,8 @@ pub const SystemTimer = struct{
         
         // Read-Write-Set: 
         Peripheral.SYSTIMER.setMask(self.register.CONF, mask);
-        const conf_reg = Peripheral.SYSTIMER.read_register(self.register.CONF);
-        std.log.warn("SYSTIMER_CONF_REG After setup: 0b{b}\n", .{conf_reg});
+        // const conf_reg = Peripheral.SYSTIMER.read_register(self.register.CONF);
+        // std.log.warn("SYSTIMER_CONF_REG After setup: 0b{b}\n", .{conf_reg});
     }
 
     /// Poll and waits by continously reading and checking if the 
@@ -826,17 +823,6 @@ pub const SystemTimer = struct{
         };
     }
 
-    // pub fn intoDeltaTimeTicks(self: Self, instant: TimeInstant) u64 {
-    //     const clk: u128 = @as(u128, self.clk_freq);
-    //     const t:   u128 = @as(u128, instant.time);
-    //
-    //     return switch (instant.unit) {
-    //         .Ticks => @min(@intCast(t), std.math.maxInt(u64)),
-    //         .Micro => ceilDiv128(clk * t, 1_000_000),
-    //         .Mili  => ceilDiv128(clk * t, 1_000),
-    //         .Sec   => ceilDiv128(clk * t, 1),       // effectively clamp(clk * t)
-    //     };
-    // }
 
     pub fn intoDeltaTimeTicksNew(self: Self, instant: TimeInstant) u64{
         const freq: u128 = @as(u128, self.clk_freq);
@@ -904,8 +890,6 @@ pub const SystemTimer = struct{
 
     fn durationIntoTicks(self: Self, duration_value: u64, unit: TimeUnit) u64{
         const per_unit: u64 = self.intoTicksFromUnit(unit);
-        // unit.asMicroSecond()
-        // fn asMicroSecond(self: TimeUnit, amount: u32) u32 {
 
         // const mul_op = @mulWithOverflow(duration_value, per_unit);
         const wrapped_duration = std.math.mul(u64, duration_value, per_unit) catch @as(u64, std.math.maxInt(u64));
@@ -922,6 +906,15 @@ pub const SystemTimer = struct{
 
         // @intCast(@min(num, @as(u128, std.math.maxInt(u64))));
         return wrapped_duration; 
+    }
+    
+    /// ticks as 52-bit counter value as u64.
+    pub inline fn now_ticks(self: Self) u64{
+        return self.readCounter() & COUNTER_MASK;
+    }
+    
+    pub inline fn elapsedAsTicks(self: Self, start: u64) u64{
+        return (self.now_ticks() - start) & COUNTER_MASK;
     }
 
     /// Ticks per micro sec is 16. 
@@ -948,20 +941,60 @@ pub const SystemTimer = struct{
         return self.readCounter() / unit_ticks;
     }
 
-    /// Ticks per micro sec is 16. 
+    /// Ticks per micro sec is 16: 16 MHz → 16 ticks/µs. 
     /// Clock Frequency: 16 MHz = 16000000 cycle/second [ticks].
     /// ... → Microseconds (µs): 10⁻⁶. 
     /// Time Period (T): 1 / f
     /// Frequency (f): 1 / T, T = Time Period. 
     pub fn now_v2(self: Self, unit: TimeUnit) TimeInstant{
+        if(unit == .Ticks) return TimeInstant{.time = self.now_ticks(), .unit = .Ticks};
+
         const unit_ticks: u64 = switch (unit) {
             .Ticks => 1,
             .Micro => self.clk_freq / 1_000_000, // ticks or cycles per µs
             .Mili => self.clk_freq / 1_000, // ticks or cycles ms
             .Sec => self.clk_freq, // ticks or cycles sec
         };
-        if(unit == .Ticks) return TimeInstant{.time = self.readCounter(), .unit = .Ticks};
-        return TimeInstant{.time = (self.readCounter() / unit_ticks), .unit = unit};
+
+        // return TimeInstant{.time = (self.readCounter() / unit_ticks), .unit = unit};
+        return TimeInstant{.time = (self.now_ticks() / unit_ticks), .unit = unit};
+    }
+
+    pub inline fn intoTime(self: Self, ticks_dt: u64, unit: TimeUnit) f64{
+        const ticks = @as(f64, @floatFromInt(ticks_dt));
+        const clk_freq = @as(f64, @floatFromInt(self.clk_freq)); // ticks per second
+
+        return switch (unit) {
+            .Ticks => ticks,
+            .Sec => ticks / clk_freq,
+            .Mili  => (ticks * 1e3) / clk_freq,
+            .Micro => (ticks * 1e6) / clk_freq,
+        };
+
+    }
+
+    pub inline fn elapsed_v2(self: Self, start: u64, comptime unit: TimeUnit) switch (unit) {
+        .Ticks => u64,
+        .Micro => u64, 
+        .Mili => u64,
+        .Sec => f64,
+    } {
+        const delta_ticks = self.elapsedAsTicks(start);
+
+        return switch(unit){
+            .Ticks => delta_ticks,
+            .Micro => us_ticks:{
+                const num: u128 = @as(u128, delta_ticks) * 1_000_000 + (@as(u128, self.clk_freq) / 2);
+                const ticks_us: u64 = @intCast(num / @as(u128, self.clk_freq)); 
+                break :us_ticks ticks_us;
+            }, 
+            .Mili => ms_ticks:{
+                const num: u128 = @as(u128, delta_ticks) * 1_000 + (@as(u128, self.clk_freq) / 2);
+                const ticks_ms: u64 = @intCast(num / @as(u128, self.clk_freq)); 
+                break :ms_ticks ticks_ms;
+            },
+            .Sec => @as(f64, @floatFromInt(delta_ticks)) / @as(f64, @floatFromInt(self.clk_freq)),
+        };
     }
 
     /// DEPRICATED use `duration_v2`
@@ -972,7 +1005,6 @@ pub const SystemTimer = struct{
     
     pub fn duration_v2(self: Self, t1: TimeInstant) u64 {
         // t2.time: self.readCounter() / unit_ticks
-        // std.log.warn("Inside 'duration_v2', got t1.time: {d}, t2.time (now): {d}\n", .{t1.time, t2.time});
 
         const t2 = self.now_v2(t1.unit);
         return t2.time - t1.time; 

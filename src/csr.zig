@@ -11,6 +11,7 @@ const std = @import("std");
 /// → asm(code : output operand list : input operand list : clobber list);
 /// -------------------------------------
 pub const CSR = enum(u32) {
+    fcsr = 0x003,
     /// IMPORTANT: Write a 1 at bit[3] = MIE, to enable machine global interrupt.
     mstatus = 0x300,
     misa = 0x301,
@@ -29,6 +30,9 @@ pub const CSR = enum(u32) {
     mtvt = 0x307,
     mcountinhibit = 0x320,
     mcycle = 0xB00,
+    mcycleh = 0xB80,
+    minstret = 0xB02,
+    minstreth = 0xB82,
     mscratch = 0x340,
     /// Configures the machine trap/exception program counter. 
     mepc = 0x341,
@@ -55,6 +59,7 @@ pub const CSR = enum(u32) {
 
     pub inline fn intoName(comptime self: CSR) [:0]const u8{
         return comptime switch (self) {
+            .fcsr => "fcsr",
             .mstatus => "mstatus",
             .misa => "misa",
             .mie => "mie",
@@ -62,6 +67,9 @@ pub const CSR = enum(u32) {
             .mtvt => "mtvt",
             .mcountinhibit => "mcountinhibit",
             .mcycle => "mcycle",
+            .mcycleh => "mcycleh",
+            .minstret => "minstret",
+            .minstreth => "minstreth",
             .mscratch => "mscratch",
             .mepc => "mepc",
             .mcause => "mcause",
@@ -73,14 +81,14 @@ pub const CSR = enum(u32) {
 
     pub inline fn write_csrw(self: CSR, value: u32) void {
         const csr = comptime self.intoU32();
-        const csr_name = comptime self.intoName();
         if (self == .mstatus){
             // const csrw_instruction = std.fmt.comptimePrint("csrw {s}, %[value] ... %[value] = 0b{b}", .{csr_name, value});
             // std.log.warn("csrw {s}, %[value] ... %[value] = 0b{b}\n", .{csr_name, value});
             asm volatile ("csrw mstatus, %[value]" :: [value] "r" (value));
             
-            const after = self.read_csrr();
-            std.log.warn("After write to {s}: 0b{b}\n", .{csr_name, after});
+            // const csr_name = comptime self.intoName();
+            // const after = self.read_csrr();
+            // std.log.warn("After write to {s}: 0b{b}\n", .{csr_name, after});
         }else{
             const csrw_instruction = std.fmt.comptimePrint("csrw 0x{x}, %[value]", .{csr});
             // std.log.warn("Attempting the csrw instruction: {s}\n", .{csrw_instruction});
