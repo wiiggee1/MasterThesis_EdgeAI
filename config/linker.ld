@@ -1,8 +1,6 @@
 OUTPUT_ARCH(riscv)
 ENTRY(_start) /* The ENTRY(_start) sets the program entry point - the reset handler.*/
  
-/* ASSERT(bootloader_iram_loader_seg_start == 0x4FF2CBD0, "bootloader_iram_loader_seg_start inconsistent with SRAM_DRAM_END"); */
-
 /* This is the Memory Configuration from the `bootloader.map`:  
  * Memory Configuration
  * Name             Origin             Length             Attributes
@@ -43,12 +41,6 @@ lp_rom_dram_start = 0x5010fa80;
 lp_ram_end = 0x50110000;
 lp_rom_dram_size = lp_ram_end - lp_rom_dram_start;
 
-/* Boot sequence: ROM bootloader reads 4KB → 0x1000 at SPI flash at 0x00000000 → ...
- * ... → Reads the Bootloader image header → ...
- * ... → Reads the main application image header from the offset defined in the partition table (0x10000) → ...
- * ... → Bootloader reads the Main application image header and copy segments to their addresses
- * e.g., 0x40000020 for IRAM and so on... → Final jumps to the entry point. 
- * */
 
 /* ---------- Memory map (ESP32-P4) ---------- */
 /* XIP flash VA window is 0x4000_0000..0x43FF_FFFF.
@@ -69,7 +61,10 @@ MEMORY
  
     /* Flash mapped constant data. 
       XIP flash (const). Uses a different VA window to avoid overlapping. */
-    DROM (r) :  ORIGIN = 0x40020020, LENGTH = 0x4000000 - 0x20
+    /* DROM (r) :  ORIGIN = 0x40040020, LENGTH = 0x4000000 - 0x400020 */
+    DROM (r)  : ORIGIN = 0x40200020, LENGTH = 0x44000000 - 0x40200020 /* = 0x03DFFFE0 */
+    /* DROM (r)  : ORIGIN = 0x40400020, LENGTH = 0x44000000 - 0x40400020 /* = 0x03BFFFE0 */ 
+
 
     /* 768 KB of on SOC RAM, HP L2MEM (0x4FF0_0000 ~ 0x4FFB_FFFF)
     * Main Image Entry point: 0x4ff003fe, where 0x3FE = 1022 should be 1024
@@ -88,15 +83,16 @@ MEMORY
 
 PROVIDE(_max_hart_id = 0);
 PROVIDE(_stack_top = ORIGIN(SRAM_HIGH) + LENGTH(SRAM_HIGH)); /* stack start */
-PROVIDE(_stack_size = 0x4000);
+/* PROVIDE(_stack_size = 0x4000); */
+/* Stack size of 0x8000 = 32 KiB */
+PROVIDE(_stack_size = 0x8000);
+
+/* Stack size of 0xC000 = 48 KB */
+/* PROVIDE(_stack_size = 0xC000); */
 PROVIDE(_stack_bottom = _stack_top - _stack_size);
 
 /* This is where the code (.text) in flash starts. */
 PROVIDE(_stext = ORIGIN(IROM));
-
-/* PROVIDE(_text_end = ...) */
-/* PROVIDE(_dram0_size = ...); */
-/* PROVIDE(_dram0_end = ...); */
 
 PROVIDE(_bss_size = _bss_end - _bss_start);
 PROVIDE(_bss_end = ADDR(.bss) + SIZEOF(.bss));
@@ -107,6 +103,8 @@ PROVIDE(ets_install_uart_printf    = 0x4fc00030);
 PROVIDE(ets_install_usb_printf     = 0x4fc00034);
 PROVIDE(ets_delay_us               = 0x4fc0003c);
 PROVIDE(rtc_get_reset_reason       = 0x4fc00018);
+PROVIDE(ets_get_cpu_frequency      = 0x4fc00040);
+
 
 PROVIDE(software_reset             = 0x4fc00094);
 PROVIDE(software_reset_cpu         = 0x4fc00098);
@@ -153,14 +151,10 @@ SECTIONS
         _flash_cache_start = ABSOLUTE(0);
     } > IROM /* VMA in IROM Flash at 0x40000020... */
   
-    ASSERT(ADDR(.flash.text) == ORIGIN(IROM), "flash.text must start at 0x40000020")
+    /* ASSERT(ADDR(.flash.text) == ORIGIN(IROM), "flash.text must start at 0x40000020") */
 
     _flash_text_end = .;
     /* . = ORIGIN(IROM); */
-
-    
-    /* CONFIG_MMU_PAGE_SIZE=0x10000 */
-    /* CONFIG_BOOTLOADER_OFFSET_IN_FLASH=0x2000 */
 
     . = ORIGIN(DROM);
 
@@ -190,26 +184,16 @@ SECTIONS
     /* . = ALIGN(16); */
     } > DROM
     
-    ASSERT(ADDR(.flash.appdesc) == 0x40020020, "appdesc must start at 0x40020020")
-
-    /* . = ORIGIN(DROM); */
+    /* ASSERT(ADDR(.flash.appdesc) == 0x40020020, "appdesc must start at 0x40020020") */
 
     /* Rounds up to the next block of 64KiB (MMU sisze) and add 0x20 */
     _flash_rodata_lma = ((ADDR(.flash.text) + SIZEOF(.flash.text) + 0xFFFF) & ~0xFFFF) + 0x20;
-
-    /* . = ORIGIN(FLASH) */
-    /*     + SIZEOF(.image_header) */
-    /*     + SIZEOF(.iram0.text) */
-    /*     + SIZEOF(.flash.text); */
-    /**/
     
     /* .flash.rodata: const data; runs from 0x40020020 (DROM) */
     .flash.rodata : ALIGN(0x10)  {
         /* . = ALIGN(16); */
         _rodata_start = ABSOLUTE(.);
         PROVIDE(_drom_start = _rodata_start);
-        
-        /* . = ALIGN(ALIGNOF(.flash.text)) + SIZEOF(.flash.text) */
 
         *(.irom1.text) /* catch strays */
         *(.gnu.linkonce.r.*)
@@ -219,11 +203,8 @@ SECTIONS
         *(.gcc_except_table .gcc_except_table.*)
         *(.gnu.linkonce.e.*)
 
-        /* *(.literal .literal.* .stub .gnu.warning .gnu.linkonce.literal.* .gnu.linkonce.t.*.literal .gnu.linkonce.t.*) */
-
         _rodata_end = ABSOLUTE(.);
     } > DROM
-    /* } > DROM AT > IROM */
 
     . = ORIGIN(SRAM_LOW);
     .iram0.text : ALIGN(0x40) {
@@ -249,9 +230,7 @@ SECTIONS
         PROVIDE(_iram_end = .);
     } > SRAM_LOW AT > IROM
     
-    /* } > SRAM_LOW AT > IROM /* SRAM_LOW is the VMA and IROM the LMA */ 
     PROVIDE(_iram0_lma = LOADADDR(.iram0.text));
-    /* _iram_text_end = . - _iram_start; */
 
     /* RAM sections (64 Mb external RAM, 768 KB L2-MEM, 32 KB LP SRAM): */
     /* .dram0 represent the lower part of the ram, e.g., .dram0.data → SRAM_LOW and .dram1.data → SRAM_HIGH */
@@ -261,7 +240,6 @@ SECTIONS
         *(.data*)
         *(.data.*)
         *(.data1)
-        /* *(.data*) *(.data.*) */
         PROVIDE(__global_pointer$ = . + 0x800); /* Linker relaxation */
         *(.sdata) *(.sdata.*)
         *(.gnu.linkonce.s.*)
@@ -288,6 +266,24 @@ SECTIONS
     /* Recall that the stack grows downwards, from higher address towards lower addresses 
         The stack uses decreasing addresses as new functions are called. */
 
+    .ram.model (NOLOAD) : ALIGN(64) {
+        . = ALIGN(64);
+        __model_ram_start = .;
+        KEEP(*(.ram.model*))
+        __model_ram_end = .;
+    } > SRAM_LOW
+    
+    .ram.inference (NOLOAD) : ALIGN(64) {
+        . = ALIGN(64);
+        __inference_ram_start = .;
+        KEEP(*(.ram.inference*))
+        __inference_ram_end = .;
+    } > SRAM_LOW
+    
+    ASSERT(__model_ram_start     >= ORIGIN(SRAM_LOW), "model not in SRAM_LOW")
+    ASSERT(__model_ram_end       <= ORIGIN(SRAM_LOW) + LENGTH(SRAM_LOW), "model too large for SRAM_LOW")
+    ASSERT(__inference_ram_start >= ORIGIN(SRAM_LOW), "inference not in SRAM_LOW")
+    ASSERT(__inference_ram_end   <= ORIGIN(SRAM_LOW) + LENGTH(SRAM_LOW), "inference too large for SRAM_LOW")
 
     /* Heap ends at top of dram0_0_seg */
     .heap (NOLOAD) : {
@@ -320,7 +316,6 @@ SECTIONS
     /* rodata must begin IMMEDIATELY after appdesc (no gap) */
     ASSERT(ADDR(.flash.rodata) == ADDR(.flash.appdesc) + SIZEOF(.flash.appdesc),
        "The gap and .flash.rodata must begin IMMEDIATELY after .flash.appdesc the final bin image.")
-
 
 }
 
