@@ -35,3 +35,5 @@ scripts/PyCortexMDebug/
 /config/bootloader/partition_table_bak.csv
 /dataset/dataset_csv/*
 /dataset/smap_msl_dataset/data/data/2018-05-19_15.00.10/*
+/config/esp_startup_dissasembly.txt
+/config/image_segment_addr_info.md

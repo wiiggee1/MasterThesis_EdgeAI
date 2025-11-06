@@ -1,6 +1,0 @@
-{
-    "description" : "This represent model specific config settings",
-    "batchsize" : 32,
-    "input_features": 10,
-    "layer_info" : {}
-}
