@@ -4,12 +4,11 @@ const math = std.math;
 const testing = std.testing;
 const assert = std.debug.assert;
 
-const model = @import("model_builder.zig");
 const builder = @import("builder.zig");
-const HyperParameters = model.HyperParameters; 
 const Builder = builder.Builder;
 
 const common = @import("common_functions.zig");
+const HyperParameters = common.HyperParameters; 
 const ActivationFunction = common.ActivationFunction;
 const LossType = common.LossType;
 const LossFunction = common.LossFunction;
@@ -19,6 +18,13 @@ const PRINTMODE: PrintMode =
         PrintMode.debug_print 
     else 
         PrintMode.log_output;
+
+pub const MatmulFn = enum{
+    vecdot,
+    hwlp,
+    base,
+};
+
 
 /// Represent local layer data in the Neural Network. Such as the weight matrix and bias vector.
 /// This generic type, utilize the `LayerType` base interface.
@@ -56,7 +62,7 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
         };
 
         const FullyConnected = struct {
-            wx: Matrix(T, WeightDim.@"0", WeightDim.@"1"),
+            wx: Matrix(T, WeightDim.@"0", WeightDim.@"1", .owned),
             // wx: MatrixV2(T, WeightDim.@"0", WeightDim.@"1", LayerSettings.convention),
             /// Biases for a layer is represented by a M x 1 matrix or row vector.
             /// Where M represent the `LayerSize`.
@@ -68,18 +74,15 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
         const RnnLayer = struct {
             pub const RnnWeightDim = LayerSettings.getDimensionOf(.rnn_weight_matrix);
 
-            wx: Matrix(T, WeightDim.@"0", WeightDim.@"1"),
-            wh: Matrix(T, RnnWeightDim.@"0", RnnWeightDim.@"1"),
-            // wx: MatrixV2(T, WeightDim.@"0", WeightDim.@"1", LayerSettings.convention),
-            // wh: MatrixV2(T, RnnWeightDim.@"0", RnnWeightDim.@"1", LayerSettings.convention),
+            wx: Matrix(T, WeightDim.@"0", WeightDim.@"1", .owned),
+            wh: Matrix(T, RnnWeightDim.@"0", RnnWeightDim.@"1", .owned),
             bias: @Vector(SizeOfLayer, T),
         };
 
         const InputLayer = struct {
             const input_shape = LayerSettings.getDimensionOf(.input_matrix);
             /// input matrix(x): { inputFeatures, Timesteps } for column-major and { Timesteps, inputFeatures } when row-major.
-            x: Matrix(T, input_shape.@"0", input_shape.@"1"), // Matrix<T, shape.@"0", shape@"1">
-            // x: MatrixV2(T, input_shape.@"0", input_shape.@"1", LayerSettings.convention), // Matrix<T, shape.@"0", shape@"1">
+            x: Matrix(T, input_shape.@"0", input_shape.@"1", .owned), // Matrix<T, shape.@"0", shape@"1">
         };
 
         const StateAPI = switch (LayerSettings.kind) {
@@ -89,22 +92,28 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
         };
 
         const State = struct {
-            pub const wh_dim = LayerSettings.getDimensionOf(.rnn_weight_matrix);
+            pub const DimensionWh = LayerSettings.getDimensionOf(.rnn_weight_matrix);
+            pub const DimensionWx = WeightDim;
+            pub const WxMatrix = Matrix(T, WeightDim.@"0", WeightDim.@"1", .owned);
+            pub const WhMatrix = Matrix(T, DimensionWh.@"0", DimensionWh.@"1", .owned);
+
+            pub const XtMatrix = Matrix(T, 1, switch (LayerSettings.convention) {
+                .ColumnFeatureOrdering => InputDim.@"0",
+                .RowSampleOrdering => InputDim.@"1",
+            }, .owned);
+
+            pub const HprevMatrix = Matrix(T, 1, SizeOfLayer, .owned);
+
             const RnnMatrix  = rnn:{
                 if(LayerSettings.kind == .Rnn){
-                    break :rnn ?Matrix(T, wh_dim.@"0", wh_dim.@"1");
-                    // break :rnn ?MatrixV2(T, wh_dim.@"0", wh_dim.@"1", LayerSettings.convention);
+                    break :rnn ?Matrix(T, DimensionWh.@"0", DimensionWh.@"1", .owned);
                 }else{
                     break :rnn if(LayerSettings.kind == .Rnn) @TypeOf(null) else {};
-                    // break :rnn if(LayerSettings.kind == .Rnn) null else {};
-                    // break :rnn if(LayerSettings.kind == .Rnn) null else {};
                 }
             };
             
-            wx: Matrix(T, WeightDim.@"0", WeightDim.@"1"),
-            // wx: MatrixV2(T, WeightDim.@"0", WeightDim.@"1", LayerSettings.convention),
-            wh: ?Matrix(T, wh_dim.@"0", wh_dim.@"1") = null,
-            // wh: ?MatrixV2(T, wh_dim.@"0", wh_dim.@"1", LayerSettings.convention) = null,
+            wx: Matrix(T, WeightDim.@"0", WeightDim.@"1", .owned),
+            wh: ?Matrix(T, DimensionWh.@"0", DimensionWh.@"1", .owned) = null,
             bias: @Vector(SizeOfLayer, T),
         };
 
@@ -226,7 +235,7 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
 
                     // The loaded bytes are ALWAYS in row-major bytes, so we need to use the Convention = RowSampleOrdering.
                     // To first construct the Wx matrix, and then transpose depending on the passed convention. 
-                    var mat = Matrix(T, WeightDim.@"0", WeightDim.@"1") .from_array(param_states.wx, .RowSampleOrdering);
+                    var mat = Matrix(T, WeightDim.@"0", WeightDim.@"1", .owned) .from_array(param_states.wx, .RowSampleOrdering);
                     if (LayerSettings.convention == .RowSampleOrdering) 
                         // Dimension should be: [D, H] for X * W
                         break :wx_matrix mat.transpose() 
@@ -287,7 +296,7 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
             const wx_modified = wx_matrix:{
 
                 // ALWAYS construct the matrix initially using Pytorch convention of [OUT, IN] as Numpy C-ordering.
-                var mat = Matrix(T, OUT, IN).from_array(parameters.wx.?[0..N].*, .RowSampleOrdering);
+                var mat = Matrix(T, OUT, IN, .owned).from_array(parameters.wx.?[0..N].*, .RowSampleOrdering);
                 // var mat = MatrixV2(T, OUT, IN, .RowSampleOrdering).fromSlice(@constCast(parameters.wx.?));
 
                 if (LayerSettings.convention == .RowSampleOrdering) 
@@ -299,9 +308,9 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
             };
 
             // const wh_modified: ?MatrixV2(T, OUT, OUT, .RowSampleOrdering) = wh_matrix:{
-            const wh_modified: ?Matrix(T, OUT, OUT) = wh_matrix:{
+            const wh_modified: ?Matrix(T, OUT, OUT, .owned) = wh_matrix:{
                 if (LayerSettings.kind == .Rnn){
-                    var mat = Matrix(T, OUT, OUT).from_array(parameters.wh.?[0..OUT*OUT].*, .RowSampleOrdering);
+                    var mat = Matrix(T, OUT, OUT, .owned).from_array(parameters.wh.?[0..OUT*OUT].*, .RowSampleOrdering);
                     // var mat = MatrixV2(T, OUT, OUT, .RowSampleOrdering).fromSlice(@constCast(parameters.wh.?));
                     if (LayerSettings.convention == .RowSampleOrdering)
                         break :wh_matrix mat.transpose()
@@ -452,7 +461,7 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
                     var random_gen = std.Random.Pcg.init(rand.int(u32));
                     const random = random_gen.random();
 
-                    const WeightMatrixType = Matrix(T, WeightDim.@"0", WeightDim.@"1");
+                    const WeightMatrixType = Matrix(T, WeightDim.@"0", WeightDim.@"1", .owned);
                     const wx_scaling = @sqrt(0.1 / @as(f32, @floatFromInt(WeightMatrixType.Rows)));
                     
                     for (0..WeightMatrixType.Rows) |i| {
@@ -472,7 +481,7 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
                     var random_gen = std.Random.Pcg.init(rand.int(u32));
                     const random = random_gen.random();
 
-                    const RnnWeightMatrixType = if(LayerSettings.kind == .Rnn) Matrix(T, RnnWeightDimension.@"0", RnnWeightDimension.@"1");
+                    const RnnWeightMatrixType = if(LayerSettings.kind == .Rnn) Matrix(T, RnnWeightDimension.@"0", RnnWeightDimension.@"1", .owned);
                     const wh_scaling = @sqrt(0.1 / @as(f32, @floatFromInt(RnnWeightMatrixType.Rows)));
                     
                     for (0..RnnWeightMatrixType.Rows) |i| {
@@ -516,7 +525,7 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
             }
         }
 
-        pub fn feedforward(self: *Self, X: *const Matrix(T, InputDim.@"0", InputDim.@"1")) ?Matrix(T, OutputDim.@"0", OutputDim.@"1"){
+        pub fn feedforward(self: *Self, X: *const Matrix(T, InputDim.@"0", InputDim.@"1", .view)) ?Matrix(T, OutputDim.@"0", OutputDim.@"1", .owned){
             // Sanity debug checks:
             if(builtin.mode == .Debug){
                 switch(LayerSettings.kind){
@@ -544,11 +553,13 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
             };
         }
 
+
         pub fn feedforward_optimized(
             self: *Self,
-            X: *const Matrix(T, InputDim.@"0", InputDim.@"1"),
-            ws: anytype, // only required for RNN
-            out: *Matrix(T, OutputDim.@"0", OutputDim.@"1"),
+            comptime matmul_fn: MatmulFn,
+            X: *const Matrix(T, InputDim.@"0", InputDim.@"1", .view),
+            ws: anytype,
+            out: *Matrix(T, OutputDim.@"0", OutputDim.@"1", .owned),
         ) void{
             if(builtin.mode == .Debug){
                 if(LayerSettings.kind == .Rnn){
@@ -562,13 +573,7 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
 
             switch (LayerSettings.kind) {
                 .Rnn => {
-                    // Require workspace for RNN
-                    // const wsp = ws orelse {
-                    //     @panic("RNN feedforward_into requires a workspace of owned matrix data.");
-                    // };
-                    // forwardpass_rnn_optimized(self, X, wsp, out);
-
-                    forwardpass_rnn_optimized(self, X, ws, out);
+                    forwardpass_rnn_optimized(self, X, ws, out, matmul_fn);
                 },
                 .Dense, .Output => {
                     forwardpass_dense(self, X, out);
@@ -577,7 +582,7 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
             }
         }
 
-        fn forwardpass_debug_info(self: *Self, x_t: *const Matrix(T, InputDim.@"0", InputDim.@"1")) void{
+        fn forwardpass_debug_info(self: *Self, x_t: *const Matrix(T, InputDim.@"0", InputDim.@"1", .view)) void{
             print_fn(PRINTMODE, "\nAt Layer({d}):\n", .{self.id});
             print_fn(PRINTMODE, "\tActivation: {?}\n", .{LayerSettings.activation});
 
@@ -646,10 +651,10 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
 
         }
 
-        fn forwardpass(self: *Self, x_t: *const Matrix(T, InputDim.@"0", InputDim.@"1")) Matrix(T, OutputDim.@"0", OutputDim.@"1"){
+        fn forwardpass(self: *Self, x_t: *const Matrix(T, InputDim.@"0", InputDim.@"1", .view)) Matrix(T, OutputDim.@"0", OutputDim.@"1", .owned){
             if(builtin.os.tag != .freestanding or builtin.is_test) self.forwardpass_debug_info(x_t);
 
-            var output_matrix: Matrix(T, OutputDim.@"0", OutputDim.@"1") = switch (LayerSettings.convention) {
+            var output_matrix: Matrix(T, OutputDim.@"0", OutputDim.@"1", .owned) = switch (LayerSettings.convention) {
                 // When convention is column-major (features as rows, samples as columns).
                 .ColumnFeatureOrdering => self.state.wx.matmul(x_t),
 
@@ -675,13 +680,15 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
             return output_matrix;
         }
 
-        fn forwardpass_dense(self: *Self, X: *const Matrix(T, InputDim.@"0", InputDim.@"1"), y_output: *Matrix(T, OutputDim.@"0", OutputDim.@"1")) void{
+        fn forwardpass_dense(self: *Self, X: *const Matrix(T, InputDim.@"0", InputDim.@"1", .view), y_output: *Matrix(T, OutputDim.@"0", OutputDim.@"1", .owned)) void{
             switch (LayerSettings.convention) {
                 .ColumnFeatureOrdering => {
-                    self.state.wx.matmul_optimized(X, y_output);
+                    matmul(.base, &self.state.wx, X, y_output);
+                    // self.state.wx.matmul_optimized(X, y_output);
                 },
                 .RowSampleOrdering => {
-                    X.matmul_optimized(&self.state.wx, y_output);
+                    matmul(.base, X, &self.state.wx, y_output);
+                    // X.matmul_optimized(&self.state.wx, y_output);
                 },
             }
             y_output.broadcasting(self.state.bias, LayerSettings.convention) catch |err| {
@@ -714,13 +721,13 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
         ///     Wₓ × xₜ → [H × D] ⋅ [D × 1] = [H × 1], 
         ///     Wₕ × hₜ₋₁ → [H × H] ⋅ [H × 1] = [H × 1].
         /// ----------------------------------
-        fn forwardpass_rnn(self: *Self, X: *const Matrix(T, InputDim.@"0", InputDim.@"1")) Matrix(T, OutputDim.@"0", OutputDim.@"1"){
+        fn forwardpass_rnn(self: *Self, X: *const Matrix(T, InputDim.@"0", InputDim.@"1", .view)) Matrix(T, OutputDim.@"0", OutputDim.@"1", .owned){
 
             // hₜ = ϕ(Wₓ × xₜ + Wₕ × hₜ₋₁ + b), where hₜ₋₁ and hₜ ∈ ℝᴴ ˣ ¹. 
-            var ht = Matrix(T, H.@"0", H.@"1").zeroes(); // hₜ → Cell state (update each timestep(t)) 
+            var ht = Matrix(T, H.@"0", H.@"1", .owned).zeroes(); // hₜ → Cell state (update each timestep(t)) 
 
             // 0. Create the empty Output Matrix for the whole sequence where Hₜᵢₘₑₛₜₑₚₛ ∈ ℝᴴ ˣ ᵀ
-            var y_sequence = Matrix(T, OutputDim.@"0", OutputDim.@"1").zeroes();  // full output sequence (all timesteps)
+            var y_sequence = Matrix(T, OutputDim.@"0", OutputDim.@"1", .owned).zeroes();  // full output sequence (all timesteps)
 
             if(builtin.os.tag != .freestanding or builtin.is_test or builtin.mode == .Debug){
                 // self.forwardpass_debug_info(X);
@@ -730,9 +737,9 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
 
                 // 1. Create xₜ (single timestep/sample), where X: [D × T] for column-major and [T × D] for row-major.
                 const x_t = if(LayerSettings.convention == .ColumnFeatureOrdering)
-                    Matrix(T, InputDim.@"0", 1).from_array(X.get_colvec(t), LayerSettings.convention) // [D × 1]
+                    Matrix(T, InputDim.@"0", 1, .owned).from_array(X.get_colvec(t), LayerSettings.convention) // [D × 1]
                 else 
-                    Matrix(T, 1, InputDim.@"1").from_array(X.mat[t], LayerSettings.convention); // [1 × D]
+                    Matrix(T, 1, InputDim.@"1", .owned).from_array(X.mat[t], LayerSettings.convention); // [1 × D]
 
                 // 2. Wₓ × xₜ → [H × D] ⋅ [D × 1] = [H × 1], xₜ ∈ ℝᴰ ˣ ᴮ⁼¹, Wₓ ∈ ℝᴴ ˣ ᴰ
                 var weighted_sum = if(LayerSettings.convention == .ColumnFeatureOrdering) 
@@ -783,11 +790,21 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
             return y_sequence;
         }
 
+        pub inline fn matmul(comptime kind_fn: MatmulFn, lhs: anytype, rhs: anytype, output: anytype) void{
+            const LeftMatrix = @TypeOf(lhs.*); // *const Self → Matrix lhs
+            return switch (kind_fn) {
+                .base => LeftMatrix.matmul_optimized_acc(lhs, rhs, output),
+                .vecdot => LeftMatrix.matmul_optimized_dotvec(lhs, rhs, output),
+                .hwlp => LeftMatrix.matmul_optimized_hwlp(lhs, rhs, output),
+            };
+        }
+
         fn forwardpass_rnn_optimized(
             self: *Self,
-            X: *const Matrix(T, InputDim.@"0", InputDim.@"1"),
+            X: *const Matrix(T, InputDim.@"0", InputDim.@"1", .view),
             ws: anytype,
-            y_output: *Matrix(T, OutputDim.@"0", OutputDim.@"1")
+            y_output: *Matrix(T, OutputDim.@"0", OutputDim.@"1", .owned),
+            comptime matmul_kind: MatmulFn,
         ) void{
             const HN = SizeOfLayer; // number of hidden units (features in h_t)
             const D  = if (LayerSettings.convention == .ColumnFeatureOrdering)
@@ -800,9 +817,9 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
                 
                 if (LayerSettings.convention == .ColumnFeatureOrdering){
 
-                    var ht = Matrix(T, HN, 1).zeroes();
-                    var h_prev = Matrix(T, HN, 1).zeroes();
-                    var Xt = Matrix(T, D, 1).zeroes(); // D×1
+                    var ht = Matrix(T, HN, 1, .owned).zeroes();
+                    var h_prev = Matrix(T, HN, 1, .owned).zeroes();
+                    var Xt = Matrix(T, D, 1, .owned).zeroes(); // D×1
                     inline for (0..HN) |i| h_prev.mat[i][0] = 0;
 
                     // X is [D×T]; take column t to Xt (D×1) without big temps
@@ -814,23 +831,26 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
                     inline for (0..HN) |i| ht.mat[i][0] = 0;
 
                     // ---- h_t += W_x * x_t ----
-                    self.state.wx.matmul_optimized_acc(&Xt, &ht);
+                    // self.state.wx.matmul_optimized_acc(&Xt, &ht);
+                    matmul(matmul_kind, &self.state.wx, &Xt, &ht);
+
 
                     // 3. Wₕ × hₜ₋₁ → [H × H] ⋅ [H × 1] = [H × 1], hₜ₋₁, hₜ ∈ ℝᴴ ˣ ¹, Wₕ ∈ ℝᴴ ˣ ᴴ.
                     // ---- h_t += W_h * h_{t-1} ----
                     if (self.state.wh) |wh| {
-                        wh.matmul_optimized_acc(&h_prev, &ht);
+                        // wh.matmul_optimized_acc(&h_prev, &ht);
+                        matmul(matmul_kind, &wh, &h_prev, &ht);
                     }
 
                     // 5. broadcast - add merge bias or biases (wx_bias + wh_bias)
                     // Wₓ × xₜ + bₓ + Wₕ × hₜ₋₁ + bₕ 
-                    ht.broadcasting(self.state.bias, LayerSettings.convention) catch |err| {
-                        std.log.err("Broadcasting error: {any}\n", .{err});
-                    };
+                    // ht.broadcasting(self.state.bias, LayerSettings.convention) catch |err| {
+                    //     std.log.err("Broadcasting error: {any}\n", .{err});
+                    // };
+                    //
+                    // self.apply_activation(&ht, false);
 
-                    // ht.print_matrix("ht (col-major)", .debug_print);
-
-                    self.apply_activation(&ht, false);
+                    fused_activation_broadcast(&ht, self.state.bias, false);
 
                     // ---- write h_t → y_out[:, t] ----
                     inline for (0..HN) |i| ws.ht_buf[i] = ht.mat[i][0];
@@ -840,33 +860,40 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
                     inline for (0..HN) |i| h_prev.mat[i][0] = ht.mat[i][0];
                 }else{
                     
-                    var ht = Matrix(T, 1, HN).zeroes();
+                    var ht = Matrix(T, 1, HN, .owned).zeroes();
 
-                    var h_prev = Matrix(T, 1, HN).zeroes();
-                    var Xt = Matrix(T, 1, D).zeroes(); // 1×D
+                    var h_prev = Matrix(T, 1, HN, .owned).zeroes();
+                    var Xt = Matrix(T, 1, D, .owned).zeroes(); // 1×D
                     inline for (0..HN) |j| h_prev.mat[0][j] = 0;
 
-                    Xt.set_rowvec(0, X.mat[t][0..D]);
+                    // Xt.set_rowvec(0, X.mat[t][0..D]); // WORKING
+
+                    Xt.set_rowvec(0, X.getRowSlice(t)); 
+
+                    // const row = X.getRowSlice(t); // NEWLY ADDED
+                    // Xt.set_rowvec(0, row[0..D]); // NEWLY ADDED
 
                     // h_t := 0
                     inline for (0..HN) |j| ht.mat[0][j] = 0;
 
                     // h_t += x_t * W_x   → (1×D)*(D×H) = (1×H)
-                    Xt.matmul_optimized_acc(&self.state.wx, &ht);
+                    // Xt.matmul_optimized_acc(&self.state.wx, &ht); // This works
+                    matmul(matmul_kind, &Xt, &self.state.wx, &ht);
 
                     // h_t += h_{t-1} * W_h → (1×H)*(H×H) = (1×H)
                     if (self.state.wh) |wh| {
-                        h_prev.matmul_optimized_acc(&wh, &ht);
+                        // h_prev.matmul_optimized_acc(&wh, &ht);
+                        matmul(matmul_kind, &h_prev, &wh, &ht);
                     }
 
                     // + bias, activation
-                    ht.broadcasting(self.state.bias, .RowSampleOrdering) catch |err| {
-                        std.log.err("Broadcasting error: {any}\n", .{err});
-                    };
-                    
-                    // ht.print_matrix("ht (row-major)", .debug_print);
-                    
-                    self.apply_activation(&ht, false);
+                    // ht.broadcasting(self.state.bias, .RowSampleOrdering) catch |err| {
+                    //     std.log.err("Broadcasting error: {any}\n", .{err});
+                    // };
+                    //
+                    // self.apply_activation(&ht, false);
+
+                    fused_activation_broadcast(&ht, self.state.bias, false);
                                 
                     y_output.set_rowvec(t, ht.mat[0][0..HN]);
 
@@ -875,6 +902,99 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
             }
         }
 
+        inline fn fused_activation_broadcast(ht: anytype, bias: anytype, deriv_flag: bool) void{
+            // const TargetMatrix = @TypeOf(ht.*);
+            const activation = LayerSettings.activation orelse return; 
+            
+            const M: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[1].defaultValue().?;
+            const N: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[2].defaultValue().?;
+
+            // ColumnVector
+            if (comptime N == 1){
+                if (comptime LayerSettings.convention == .ColumnFeatureOrdering){
+                    fuse_activation_bias_col(ht, bias, deriv_flag);
+                }else{
+                    const b0: T = bias[0];
+                    inline for (0..M) |i| {
+                        const v = ht.mat[i][0] + b0;
+                        ht.mat[i][0] = activation.execute_scalar(T, v, deriv_flag);
+                    }
+                }
+                return;
+            }
+
+            // RowVector
+            if (comptime M == 1){
+                fuse_activation_bias_row(ht, bias, deriv_flag);
+                return;
+            }
+
+            if (comptime LayerSettings.convention == .ColumnFeatureOrdering){
+                fuse_activation_bias_colmajor(ht, bias, deriv_flag);
+                return;
+            }else{
+                fuse_activation_bias_rowmajor(ht, bias, deriv_flag);
+                return;
+            }
+
+        }
+
+        /// ht → *Matrix(T, H, 1)
+        pub inline fn fuse_activation_bias_col(ht: anytype, bias: anytype, deriv_flag: bool) void{
+            const M: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[1].defaultValue().?;
+            const N: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[2].defaultValue().?;
+            const ColVectorLength = M;
+            const RowVectorLength = N;
+            _ = RowVectorLength;
+
+            const activation = LayerSettings.activation orelse return; 
+            inline for (0..ColVectorLength) |i| {
+                const v: T = ht.mat[i][0] + bias[i];
+                ht.mat[i][0] = activation.execute_scalar(T, v, deriv_flag);
+            }
+        }
+        
+        /// ht → *Matrix(T, 1, H)
+        pub inline fn fuse_activation_bias_row(ht: anytype, bias: anytype, deriv_flag: bool) void{
+            const M: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[1].defaultValue().?;
+            const N: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[2].defaultValue().?;
+            const ColVectorLength = M;
+            const RowVectorLength = N;
+            _ = ColVectorLength;
+
+            const activation = LayerSettings.activation orelse return; 
+            inline for (0..RowVectorLength) |j| {
+                const v: T = ht.mat[0][j] + bias[j];
+                ht.mat[0][j] = activation.execute_scalar(T, v, deriv_flag);
+            }
+        }
+        
+        pub inline fn fuse_activation_bias_colmajor(ht: anytype, bias: anytype, deriv_flag: bool) void{
+            const activation = LayerSettings.activation orelse return; 
+            const M: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[1].defaultValue().?;
+            const N: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[2].defaultValue().?;
+
+            inline for (0..M) |i| {
+                const b = bias[i];
+                inline for (0..N) |j| {
+                    const v = ht.mat[i][j] + b;
+                    ht.mat[i][j] = activation.execute_scalar(T, v, deriv_flag);
+                }
+            }
+        }
+        
+        pub inline fn fuse_activation_bias_rowmajor(ht: anytype, bias: anytype, deriv_flag: bool) void{
+            const activation = LayerSettings.activation orelse return; 
+            const M: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[1].defaultValue().?;
+            const N: usize = @typeInfo(@TypeOf(ht.*)).@"struct".fields[2].defaultValue().?;
+
+            inline for (0..M) |i| {
+                inline for (0..N) |j| {
+                    const v = ht.mat[i][j] + bias[j];
+                    ht.mat[i][j] = activation.execute_scalar(T, v, deriv_flag);
+                }
+            }
+        }
 
         fn apply_activation(_: Self, output_matrix: anytype, deriv_flag: bool) void {
             const M: usize = @typeInfo(@TypeOf(output_matrix.*)).@"struct".fields[1].defaultValue().?;
@@ -903,12 +1023,14 @@ pub fn LayerV2(comptime T: type, comptime LayerSettings: LayerSettingsV2) type{
                                 inline for (0..N) |j| {
                                     var sample_val = output_matrix.*.get_colvec(j);
                                     const activation_vec = activation.execute_fn(T, ColVectorLength, sample_val[0..], deriv_flag);
+
                                     output_matrix.*.set_colvec(j, activation_vec[0..]); 
                                 }
                             },
                             .RowSampleOrdering => {
                                 inline for (0..M) |i| {
                                     const row_vals = activation.execute_fn(T, RowVectorLength, output_matrix.*.mat[i][0..], deriv_flag);
+
                                     output_matrix.*.mat[i] = row_vals;
                                 }
                             }
@@ -995,8 +1117,8 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
         /// Prior layers output which is the input data to the current layer.
         pub const InputDimension = Shapes.input_dim;
         pub const OutputDimension = Shapes.output_dim; 
-        pub const OutputMatrix = Matrix(T, OutputDimension[0], OutputDimension[1]);
-        pub const InputMatrix = Matrix(T, InputDimension[0], InputDimension[1]);
+        pub const OutputMatrix = Matrix(T, OutputDimension[0], OutputDimension[1], .owned);
+        pub const InputMatrix = Matrix(T, InputDimension[0], InputDimension[1], .owned);
         //---------------------------------------
 
         // --- Capacity of the layer in terms of size, and number of params for the layer --- 
@@ -1016,7 +1138,7 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
 
         /// Weight matrix dimension is given by num nodes in layer l times l-1.
         /// Where `InputSize` represent prior layer size and `LayerSize` the current layer size.
-        weight_matrix: ?Matrix(T, WeightDimension[0], WeightDimension[1]), 
+        weight_matrix: ?Matrix(T, WeightDimension[0], WeightDimension[1], .owned), 
 
         /// Biases for a layer is represented by a M x 1 matrix or row vector.
         /// Where M represent the `LayerSize`.
@@ -1027,13 +1149,13 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
 
         /// This should cache the input data given by saving the partial derivative of
         /// δz^[L]/δw^[L] = σ^[L-1](z) = input data from prior layer.
-        cached_input: ?*const Matrix(T, InputDimension[0], InputDimension[1]),
+        cached_input: ?*const Matrix(T, InputDimension[0], InputDimension[1], .view),
 
         /// δa^[L]/δz^[L] = σ'(z). This should be stored during the forward pass.
-        cached_z: ?Matrix(T, OutputDimension[0], OutputDimension[1]),
+        cached_z: ?Matrix(T, OutputDimension[0], OutputDimension[1], .owned),
 
         /// This is the saved σ(z), activation output of the layer.
-        cached_activation: ?Matrix(T, OutputDimension[0], OutputDimension[1]),
+        cached_activation: ?Matrix(T, OutputDimension[0], OutputDimension[1], .owned),
 
         /// This seed id, represent an index that points to a specific layer
         /// in a collection. It also act as the seed for random initialization
@@ -1162,7 +1284,7 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
         /// b = b - η·∂L/∂b
         /// TODO: - Add optimzer type as parameter, so we can run different optimization 
         /// algorithms to minimize the cost. E.g., SGD, Adam, ... 
-        fn update_params(self: *Self, weight_grad: Matrix(T, WeightDimension[0], WeightDimension[1]), bias_grad: @Vector(SizeOfLayer, T), hypr_param: *HyperParameters) !void {
+        fn update_params(self: *Self, weight_grad: Matrix(T, WeightDimension[0], WeightDimension[1], .owned), bias_grad: @Vector(SizeOfLayer, T), hypr_param: *HyperParameters) !void {
             // Apply scaling on weight and bias
             var scaled_weight_grad = weight_grad; 
             const scale_vector: @Vector(SizeOfLayer, T) = @splat(hypr_param.*.learning_rate);
@@ -1182,11 +1304,9 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
         /// The intuition behind this is to calculate how strongly each input dimension influenced 
         /// each neuron's loss, aggregated over the batch (for both the bias and weight). 
         /// 
-        // fn bias_derivative(_: Self, dldz_matrix: *const Matrix(T, OutputDimension[0], OutputDimension[1])) @Vector(SizeOfLayer, T) {
         fn bias_derivative(_: Self, dldz_matrix: anytype) @Vector(SizeOfLayer, T) {
             // Column-Major Z shape: [n₃ × 1], A[i][j] = output from neuron i for sample j.
             // Row-Major Z shape: [1 × n₃], A[i][j] = output from neuron j for sample i.
-            // const SizeOfBatch: comptime_int = LayerObject.get_shape_of(.batch_size).?;  
             const FeatureSize = SizeOfLayer; 
 
             var sample_sum: @Vector(FeatureSize, T) = undefined; 
@@ -1203,7 +1323,7 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
             return sample_sum; 
         }
 
-        pub fn loss_backward(self: *Self, grad_loss: Matrix(T, OutputDimension[0], OutputDimension[1]), hypr_param: *HyperParameters) !Matrix(T, InputDimension[0], InputDimension[1]) {
+        pub fn loss_backward(self: *Self, grad_loss: Matrix(T, OutputDimension[0], OutputDimension[1], .owned), hypr_param: *HyperParameters) !Matrix(T, InputDimension[0], InputDimension[1], .owned) {
             if(builtin.mode == .Debug) std.debug.assert(comptime Self.isOutputLayer() == true);
 
             var cached_input = self.cached_input.?.*; 
@@ -1244,7 +1364,7 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
         /// • backpropagating through an activation function, we apply 
         /// the Hadamard product (element wise multiplication, ⊙), because f(z) is applied element-wise.
         /// --------------------------------
-        pub fn backward(self: *Self, upstream_matrix: Matrix(T, OutputDimension[0], OutputDimension[1]), hypr_param: *HyperParameters) !Matrix(T, InputDimension[0], InputDimension[1])  {
+        pub fn backward(self: *Self, upstream_matrix: Matrix(T, OutputDimension[0], OutputDimension[1], .owned), hypr_param: *HyperParameters) !Matrix(T, InputDimension[0], InputDimension[1], .owned)  {
             // const param_value: ?f16 = if (self.activation() == ActivationFunction.LeakyRelu)
             //     hypr_param.*.alpha
             // else
@@ -1262,7 +1382,7 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
                 @panic("Calculating dl_dw failed, dimension mismatch - backprop for dl/dz in hidden layer failed!"); 
             }
 
-            const dl_dw: Matrix(T, WeightDimension[0], WeightDimension[1]) = if (Convention == .ColumnFeatureOrdering) 
+            const dl_dw: Matrix(T, WeightDimension[0], WeightDimension[1], .owned) = if (Convention == .ColumnFeatureOrdering) 
                 dz.matmul(cached_input.transpose()) //dW₃ = dz₃ · a₂ᵀ
             else 
                 cached_input.transpose().matmul(dz);
@@ -1290,7 +1410,7 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
         /// Remember(!): The activation output of each layer has the shape (n^[L], m).
         /// Where "m" represent the batch size / or sample size.
         /// -------------------------------------
-        pub fn feedforward(self: *Self, prior_output: *const Matrix(T, InputDimension[0], InputDimension[1]), hypr_param: *const HyperParameters) Matrix(T, OutputDimension[0], OutputDimension[1]) {
+        pub fn feedforward(self: *Self, prior_output: *const Matrix(T, InputDimension[0], InputDimension[1], .view), hypr_param: *const HyperParameters) Matrix(T, OutputDimension[0], OutputDimension[1], .owned) {
             var param_value: ?f32 = null; 
             const OutputMatrixType = @TypeOf(self.cached_activation.?); // Expected Output Matrix dimension
             // var output_matrix: OutputMatrixType = undefined; // CHECK THIS!  
@@ -1442,24 +1562,50 @@ pub fn Layer(comptime T: type, comptime LayerObject: LayerInfo, comptime Convent
             const RowSize: usize = @typeInfo(WeightMatrixType).@"struct".fields[1].defaultValue().?;
             const ColumnSize: usize = @typeInfo(WeightMatrixType).@"struct".fields[2].defaultValue().?;
 
-            self.weight_matrix = Matrix(T, RowSize, ColumnSize).create(std.mem.zeroes([RowSize][ColumnSize]T));
+            self.weight_matrix = Matrix(T, RowSize, ColumnSize, .owned).create(std.mem.zeroes([RowSize][ColumnSize]T));
             self.bias_vector = std.mem.zeroes([SizeOfLayer]T);
             // self.bias_vector = @splat(T);
         }
     };
 }
 
-pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) type {
+pub const MatrixMutability = enum {
+    owned, 
+    view,
+    ptr,
+};
+
+pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize, comptime Mutability: MatrixMutability) type {
     return struct {
-        const Rows = nrows;
-        const Cols = ncols;
+        pub const Rows = nrows;
+        pub const Cols = ncols;
         pub const Capacity: usize = Rows * Cols;
+        pub const Mutable = Mutability;
+        pub const isMutable = (Mutability == .owned) or (Mutability == .ptr);
         const Self = @This();
+
+        const MatrixStorage = union(MatrixMutability){
+            owned: [Rows][Cols]T,
+            view: *const [Rows][Cols]T,
+            ptr: *[Rows][Cols]T,
+        };
+
+        const Storage = switch (Mutability) {
+            .owned => [Rows][Cols]T,
+            .view => *const [Rows][Cols]T,
+            .ptr => *[Rows][Cols]T,
+        };
        
-        mat: [Rows][Cols]T = undefined,
+        // mat: [Rows][Cols]T = undefined,
+        mat: Storage,
         rows: usize = Rows,
         cols: usize = Cols,
-        mat_type: MatrixType = if (ncols == 1) MatrixType.ColumnVector else if (nrows == 1) MatrixType.RowVector else MatrixType.Default,
+        mat_type: MatrixType = if (ncols == 1) 
+            MatrixType.ColumnVector 
+        else if (nrows == 1) 
+            MatrixType.RowVector 
+        else 
+            MatrixType.Default,
 
         pub fn create(initial_values: [nrows][ncols]T) Self {
             return Self{
@@ -1467,6 +1613,18 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
                 .rows = initial_values.len,
                 .cols = ncols,
             };
+        }
+        
+        pub inline fn fromBuffer(buf: *const [nrows][ncols]T) Self {
+            return Self{
+                .mat = buf,
+                .rows = buf.len,
+                .cols = ncols,
+            };
+        }
+
+        pub inline fn get(self: *const Self, row: usize, col: usize) T{
+            return self.mat[row][col];
         }
 
         pub fn empty() Self {
@@ -1573,6 +1731,10 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
                 // Formatting for each data cell in the matrix     
                 for (0..width) |j|{
                     const element: T = self.mat[i][j];
+                    // const element: T = switch(self.mat){
+                    //     .owned => |mat| mat[i][j],
+                    //     .view =>  |mat_ptr| mat_ptr[i][j],
+                    // };
 
                     if (j == 0 and Cols > 1){
                         // print_fn(stdout_mode, "{d: <4}", .{element});
@@ -1635,6 +1797,7 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
 
         /// Used when updating the bias and weights during SGD. 
         pub fn scalar_multiplication(self: *Self, scalar: T) void {
+            if (comptime !isMutable) @compileError("Cannot mutate a *const Matrix view!");
             const scalar_vec: @Vector(Cols, T) = @splat(scalar); 
             inline for (0..Rows) |i| {
                 const row_vec: @Vector(Cols, T) = self.mat[i]; 
@@ -1687,9 +1850,9 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
         /// This would yield another matrix: C = A + b, where C_{i,j} = A_{i,j} + b. Where the vector (b) is added,
         /// to each row of the matrix.
         pub fn broadcasting(self: *Self, vec: anytype, MatrixConvention: InputShapeConvention) !void {
+            if (comptime !isMutable) @compileError("Cannot mutate a *const Matrix view!");
+
             // E.g., Matrix of shape (Rows, Cols), Matrix(M x 1), vec(1 x 3)
-            // var col_vector: @TypeOf(vec) = undefined;
-            // const ColVectorLength = Rows;
             const VecLength: usize = @typeInfo(@TypeOf(vec)).vector.len;
             const VecDimension = struct{usize, usize};
             const vec_dim = VecDimension{1, VecLength};
@@ -1711,6 +1874,7 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
                 // const broadcasted_vec: RowVector = @splat(vec[0]);
                  
                 std.debug.assert(self.mat[0].len == Cols);
+
                 const matrix_row = self.mat[0];
                 const row_vector: RowVector = matrix_row[0..Cols].*; 
                 
@@ -1810,6 +1974,8 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
         }
 
         pub fn elementwise_function(self: *Self, f: fn (T) T) void {
+            if (comptime !isMutable) @compileError("Cannot mutate a *const Matrix view!");
+
             const apply_op = struct {
                 fn apply(entries: [Cols]T) @Vector(Cols, T) {
                     var row_vector: @Vector(Cols, T) = undefined;
@@ -1831,22 +1997,9 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
         /// For instance, first a row vector is created using the @splat bultin. 
         /// Then this vector is applied row-wise over all elements. 
         pub fn elementwise_operation(self: *Self, other: *const Self, op: ElementOperation) !void {
-            // const apply_op = struct {
-            //     fn apply(mat_row: [Cols]T, other_row: [Cols]T, operation: ElementOperation) !@Vector(Cols, T) {
-            //         var row_vector: @Vector(Cols, T) = mat_row;
-            //         const other_vector: @Vector(Cols, T) = other_row;
-            //         switch (operation) {
-            //             .Add => row_vector += other_vector, // row_vector = row_vector + other_vector.
-            //             .Mul => row_vector *= other_vector,
-            //             .Sub => row_vector -= other_vector, 
-            //         }
-            //         return row_vector;
-            //     }
-            // }.apply;
-            
+            if (comptime !isMutable) @compileError("Cannot mutate a *const Matrix view!");
+
             inline for (0..Rows) |i| {
-                // const applied_row: [Cols]T = apply_op(self.mat[i]);
-                // self.mat[i] = try apply_op(self.mat[i], other.mat[i], op); 
                 inline for (0..Cols) |j|{
                     const a = self.mat[i][j];
                     const b = other.mat[i][j];
@@ -1862,7 +2015,7 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
         /// Element-wise multiplication (⊙). The `Hadamard product` is valid for the size requirment,
         /// when both matrices have the same dimension (m x n). This operation is used, e.g.,
         /// when applying or changing the weights during gradient descent learning algorithm.
-        pub inline fn hadamard_product(self: Self, matrix: anytype) !Matrix(T, Rows, Cols) {
+        pub inline fn hadamard_product(self: *const Self, matrix: anytype) !Matrix(T, Rows, Cols, Mutability) {
             const M: usize = @typeInfo(@TypeOf(matrix)).@"struct".fields[1].defaultValue().?;
             const N: usize = @typeInfo(@TypeOf(matrix)).@"struct".fields[2].defaultValue().?;
 
@@ -1876,7 +2029,7 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
                 const new_row = row_vec * row_other;
                 updated_mat[i] = new_row;
             }
-            return Matrix(T, Rows, Cols).create(updated_mat);
+            return Matrix(T, Rows, Cols, Mutability).create(updated_mat);
         }
 
 
@@ -1892,7 +2045,7 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
             output: *Matrix(T, Rows, switch(@typeInfo(@TypeOf(rhs))){
                 .pointer => |ptr| @typeInfo(ptr.child).@"struct".fields[2].defaultValue().?,
                 .@"struct" => |strct| strct.fields[2].defaultValue().?,
-                else => @compileError("rhs arg needs to be Matrix or *Matrix")}) 
+                else => @compileError("rhs arg needs to be Matrix or *Matrix")}, Mutability) 
         )linksection(".iram0.text") void{
             @setFloatMode(.optimized);
             @setEvalBranchQuota(7000);
@@ -1921,7 +2074,151 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
             }
         }
 
-        /// output += self × rhs  (accumulate version; optimized for RNN operation)
+        /// matmul variant using the dotSIMD approach.
+        pub inline fn matmul_optimized_dotvec(
+            self: *const Self,
+            rhs: anytype,
+            output: anytype,
+        )void{
+            @setFloatMode(.optimized);
+            @setEvalBranchQuota(7000);
+
+            const Out = switch (@typeInfo(@TypeOf(output))) {
+                .pointer => |ptr| @typeInfo(ptr.child).@"struct",
+                .@"struct" => |strct| strct,
+                else => @compileError("out mat must be Matrix or *Matrix"),
+            };
+
+            const OutRows: usize = Out.fields[1].defaultValue().?;
+            const OutCols: usize = Out.fields[2].defaultValue().?;
+
+            const Rhs = switch (@typeInfo(@TypeOf(rhs))) {
+                .pointer => |ptr| @typeInfo(ptr.child).@"struct",
+                .@"struct" => |strct| strct,
+                else => @compileError("rhs_mat must be Matrix or *Matrix"),
+            };
+
+            const RowsRhs: usize = Rhs.fields[1].defaultValue().?;
+            const ColsRhs: usize = Rhs.fields[2].defaultValue().?;
+
+            if (builtin.mode == .Debug){
+                std.debug.assert(Cols == RowsRhs);
+                std.debug.assert(OutRows == Rows);
+                std.debug.assert(OutCols == ColsRhs);
+            }
+            
+            const SharedDim: usize = Cols;
+            inline for (0..OutRows) |i| {
+                var buf: [SharedDim]T = undefined;
+
+                inline for (0..ColsRhs) |n| {
+                    rhs.get_colvec_into(n, buf[0..]);
+                    output.mat[i][n] += dotSIMD(SharedDim, self.mat[i][0..], buf[0..]);
+                }
+            }
+        }
+        
+        /// Dot-product operation using HWLP unrolling.
+        fn dot_hwlp(x1: [*]const T, x2: [*]const T, n: usize) T {
+            @setFloatMode(.optimized);
+            var x1_mut = x1; 
+            var x2_mut = x2;
+
+            const iters: usize = n / 4;
+            var acc: T = 0.0;
+
+            asm volatile (
+                \\  .option push
+                \\  .option norvc
+                \\  mv   t0, %[iters]
+                \\  la   t1, 1f
+                \\  la   t2, 2f
+                \\  csrw 0x7C6, t1
+                \\  csrw 0x7C7, t2
+                \\  csrw 0x7C8, t0
+                \\  j    1f
+                \\1:
+                \\  flw  f0, 0(%[x1_mut]);   flw  f1, 0(%[x2_mut]);  fmadd.s %[acc], f0, f1, %[acc]
+                \\  flw  f0, 4(%[x1_mut]);   flw  f1, 4(%[x2_mut]);  fmadd.s %[acc], f0, f1, %[acc]
+                \\  flw  f0, 8(%[x1_mut]);   flw  f1, 8(%[x2_mut]);  fmadd.s %[acc], f0, f1, %[acc]
+                \\  flw  f0, 12(%[x1_mut]);  flw  f1, 12(%[x2_mut]); fmadd.s %[acc], f0, f1, %[acc]
+                \\  addi %[x1_mut], %[x1_mut], 16
+                \\2:
+                \\  addi %[x2_mut], %[x2_mut], 16
+                \\  .option pop
+                : [acc] "+&f"(acc), [x1_mut] "+&r"(x1_mut), [x2_mut] "+&r"(x2_mut), 
+                : [iters] "r"(iters)
+                : .{ .x5=true, .x6=true, .x7=true, .f0=true, .f1=true, .fflags=true, .memory=true }
+            );
+
+            return acc;
+        }
+
+        pub inline fn matmul_optimized_hwlp(
+            self: *const Self,
+            rhs: anytype,
+            output: anytype,
+        )void{
+            @setFloatMode(.optimized);
+            @setEvalBranchQuota(7000);
+
+            const Out = switch (@typeInfo(@TypeOf(output))) {
+                .pointer => |ptr| @typeInfo(ptr.child).@"struct",
+                .@"struct" => |strct| strct,
+                else => @compileError("out mat must be Matrix or *Matrix"),
+            };
+
+            const OutRows: usize = Out.fields[1].defaultValue().?;
+            const OutCols: usize = Out.fields[2].defaultValue().?;
+
+            const Rhs = switch (@typeInfo(@TypeOf(rhs))) {
+                .pointer => |ptr| @typeInfo(ptr.child).@"struct",
+                .@"struct" => |strct| strct,
+                else => @compileError("rhs_mat must be Matrix or *Matrix"),
+            };
+
+            const RowsRhs: usize = Rhs.fields[1].defaultValue().?;
+            const ColsRhs: usize = Rhs.fields[2].defaultValue().?;
+
+            if (builtin.mode == .Debug){
+                std.debug.assert(Cols == RowsRhs);
+                std.debug.assert(OutRows == Rows);
+                std.debug.assert(OutCols == ColsRhs);
+            }
+            // @prefetch(&RowsRhs, .{ .cache =  })
+
+            const K = Cols; 
+            inline for (0..OutRows) |i| {
+                var buf: [K]T = undefined;
+
+                inline for (0..ColsRhs) |n| {
+                    var acc_head: T = 0;
+                    var head: usize = 0;
+                    const peel = K & 3;
+
+                    if (peel != 0){
+                        // inline for (0..peel) |k| acc_head += self.mat[i][k] * rhs.mat[k][n];
+                        inline for (0..peel) |k| acc_head = @mulAdd(T, self.mat[i][k], rhs.mat[k][n], acc_head);
+                        head = peel;
+
+                    }
+
+                    if (head == K){
+                        output.mat[i][n] += acc_head;
+                    }else{
+                        rhs.get_colvec_into(n, buf[0..]);
+
+                        const row_ptr: [*]const f32 = self.mat[i][head..].ptr;
+                        const col_ptr: [*]const f32 = buf[head..].ptr;
+                        const acc_tail = dot_hwlp(row_ptr, col_ptr, K - head);
+                        // print_fn(PRINTMODE, "dot_hwlp output: {d}\n", .{acc_tail});
+
+                        output.mat[i][n] += acc_head + acc_tail;
+                    }
+                }
+            }
+        }
+
         pub inline fn matmul_optimized_acc(
             self: *const Self,
             rhs: anytype,
@@ -1954,18 +2251,14 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
                 std.debug.assert(OutCols == ColsRhs);
             }
 
-            // const M: usize = Rhs.fields[1].defaultValue().?; // rhs rows
-            // const N: usize = Rhs.fields[2].defaultValue().?; // rhs cols
-            // std.debug.assert(Cols == M);
-
              inline for (0..OutRows) |i| {
                 inline for (0..ColsRhs) |n| {
                     var acc: T = 0;
+
                     inline for (0..Cols) |k| acc += self.mat[i][k] * rhs.mat[k][n];
                     output.mat[i][n] += acc;
                 }
             }
-
         }
 
         /// Matrix multiplication - `matmul`. Is a linear transformation, that utilize the dot product,
@@ -1977,7 +2270,7 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
             .pointer => |ptr| @typeInfo(ptr.child).@"struct".fields[2].defaultValue().?,
             .@"struct" => |strct| strct.fields[2].defaultValue().?,
             else => @compileError("the rhs_mat arg needs to be Matrix or *Matrix"),
-        }) {
+        }, Mutability) {
             @setFloatMode(.optimized);
 
             // const ABC: usize = @typeInfo(@TypeOf(rhs_mat)).pointer.child;
@@ -2008,14 +2301,25 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
                 inline for (0..N) |n| {
                     const row_rhs = rhs_mat.get_colvec(n);
                     new_mat[i][n] = dotSIMD(Cols, self.mat[i][0..], row_rhs[0..]);
-                    // new_mat[i][n] = dot_value;
                 }
             }
-            return Matrix(T, Rows, N).create(new_mat);
+            return Matrix(T, Rows, N, Mutability).create(new_mat);
         }
 
-        pub fn get_colvec(self: Self, col_index: usize) [Rows]T {
-        // pub fn get_colvec(self: Self, col_index: usize) linksection(".iram0.text") [Rows]T {
+        pub const MatMulFuncPtr = fn (*const Self, anytype, anytype) void;
+
+        pub inline fn matmul_runtime(self: *const Self, comptime kind: MatmulFn, rhs: anytype, output: anytype) void{
+            return switch (kind) {
+                .base => self.matmul_optimized_acc(rhs, output),
+                .vecdot => self.matmul_optimized_dotvec(rhs, output),
+                .hwlp => self.matmul_optimized_hwlp(rhs, output),
+            };
+        }
+
+        // pub fn get_colvec(self: Self, col_index: usize) [Rows]T {
+        pub fn get_colvec(self: *Self, col_index: usize) [Rows]T {
+            if (comptime !isMutable) @compileError("Cannot mutate a *const Matrix view!");
+
             var column_vector: [Rows]T = undefined;
             for (0..Rows) |i| {
                 column_vector[i] = self.mat[i][col_index];
@@ -2029,6 +2333,8 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
         }
 
         pub fn set_colvec(self: *Self, col_index: usize, vec: []const T) void {
+            if (comptime !isMutable) @compileError("Cannot mutate a *const Matrix view!");
+
             std.debug.assert(vec.len == Rows);
             std.debug.assert(col_index < Cols);
             // inline for (0..M) |i| {
@@ -2039,7 +2345,17 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
             }
         }
 
+        pub inline fn getRowView(self: *const Self, row_index: usize) *const [Cols]T {
+            return if(isMutable) &self.mat[row_index] else &self.mat.*[row_index];
+        }
+        
+        pub inline fn getRowSlice(self: *const Self, row_index: usize) []const T {
+            return self.getRowView(row_index)[0..Cols];
+        }
+
         pub fn set_rowvec(self: *Self, row_index: usize, vec: []const T) void {
+            if (comptime !isMutable) @compileError("Cannot mutate a *const Matrix view!");
+
             if (builtin.mode == .Debug){
                 std.debug.assert(vec.len == Cols);
                 std.debug.assert(row_index < Rows);
@@ -2051,8 +2367,10 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
         /// Rule: (AB)ᵀ = BᵀAᵀ. 
         /// This transposition algorithm perform either an inplace-algorithm 
         /// transposition, by flipping over its main diagonal. 
-        pub fn transpose(self: *Self) linksection(".iram0.text") Matrix(T, Cols, Rows) {
+        pub fn transpose(self: *Self) linksection(".iram0.text") Matrix(T, Cols, Rows, Mutability) {
         // pub fn transpose(self: *Self) Matrix(T, Cols, Rows) {
+            if (comptime !isMutable) @compileError("Cannot mutate a *const Matrix view!");
+
             const is_squared: bool = (Rows == Cols); 
             if (is_squared) {
                 // Run specific inplace-algorithm below: 
@@ -2084,10 +2402,8 @@ pub fn Matrix(comptime T: type, comptime nrows: usize, comptime ncols: usize) ty
                     }
                 }
 
-                return Matrix(T, Cols, Rows).create(mat_transpose); 
-
+                return Matrix(T, Cols, Rows, Mutability).create(mat_transpose); 
             }
-            // return Matrix(T, Cols, Rows).create(self.mat);
         }
     };
 }
@@ -2434,7 +2750,9 @@ pub const LayerSettingsV2 = struct {
 
         const timewindow_str = if (self.timewindow != 1) std.fmt.comptimePrint("TimeWindow/Timesteps: {d}", .{self.timewindow}) else "";
 
-        const activation_str = if (self.activation != null) std.fmt.comptimePrint("Activation Function: {s}({d})", .{@tagName(self.activation.?), self.activation.?.LeakyRelu}) else "Activation Function: null";
+        const activation_name = if (self.activation) |activ| std.fmt.comptimePrint("Activation Function: {s}", .{@tagName(activ)}) else "Activation Function: null";
+
+        // const activation_str = if (self.activation != null) std.fmt.comptimePrint("Activation Function: {s}({d})", .{@tagName(self.activation.?), self.activation.?.LeakyRelu}) else "Activation Function: null";
 
         switch (self.kind) {
             .Input => |info| {
@@ -2457,7 +2775,7 @@ pub const LayerSettingsV2 = struct {
                         InputDimension.@"0", InputDimension.@"1",
                         WeightDimension.@"0", WeightDimension.@"1", 
                         OutputDimension.@"0", OutputDimension.@"1", 
-                        activation_str,
+                        activation_name,
                     });
                 }else{
                     print_fn(PRINTMODE, "    \u{2022} Layer Type: {s}\n    \u{2022} Input Dimension: {}x{}\n    \u{2022} Weight Matrix: {}x{}\n    \u{2022} Output Dimension: {}x{}\n", .{ 
@@ -2480,7 +2798,7 @@ pub const LayerSettingsV2 = struct {
                     InputDimension.@"0", InputDimension.@"1", 
                     WeightDimension.@"0", WeightDimension.@"1", 
                     RnnWeightDimension.@"0", RnnWeightDimension.@"1", 
-                    activation_str, 
+                    activation_name, 
                     // prior_dimension0_str, prior_dimension1_str, 
                     OutputDimension.@"0", OutputDimension.@"1", 
                     @tagName(Convention)
@@ -2523,7 +2841,7 @@ test "layer-settings" {
     };
     _ = input_data_rowmajor;
 
-    const input_matrix_col = Matrix(f32, input_features, timesteps).create(input_data_colmajor);
+    const input_matrix_col = Matrix(f32, input_features, timesteps, .owned).create(input_data_colmajor);
     // const input_matrix_row = Matrix(f32, timesteps, input_features).create(input_data_rowmajor);
 
     input_matrix_col.print_matrix("Input Matrix(X) [Input Features × Timesteps]", PRINTMODE);
@@ -2990,8 +3308,8 @@ test "dot-product SIMD instruction and feedforward logic" {
     };
 
     //LayerDim{PreviousLayerSize, Current LayerSize}, where the Weight Matrix becomes LayerSize x PrevSize.
-    const dummy_matrix = Matrix(f32, 2, 1).create(dummy_input);
-    const dummy_matrix_rowmajor = Matrix(f32, 1, 2).create(rowmajor_dummy_input); 
+    const dummy_matrix = Matrix(f32, 2, 1, .owned).create(dummy_input);
+    const dummy_matrix_rowmajor = Matrix(f32, 1, 2, .owned).create(rowmajor_dummy_input); 
     print_fn(PRINTMODE, "Dummy Matrix (2 x 1): {any}\n", .{dummy_matrix.mat});
 
     const weight_mat = [3][2]f32{
@@ -3061,10 +3379,10 @@ test "dot-product SIMD instruction and feedforward logic" {
     var layer_leakyrely = HiddenLayerLeaky.init(2);
     
     // Test case Input Matrix: 2 x 1:  
-    layer.weight_matrix.? = Matrix(f32, CurrentLayerSize, NumFeatures).create(weight_mat); // 3 x 2 Weight Matrix.
+    layer.weight_matrix.? = Matrix(f32, CurrentLayerSize, NumFeatures, .owned).create(weight_mat); // 3 x 2 Weight Matrix.
     layer.bias_vector.? = bias; // Bias: 1 x 3. 
     
-    layer_leakyrely.weight_matrix.? = Matrix(f32, NumFeatures, CurrentLayerSize).create(weight_mat_rowmajor);
+    layer_leakyrely.weight_matrix.? = Matrix(f32, NumFeatures, CurrentLayerSize, .owned).create(weight_mat_rowmajor);
     layer_leakyrely.bias_vector.? = bias_relu;
 
     // Expected: (3 x 2) * (2 x 1) → (3 x 1) + (1 x 3). 
@@ -3129,8 +3447,8 @@ test "Matrix operation validation" {
         .{ 3, 2 },
     };
 
-    const TestMatrixC = Matrix(f32, 3, 2).create(matrix_c);
-    var TestMatrixD = Matrix(f32, 2, 3).create(matrix_d);
+    const TestMatrixC = Matrix(f32, 3, 2, .owned).create(matrix_c);
+    var TestMatrixD = Matrix(f32, 2, 3, .owned).create(matrix_d);
     std.debug.print("Test Matrix C: {any}\nTest Matrix D: {any}\n", .{ TestMatrixC.mat, TestMatrixD.mat });
 
     // **Transpose of Matrix test case**
@@ -3142,7 +3460,7 @@ test "Matrix operation validation" {
     //-------------------------------------------------------------
     //**Dot product on Matrix C and D [MatMul] test case**
     std.debug.print("Type Info check: {any}\n", .{@typeInfo(@TypeOf(TestMatrixD)).@"struct".fields[2].defaultValue()});
-    const TestMatrixMeta = Matrix(f32, 3, @typeInfo(@TypeOf(TestMatrixD)).@"struct".fields[2].defaultValue().?);
+    const TestMatrixMeta = Matrix(f32, 3, @typeInfo(@TypeOf(TestMatrixD)).@"struct".fields[2].defaultValue().?, .owned);
     std.debug.print("TestMatrixMeta: {any}\n", .{TestMatrixMeta});
 
     const expected_dim: [3][3]f32 = undefined;
@@ -3244,7 +3562,7 @@ test "FF-dimension-checks" {
     };
 
     // const input_matrix = Matrix(f32, 2, 3).create(dummy_input);
-    const input_matrix = Matrix(f32, FeatureSize, BatchSize).create(dummy_input);
+    const input_matrix = Matrix(f32, FeatureSize, BatchSize, .owned).create(dummy_input);
     
     var h1 = Layer(f32, layer_info[1], ColumnConvention).init(1);
     var h2 = Layer(f32, layer_info[2], ColumnConvention).init(2);
@@ -3300,39 +3618,13 @@ test "FF-dimension-checks" {
         .{ 0.0, 1.0, 0.0},
         .{ 0.0, 0.0, 1.0},
     }; // as one-hot encoded vector.
-    const y_matrix = Matrix(f32, 3, 3).create(y_true_batch); // Must match the Softmax output dimension.  
+    const y_matrix = Matrix(f32, 3, 3, .owned).create(y_true_batch); // Must match the Softmax output dimension.  
     std.debug.print("Y Matrix as One-Hot Encoding: \n", .{});
     y_matrix.print_matrix("", .debug_print); 
     _ = LossObject; 
 
-    // var batch_predictions: [BatchSize]f32 = undefined;  
-    // var batch_losses: @Vector(BatchSize, f32) = undefined;  
-    // const batch_scalar: f32 = 1.0 / @as(f32, BatchSize); 
-    // if (out_a_dim1 > 1){
-    //     // When number of batches / columns are more than 1. Then we calcluate the column-wise loss 
-    //     // for each of the batches. 
-    //     for (0..BatchSize) |batch| {
-    //         const batch_probs = probs.get_colvec(batch);
-    //         batch_predictions = batch_probs; 
-    //         const batch_losses_vec = LossObject.get(batch_probs[0..], y_true_batch[batch][0..], false);
-    //         const losses_arr: [BatchSize]f32 = batch_losses_vec.?; 
-    //         const argmax = LossObject.argmax(losses_arr[0..]);
-    //         const batch_loss = losses_arr[argmax];
-    //         batch_losses[batch] = batch_loss;  
-    //
-    //         std.debug.print("Batch {d}, loss: {d}\n", .{batch, batch_loss}); 
-    //         std.debug.print("Softmax probabilities: {any}\nCross entropy loss: {any}\n", .{batch_predictions, batch_losses });
-    //     }
-    //
-    //     const batch_sum = @reduce(.Add, batch_losses); 
-    //     const batch_avg_loss = batch_scalar * batch_sum; 
-    //     std.debug.print("Batch Loss Vector: {any}\n", .{batch_losses}); 
-    //     std.debug.print("Average Batch Loss: {d}\n", .{batch_avg_loss});
-    // }
-
-
     // Test case - Feedforward with Row-Major Ordering: 
-    const dummy_predicition = Matrix(f32, 3, 3).create([3][3]f32{
+    const dummy_predicition = Matrix(f32, 3, 3, .owned).create([3][3]f32{
         .{0.7188, 0.81, 0.877},
         .{0.0828, 0.04846, 0.0271},
         .{0.1987, 0.1414, 0.0961},
@@ -3354,7 +3646,7 @@ test "FF-dimension-checks" {
 
     var h1_cached = h1.cached_input.?.*;
     const colmajor_input = h1_cached.transpose(); 
-    const input_rowmajor = Matrix(f32, BatchSize, FeatureSize).create(dummy_input_rowmajor);
+    const input_rowmajor = Matrix(f32, BatchSize, FeatureSize, .owned).create(dummy_input_rowmajor);
 
     //WARN: - Add logic for calculating the average depending on the batch size 1 / m. 
 
@@ -3389,7 +3681,7 @@ test "FF-dimension-checks" {
     output_pred.print_matrix("", .debug_print); // As Softmax probabilities... 
 
     // Since this matrix is an identity matrix transposing won't change the dimension. 
-    var y_before_transposed = Matrix(f32, 3, 3).create(y_true_batch); // Must match the Softmax output dimension.  
+    var y_before_transposed = Matrix(f32, 3, 3, .owned).create(y_true_batch); // Must match the Softmax output dimension.  
     const y_transposed = y_before_transposed.transpose();
     std.debug.print("Y Matrix as One-Hot Encoding: \n", .{});
     y_transposed.print_matrix("", .debug_print); 

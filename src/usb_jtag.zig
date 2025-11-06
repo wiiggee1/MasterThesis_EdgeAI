@@ -6,17 +6,14 @@ const SystemTimerConfig = @import("system_timer.zig").SystemTimerConfig;
 
 pub const UsbJtag = struct {
     const Self = @This();
+    const UsbJtagRegister = @import("registers.zig").UsbJtagRegister;
+
     pub const USB_JTAG = Peripheral.USB_JTAG;
     pub const USB_JTAG_BASE = USB_JTAG.baseAddress();
-    
-    // const AnyRegister = @import("registers.zig").AnyRegister;
-    const UsbJtagRegister = @import("registers.zig").UsbJtagRegister;
     
     register: UsbJtagRegister,
 
     pub fn init() Self{
-        // const reg = AnyRegister(.USB_JTAG, UsbJtagRegister);
-        // return Self{.register = register_block orelse reg.Block};
         return Self{.register = UsbJtagRegister{}};
     }
     
@@ -31,7 +28,6 @@ pub const UsbJtag = struct {
     pub fn usb_jtag_write(self: Self, byte: u8) void {
         // Wait until TX FIFO has space
         self.wait_tx_free();
-        // try self.wait_until_free();
     
         // A write to this register pushes the written data into the CDC TX FIFO.
         USB_JTAG.write_register(self.register.EP1_DATA, byte);
@@ -73,8 +69,8 @@ pub const UsbJtag = struct {
         var idx: usize = 0; 
         // Wait until TX FIFO has space
         while (idx < bytes.len) : (idx += 1){
-            // self.wait_tx_free();
             try self.wait_until_free();
+            
             // A write to this register pushes the written data into the CDC TX FIFO.
             USB_JTAG.write_register(self.register.EP1_DATA, bytes[idx]);
         }
@@ -84,21 +80,13 @@ pub const UsbJtag = struct {
     pub fn wait_spin(_: Self) void {
         var spins: u32 = 0;
         while (spins < 500_000) : (spins += 1) {
-            // if (spins > 100_000) return error.UsbJtagNotReady;
             asm volatile ("nop");
         }
     }
 
     pub fn ready_timeout(_: Self, timeout_us: u32, systimer: *const SystemTimer) !void {
-        // const systimer = SystemTimer.init(SystemTimerConfig{ 
-        //     .clk = .XTAL_CLK, 
-        //     .counter = .UNIT0, 
-        //     .freq = SystemTimer.DEFAULT_FREQ_XTAL,
-        //     .target_mode = .periodic,
-        //     .target_num = .target0,
-        //     .core0_stall_enabled = true,
-        // });
         const wait_deadline: u64 = systimer.now_v2(.Micro).time + timeout_us;
+
         while(systimer.now_v2(.Micro).time < wait_deadline){
             // self.wait_tx_free();
             // try self.wait_until_free();

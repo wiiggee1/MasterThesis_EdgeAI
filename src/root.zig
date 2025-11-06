@@ -11,6 +11,7 @@ const timergroup = @import("timergroup.zig");
 const gpio = @import("gpio.zig");
 const csr = @import("csr.zig");
 
+pub const Scheduler = @import("scheduler.zig").Scheduler;
 pub const Testing = @import("testing.zig");
 pub const BenchMark = @import("benchmarks.zig").BenchMark;
 pub const MemoryStack = @import("memory.zig").MemoryStack;
@@ -23,6 +24,7 @@ pub const exit_trap = startup._exit_trap;
 
 pub const Model = struct {
     pub const Matrix = model.Matrix;
+    pub const MatmulFn = model.MatmulFn;
     pub const Evaluation = model.common.Evaluation;
     pub const Builder = model.Builder;
     pub const ParsedModelGraph = model.ParsedModelGraph;

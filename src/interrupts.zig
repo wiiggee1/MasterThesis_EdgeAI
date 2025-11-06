@@ -35,11 +35,6 @@ pub const InterruptCSRs = struct {
         // Mask for enabling global interrupts in 'mstatus': 0b1000
         std.log.warn("Mask for enabling global interrupts in 'mstatus': 0b{b}\n", .{mask_bits});
         CSR.mstatus.write_csrw(mask_bits);
-
-        // const mask_mie: u32 = @as(u32, 1) << 3;
-        // if((CSR.mstatus.read_csrr() & mask_mie) != 0){
-        //     InterruptCSRs.enable_gloabl_interrupts();
-        // }
     }
 
     /// This would write the CSR special purpose reg `csrw` for writing 
@@ -113,7 +108,6 @@ pub const InterruptConfig = struct {
                 const valid_info = @typeInfo(DestinationType);
                 const field_info = @typeInfo(CfgFieldType);
                 
-                // std.log.info("Arg({d}) with name: {s}, value: {any}\n", .{i, field.name, @field(config, field.name)});
                 _ = i;
                 
                 const child_match: bool = (
@@ -247,7 +241,6 @@ pub const Interrupt = struct {
         // const addr: usize = try self.fromSourceIntoMappingRegister(self.source);
         const addr: usize = try self.fromSourceIntoMappingRegister();
         const addr_ptr: *volatile u32 = @ptrFromInt(addr); 
-        // addr_ptr.* = mtvt_id; 
         
         if(builtin.mode == .Debug){
             std.log.warn("COREx_SOURCE_Y_MAP_REG ({s}) at 0x{x} = ID({d})\n", .{@tagName(self.config.source), @as(u32, addr), @as(u32, mtvt_id)});
@@ -283,12 +276,7 @@ pub const Interrupt = struct {
 /// In addition to the above memory map, we also enable interrupts 
 /// globally by setting: `mstatus.MIE` = 1.
 pub const Clic = struct {
-
-    // pub const base_peripheral = Peripheral.INTERRUPT_MATRIX;
-
-    // const AnyRegister = @import("registers.zig").AnyRegister;
     const ClicRegister = @import("registers.zig").ClicRegister;
-
     const Self = @This();
 
     /// For the desired level/priority split in `clicintctl[i]`.
@@ -299,8 +287,7 @@ pub const Clic = struct {
     /// Represent the Interrupt Matrix register. 
     /// With a base address of: 0x500D6000
     register: ClicRegister,
-    // mtvt: []TrapVector,
-    mtvt: *[48]TrapVector,
+    mtvt: *[48]TrapVector, // alt. []TrapVector
 
     pub const ClicConfig = struct {
         cliccfg_nlbits: u3,
@@ -331,12 +318,9 @@ pub const Clic = struct {
         
         // 2. Set the location address of the `MTVT` table - ISR jump table.
         InterruptCSRs.set_mtvt(isr_table);
-        // InterruptCSRs.set_mtvt(@intFromPtr(&_mtvt_table));
 
         // 3. Set the address of the `mtvec` CSR + set the mode to clic. 
         InterruptCSRs.setup_mtvec(vector_table, .clic);
-        // InterruptCSRs.setup_mtvec(@intFromPtr(&_vector_table), .clic);
-
     }
 
     /// Globally setup for the Clic Interrupt Controller. 
@@ -349,13 +333,9 @@ pub const Clic = struct {
 
         // 2. Set the address of the `mtvec` CSR + set the mode to clic. 
         InterruptCSRs.setup_mtvec(vector_table, .clic);
-        // InterruptCSRs.setup_mtvec(@intFromPtr(&_vector_table), .clic);
 
         // 3. Set the location address of the `MTVT` table - ISR jump table.
         InterruptCSRs.set_mtvt(isr_table);
-        // InterruptCSRs.set_mtvt(@intFromPtr(&_mtvt_table));
-
-        // std.log.info("Global Setup Finished!\n", .{});
     }
 
     pub fn enable_mie(_: Self) void{
@@ -369,13 +349,7 @@ pub const Clic = struct {
         };
     }
 
-    // TODO: - Add arg for setting SHV bool field as enabled or not. 
-
     pub fn init(mtvt: anytype) Self{
-        // var slice = _mtvt_table[0.._mtvt_table.len];
-        // var slice = _mtvt_table[0..]; // ptr to array will coerce to a slice []T.
-        // var slice_from_arr = &_mtvt_table;
-
         const mtvt_ptr = ptr:{
             const info = @typeInfo(@TypeOf(mtvt));
             if(info == .optional){
@@ -415,61 +389,6 @@ pub const Clic = struct {
         return self.register.CTRL_BASE + id_offset;
     }
 
-
-    /// Example of saving context for trap vector:
-    /// _example_trap:
-    ///     addi sp, sp, -16*4
-    ///     sw ra, 0(sp)
-    ///     la ra, interrupt1
-    ///     j _my_custom_isr     or   jal isr_handler_name ::: memory
-    pub fn isr_jump_vector() callconv(.naked) void {
-
-        // 1. Push Interrupt state:
-        // "addi sp, sp, -{}", .{registers.len * @sizeOf(u32)}));
-        // asm volatile (std.fmt.comptimePrint("sw {s}, 4*{}(sp)", .{ reg, i }));
-
-        // 2. Jump to Interrupt ISR:
-        // asm volatile ("jal isr_name ::: memory")
-
-        // 3. Pop Interrupt State:
-        // asm volatile (std.fmt.comptimePrint("lw {s}, 4*{}(sp)", .{ reg, i }));
-        // asm volatile (std.fmt.comptimePrint("addi sp, sp, {}", .{registers.len * @sizeOf(u32)}));
-
-        // 4. Return from Interrupt:
-        // asm volatile ("mret" ::: "memory");
-
-        // const intermediate_asm_jump = comptime blk: {
-        //     var s: []const u8 = &.{};
-        //     for (1..32) |i| {
-        //         s = s ++ std.fmt.comptimePrint(
-        //             \\.balign 4
-        //             \\    j interrupt{}
-        //             \\
-        //         , .{i});
-        //     }
-        //     break :blk s;
-        // };
-
-    }
-
-    /// RV32I Instructions:
-    /// J-type: imm[20|10:1|11|19:12], rd, opcode
-    /// - Jump And Link: jal, opcode: 1101111, rd = PC+4; PC += imm
-    inline fn encode_jal(rd: u5, immediate_bytes: i32) u32 {
-
-        // Cast to a 32-bit pattern, i32 → u32 perserving two's complement.
-        const immediate: u32 = @bitCast(immediate_bytes);
-        const rd_bits: u32 = @intCast(rd);
-        const opcode: u32 = 0b1101111;
-
-        const b20    = ((immediate >> 20) & 0x1)    << 31;   // imm[20]
-        const b10_1  = ((immediate >>  1) & 0x3ff)  << 21;   // imm[10:1]
-        const b11    = ((immediate >> 11) & 0x1)    << 20;   // imm[11]
-        const b19_12 = ((immediate >> 12) & 0xff)   << 12;   // imm[19:12]
-
-        return b20 | b10_1 | b11 | b19_12 | (rd_bits << 7) | opcode;
-    }
-
     /// Get the MTVT + id * 4 address, as the slot address where the 
     /// jump instruction to the ISR handler lives.
     pub fn getInterruptHandlersOffset(_: Self, interrupt: Interrupt) usize {
@@ -498,12 +417,10 @@ pub const Clic = struct {
             return error.BadMtvtIndexValue;
         }
         const mtvt_base: usize = @intFromPtr(&_mtvt_table);
-        // const mtvt_isr_location: usize = @intFromPtr(&_mtvt_table) + @as(usize, @intCast(interrupt.config.mtvt_index));
         const mtvt_isr_location: usize = @intFromPtr(&_mtvt_table) + @as(usize, @intCast(interrupt.config.mtvt_index))*4;
         const isr_addr: usize = @intFromPtr(interrupt.config.isr orelse return error.MissingISR);
         const mtvt_offset: i64 = @as(i64, isr_addr) - @as(i64, mtvt_isr_location); // as signed immediate value. 
 
-        // slot 17 @ 0x4ff00084, ptr: startup.TrapVector@4ff00084
         const slot_ptr = &_mtvt_table[interrupt.config.mtvt_index]; // &element, automatically scaled
         const slot_addr = @intFromPtr(slot_ptr);
         const isr_ptr = interrupt.config.isr orelse return error.MissingISR;
@@ -526,23 +443,7 @@ pub const Clic = struct {
             std.log.warn("mtvt[17] value = 0x{x} (expect 0x{x})\n", .{ entry_val, @intFromPtr(&isr_ptr) });
         }
         
-        // if ((mtvt_offset & 1) != 0) return error.Misaligned; // LSB must be 0
-        // if (mtvt_offset < -(1<<20) or mtvt_offset >= (1<<20)) return error.OutOfRange; // ±1 MiB
-
-        //FIX: - Do I need to assign it directly to the table like this? 
-
-        // self.mtvt[interrupt.config.mtvt_index] = TrapVector{.ISR_HANDLER = interrupt.config.isr orelse return error.MissingISR};
         self.set_handler(interrupt.config.mtvt_index, isr_ptr);
-
-        // std.log.warn("MTVT ISR Location: 0x{x}\n\r, ISR Symbol Address: 0x{x}\n\r, MTVT Offset: 0x{x}\n\r, JAL Encoding: 0b{b}\n\rMTVT[{d}]: {*}\n", .{
-        //     @as(u32, mtvt_isr_location),
-        //     @as(u32, isr_addr),
-        //     @as(i64, mtvt_offset),
-        //     @as(u32, instr),
-        //     @as(u6, interrupt.config.mtvt_index),
-        //     &self.mtvt[interrupt.config.mtvt_index],
-        // });
-
 
         // 2. Setup Interrupt:
         self.setup_interrupt_source(&interrupt);
@@ -552,13 +453,6 @@ pub const Clic = struct {
         if(builtin.mode == .Debug) try interrupt.sourceMappingDebug();
 
         self.clear_interrupt_pending(DefaultConfig, &interrupt); //clicintip[i]
-
-        // HERE we setup and enable the peripheral interrupt. 
-        // Thoughts: add 'enable_fn' argument as a function pointer for calling the 
-        // specific peripherals enable_interrupt function in this scope. 
-
-        // interrupt_ctx.mtvt_index represent a value in the bit range: 16..47
-        // self.enableInterruptAt(&interrupt); // `clicintie[i]`
 
         if (builtin.mode == .Debug){
             std.log.warn("After setup of Interrupt CTRL Register 0x{x}: 0b{b}\n", .{
@@ -575,9 +469,8 @@ pub const Clic = struct {
         const isr_jump_address = @intFromPtr(isr);
 
         slot_word.* = isr_jump_address;
-        // asm volatile ("fence rw, rw" ::: "memory"); // ensure the write is visible before enabling
-
         const slot_word_after: *volatile u32 = @ptrCast(&self.mtvt[idx]);
+
         std.log.warn("--After-- mtvt[17] value = 0x{x} (expect 0x{x})\n", .{ slot_word_after.*, isr_jump_address });
     }
 
@@ -596,9 +489,7 @@ pub const Clic = struct {
 
     /// E.g., 0x1002+4*i would represent: `clicintattr[i]`.
     pub inline fn byteAddresPtr(self: Self, ctrl_reg: CTRL_REG, interrupt_id: u6) *volatile u8{
-        // const id_offset: usize = (@as(usize, interrupt_id) << 2); // id * 4
         const byte_offset: usize = @intFromEnum(ctrl_reg); // 0..3 
-        // const addr: usize = self.CTRL_BASE() + id_offset + byte_offset;
         const addr: usize = self.INT_CTRL_BASE(interrupt_id) + byte_offset;
         return @ptrFromInt(addr);
     }
@@ -627,21 +518,6 @@ pub const Clic = struct {
         /// Represent the register and control bits, that sets 
         /// the interrupt(i) priority and level - `clicintctl[i]`.
         CTL = 3,
-
-        // pub inline fn byteAddresPtr(self: Clic, ctrl_reg: CTRL_REG, interrupt_id: u6) *volatile u8{
-        //     const id_offset: usize = (@as(usize, interrupt_id) << 2); // id * 4
-        //     const byte_offset: usize = @intFromEnum(ctrl_reg); // 0..3 
-        //     const addr: usize = self.CTRL_BASE() + id_offset + byte_offset;
-        //     return @ptrFromInt(addr);
-        // }
-        //
-        // /// CTRL_BASE + interrupt_id*4 → (0x2080_0000 + 0x0000_1000) + interupt_id * 4
-        // /// E.g., 0x1002+4*i would represent: `clicintattr[i]`.
-        // pub fn registerAddress(self: Clic, ctrl_reg: CTRL_REG, interrupt_id: u6) usize{
-        //     const id_offset: usize = (@as(usize, interrupt_id) << 2); // id * 4
-        //     const byte_offset: usize = @intFromEnum(ctrl_reg); // 0..3 
-        //     return self.CTRL_BASE() + id_offset + byte_offset;
-        // }
 
         pub const ATTR_BIT = enum(u8){
             /// The `shv` field is for selecting if the interrupt should be
@@ -724,6 +600,7 @@ pub const Clic = struct {
     /// Getting the level, by logical shift the byte 5 places to the right. 
     pub inline fn getLevel(self: Self, interrupt_id: u6) u8{
         const byte_ptr = self.byteAddresPtr(.CTL, interrupt_id);
+
         // E.g., 0b1100_0000 >> 5 → 0b0000_0110 = 6.
         return (byte_ptr.* >> 5);
     }
@@ -749,9 +626,6 @@ pub const Clic = struct {
         
         // clear interrupt pending bit. 
         self.byteAddresPtr(.IP, interrupt_ctx.config.mtvt_index).* = 0;
-        // self.clear_interrupt_pending(Clic.DefaultConfig, interrupt_ctx.config.mtvt_index);
-        
-
     }
 
     /// `clicintctl` are at bitpos: [31:24] or at the Most-Significant Byte (u8).
@@ -775,12 +649,6 @@ pub const Clic = struct {
     }
 
     pub fn enableInterruptAt(self: Self, interrupt: *const Interrupt) void {
-        // const address_ie = CTRL_REG.IE.registerAddress(interrupt_id);
-        // const register_ie: *volatile u8 = @ptrFromInt(address_ie);
-        // const address_ie = self.registerAddress(.IE, interrupt_id);
-        // CTRL_REG.IE.byteAddresPtr(interrupt_id).* = 1; 
-        // if((register_ie.* >> 8) & 1 != 0){} // interrupt is enabled.
-        
         const register_ie: *volatile u8 = self.byteAddresPtr(.IE, interrupt.config.mtvt_index);
         const before = register_ie.*;
         self.byteAddresPtr(.IE, interrupt.config.mtvt_index).* = 1;
@@ -796,8 +664,6 @@ pub const Clic = struct {
 
         var register_attr = self.byteAddresPtr(.ATTR, id).*;
         const attr_before = register_attr;
-        
-        // clicintattr[i].shv = 1
 
         // SHV bit[0]
         if (DefaultConfig.SHV){
@@ -812,7 +678,6 @@ pub const Clic = struct {
         const trigger_bits = trigger_mode.as_u8();
         const shift_amount: std.math.Log2Int(u8) = @intCast(CTRL_REG.ATTR_BIT.TRIG.indexOf());
         
-        // register_attr |= trigger_bits << shift_amount;
         register_attr |= (trigger_bits & 0b11) << shift_amount;
 
         self.byteAddresPtr(.ATTR, id).* = register_attr; 
@@ -857,19 +722,6 @@ pub const InterruptControllerMode = enum(u2) {
             .vectored => 0b01,
             .clic => 0b11,
         };
-    }
-};
-
-pub const InterruptSignalCPU = enum(u6) {
-    ABC, 
-
-    /// Maps/cast `InterruptSignalCPU` into associated index in our 
-    /// interrupt vector table in memory. Note that the index of the 
-    /// HP CPU interrupts is valid between indices 16~47.
-    pub fn intoIndex(self: InterruptSignalCPU) usize {
-        _ = self; 
-        // 0x004C = 76
-        // 0x0054 = 84
     }
 };
 

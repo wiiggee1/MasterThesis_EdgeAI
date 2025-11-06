@@ -6,12 +6,6 @@ extern fn ets_delay_us(us: u32) callconv(.c) void;
 
 pub const DEFAULT_FREQ_HZ: u64 = 16_000_000; 
 
-/// Container type, for handling and setup of systimer related
-/// stuff. 
-/// Some terminology: 
-/// - UNIT0/UNIT1 => refer to the two 52-bit timer counters (16 MHz).
-/// - XTAL_CLK / DIV → 16 Mhz (CNT_CLK).
-/// - Modes: `period mode` (t1 + δt) and `target mode` (t2 <= t). 
 
 pub const ClockSource = enum {
     XTAL_CLK,
@@ -35,6 +29,11 @@ pub const Targets = enum {
     target2,
 };
 
+/// Config type for setup of systimer peripheral.
+/// Some terminology: 
+/// - UNIT0/UNIT1 => refer to the two 52-bit timer counters (16 MHz).
+/// - XTAL_CLK / DIV → 16 Mhz (CNT_CLK).
+/// - Modes: `period mode` (t1 + δt) and `target mode` (t2 <= t). 
 pub const SystemTimerConfig = struct{
     clk: ClockSource = .XTAL_CLK, 
     counter: CounterKind = .UNIT0,
@@ -45,11 +44,9 @@ pub const SystemTimerConfig = struct{
 
 
     pub fn parse_v2(config: anytype) SystemTimerConfig{
-        // if (@TypeOf(config) == SystemTimerConfig) return @as(SystemTimerConfig, config);
         var systimer_config: SystemTimerConfig = .{};
 
         const config_info = @typeInfo(@TypeOf(config)).@"struct";
-        // const valid_cfg_fields = @typeInfo(SystemTimerConfig).@"struct".fields;
 
         inline for(config_info.fields, 0..) |field, i|{
             if (@hasField(SystemTimerConfig, field.name)) {
@@ -84,7 +81,6 @@ pub const SystemTimerConfig = struct{
 /// While the Alarm Period (δt) is the auto-incremented amount for the next (t) 
 /// during periodic mode. 
 pub const SystemTimer = struct{
-    // pub fn SystemTimer(comptime Config: SystemTimerConfig) type{
     const Self = @This();
     
     const SysTimerRegister = @import("registers.zig").SysTimerRegister;
@@ -153,7 +149,7 @@ pub const SystemTimer = struct{
 
         self.enableAPBClock();
 
-        //1. Select clk source - XTAL_CLK or RC_FAST_CLK.
+        // Select clk source - XTAL_CLK or RC_FAST_CLK.
         self.set_source();
         
         return self;
@@ -236,9 +232,6 @@ pub const SystemTimer = struct{
     pub fn setup_clock(self: Self, timeout_period: TimeInstant) !void{
         self.enable_interrupt(false);
 
-        // self.enable_work(false);
-        // enabling of bus block of HP CPU0 CLIC at offset: 0x0014 at CLKRST_SOC_CLK_CTRL0_REG
-        
         // 1. Setup the period and synchronize the alarm period to COMPx.
         try self.setup_period(timeout_period);
 
@@ -271,7 +264,6 @@ pub const SystemTimer = struct{
     pub fn wfi_setup(self: Self) void{
         // const delay_as_clock_cycles
         const delay_mask: u4 = 0b0000; 
-        // 0b0000_1111
         Peripheral.RSTCLK.setMask(self.clkrst_register.HP_SYS_CLKRST_ROOT_CLK_CTRL0, @as(u32, delay_mask));
 
     }
@@ -280,8 +272,10 @@ pub const SystemTimer = struct{
         std.log.warn("Resetting the system timer!\n", .{});
         const HP_SYS_CLKRST_RST_EN_STIMER: u6 = @as(u6, 5);
         Peripheral.RSTCLK.setBit(self.clkrst_register.CLKRST_HP_RST_EN1_REG, HP_SYS_CLKRST_RST_EN_STIMER);
+
         asm volatile ("nop");
         asm volatile ("nop");
+
         // toggle back to zero!
         Peripheral.RSTCLK.clearBit(self.clkrst_register.CLKRST_HP_RST_EN1_REG, HP_SYS_CLKRST_RST_EN_STIMER);
 
@@ -340,11 +334,9 @@ pub const SystemTimer = struct{
             switch (self.counter_kind) {
                 .UNIT0 =>{
                     Peripheral.SYSTIMER.clearBit(self.register.CONF, 31);
-                    // Peripheral.SYSTIMER.clearBit(self.register.CONF, 30); // FIX: Should I clear this during setup_clock or only for COMP?
                 },
                 .UNIT1 =>{
                     Peripheral.SYSTIMER.clearBit(self.register.CONF, 31);
-                    // Peripheral.SYSTIMER.clearBit(self.register.CONF, 29);
                 }
             }
             Peripheral.SYSTIMER.clearBit(self.register.CONF, bit_index);
@@ -379,12 +371,14 @@ pub const SystemTimer = struct{
 
     pub fn setup_period(self: Self, timeout: TimeInstant) !void{
         Peripheral.SYSTIMER.write_register(self.register.TARGET0_COMP_CONF, 0x00);
+
         switch(self.target_num){
             .target0 => Peripheral.SYSTIMER.write_register(self.register.TARGET0_COMP_CONF, 0x00),
             .target1 => Peripheral.SYSTIMER.write_register(self.register.TARGET1_COMP_CONF, 0x00),
             .target2 => Peripheral.SYSTIMER.write_register(self.register.TARGET2_COMP_CONF, 0x00),
         }
         self.synchronize_comparator();
+
         // Convert the deadline or future time to ticks (δt)
         const dt = self.intoDeltaTimeTicks(timeout);
         if (dt == 0) return error.BadPeriod;
@@ -407,7 +401,6 @@ pub const SystemTimer = struct{
         });
             
         self.writePeriod(period_ticks);
-        
     }
     
     /// Setup of the timer, will either setup the timer in One-Shot or Periodic mode. 
@@ -427,28 +420,16 @@ pub const SystemTimer = struct{
         if (self.target_mode == .periodic){
             const counter_now: u64 = self.readCounter() & COUNTER_MASK; // 52-bit now.
             const per_unit: u64 = self.intoTicksFromUnit(timeout.unit);
-
-            // const period_wrapped: u64 = (timeout.time * per_unit) & COUNTER_MASK;
-            // const target_time = wrapAdd52Bit(counter_now, timeout.time * per_unit); // absolute 52-bit alarm target.
-        
             const dt = self.intoDeltaTimeTicks(timeout);
 
             const period_ticks: u32 = if (dt > PERIOD_MAX) 
                 PERIOD_MAX else @intCast(dt);
             
-
             std.log.warn("(TimeInstant) timeout: {d} µs vs timeout: {d} ticks\n", .{timeout.time, self.intoTicksFromTimeInstant(timeout)});
 
             self.writePeriod(period_ticks);
             
             if(builtin.mode == .Debug){
-                // const MAX_VALUE_U51: u64 = @as(u64, std.math.maxInt(u51) - 1); 
-                // const MAX_VALUE_U52: u64 = @as(u64, std.math.maxInt(u52) - 1); 
-
-                // const MAX_VALUE_U51: u64 = @as(u64, std.math.maxInt(u51)); 
-                // const MAX_VALUE_U52: u64 = @as(u64, std.math.maxInt(u52)); 
-                // std.log.info("COUNTER_MASK = 0x{x}, MAX_VALUE_U52: 0x{x}, MAX_VALUE_U51: 0x{x}\n", .{COUNTER_MASK, MAX_VALUE_U52, MAX_VALUE_U51});
-                
                 // JUST FOR DEBUGGING --------------------------
                 const ticks_as_us = TimeUnit.Ticks.asMicroSecond(period_ticks);
                 const given_timeout = wrapAdd52Bit(@as(u64, 0), timeout.time * per_unit); // JUST FOR DEBUGGING SANITY CHECK!
@@ -463,7 +444,6 @@ pub const SystemTimer = struct{
                 const given_timeout_us = TimeUnit.Ticks.asMicroSecond(timeout_ticks);
                 const now_u32_us = TimeUnit.Ticks.asMicroSecond(now_u32);
                 const delta_time: u32 = ticks_as_us - now_u32_us;
-                // ------------------------------------ JUST FOR DEBUGGING
 
                 std.log.info("(SANITY CHECK):\r\n\t•Timeout: {d} ticks → {d}µs\r\n\t•Period time: {d} ticks → {d}µs Δₜ: {d})\r\n\t•Now: {d} ticks → {d}µs\n", .{
                     @as(u64, given_timeout),
@@ -474,21 +454,14 @@ pub const SystemTimer = struct{
                     @as(u64, now_wrapped),
                     @as(u32, now_u32_us),
                 });
+                // ------------------------------------ JUST FOR DEBUGGING
             }
-            
-            // self.updatePeriodTimer(period_ticks);
-            // self.updatePeriodTimer(period_wrapped, period_ticks);
-
-            //NOTE: - Should I only write to the period register field. 
-            // Or should I also write to the comparators using writeToTargetComparator????????
             
             self.synchronize_comparator(); // Sets the SYSTIMER_TIMER_COMPx_LOAD bit[0] = 1.
 
         }else{
             // One-Shot Mode 
             const per_unit: u64 = self.intoTicksFromUnit(timeout.unit);
-
-            //TODO: - What value should I write here? 
 
             const MAX_VALUE_U52: u64 = @as(u64, std.math.maxInt(u51) - 1); 
             const timeout_ticks = if(timeout.time * per_unit > MAX_VALUE_U52)
@@ -503,7 +476,6 @@ pub const SystemTimer = struct{
 
     fn set_target_value(self: Self, timeout_ticks: u64) void{
         // 1. Calculate the new target value to load. 
-        // E.g., current_ticks + new_value
         const MAX_VALUE: u64 = @as(u64, std.math.maxInt(u51) - 1); 
         const timeout_clamp = if(self.now_v2(.Ticks).time + timeout_ticks > MAX_VALUE)
             MAX_VALUE else (self.now_v2(.Ticks).time + timeout_ticks);
@@ -512,13 +484,7 @@ pub const SystemTimer = struct{
         const delta_ticks = wrapAdd52Bit(now_time, timeout_ticks);
         _ = timeout_clamp;
 
-        // std.log.warn("Comparing: timeout_clamp: {d} vs delta_ticks: {d}\n", .{
-        //     timeout_clamp,
-        //     delta_ticks,
-        // });
-        
         // 2. Write the new calculate value here from step(1).
-        // self.writeToTargetComparator(timeout_clamp);
         self.writeToTargetComparator(delta_ticks);
     }
 
@@ -548,11 +514,6 @@ pub const SystemTimer = struct{
         
         const mask: u32 = (@as(u32, 1) << 26) - 1; // bits[25:0], -1 turns all lower bits into 1
         const updated_bits: u32 = (conf_reg & ~mask) | (period_ticks & mask); // keep upper bits.
-        // std.log.warn("At (setup_period): setting period bits[25:0] to: 0b{b} = {d}, from: {d}\n", .{
-        //     @as(u32, updated_bits), 
-        //     @as(u32, updated_bits), 
-        //     @as(u32, period_ticks),
-        // });
 
         Peripheral.SYSTIMER.write_register(offset, updated_bits);
     }
@@ -656,8 +617,6 @@ pub const SystemTimer = struct{
         
         // Read-Write-Set: 
         Peripheral.SYSTIMER.setMask(self.register.CONF, mask);
-        // const conf_reg = Peripheral.SYSTIMER.read_register(self.register.CONF);
-        // std.log.warn("SYSTIMER_CONF_REG After setup: 0b{b}\n", .{conf_reg});
     }
 
     /// Poll and waits by continously reading and checking if the 
@@ -705,7 +664,6 @@ pub const SystemTimer = struct{
 
     pub fn readCounter(self: Self) u64 {
         //1. Set UNITn_UPDATE to fill the current value of COMPx into
-        // UNITn_VALUE_HI and UNIT_n_VALUE_LO.
         Peripheral.SYSTIMER.setBit(self.register.UNIT0_OP, 30);
 
         //2. Poll the reading of: UNITn_VALUE_VALID until it is 1. 
@@ -737,8 +695,6 @@ pub const SystemTimer = struct{
     pub fn writeToTargetComparator(self: Self, value: u64) void{
         const value_u52 = value & 0x000F_FFFF_FFFF_FFFF; // 52-bit mask
         const load: struct{higher_bits: u32, lower_bits: u32} = reg_raw:{
-            // const lower_load = @as(u32, value & 0xFFFF_FFFF);
-            // const upper_load = @as(u32, value >> 32);
             const lower_load: u32 = @truncate(value_u52);
             const upper_load: u32 = @intCast((value_u52 >> 32) & 0x000F_FFFF);
             break :reg_raw .{.higher_bits = upper_load, .lower_bits = lower_load}; 
@@ -828,16 +784,7 @@ pub const SystemTimer = struct{
         const freq: u128 = @as(u128, self.clk_freq);
         const time: u128 = @as(u128, instant.time);
         const numerator: u128 = freq * time;
-        // const freq: u64 = @as(u64, self.clk_freq);
-        // const time: u64 = @as(u64, instant.time);
-        
-        // std.math.divCeil(u64, numerator: T, denominator: T)
-        
         const denominator: u128 = switch(instant.unit){
-            // .Ticks => @min(@as(u64, @intCast(time)), std.math.maxInt(u64)),
-            // .Micro => std.math.divCeil(u64, freq * time, 1_000_000) catch std.math.maxInt(u64), // ticks or cycles per µs
-            // .Mili => std.math.divCeil(u64, freq * time, 1_000) catch std.math.maxInt(u64), // ticks or cycles ms
-            // .Sec => std.math.divCeil(u64, freq * time, 1) catch std.math.maxInt(u64), // ticks or cycles sec
             .Ticks => return @min(@as(u64, @intCast(time)), std.math.maxInt(u64)),
             .Micro => 1_000_000, // ticks or cycles per µs
             .Mili => 1_000, // ticks or cycles ms
@@ -861,7 +808,6 @@ pub const SystemTimer = struct{
         const time: u128 = @as(u128, instant.time);
 
         const dt: u128 = switch(instant.unit){
-            // .Ticks => @as(u128, instant.time),
             .Ticks => @min(@as(u64, @intCast(time)), std.math.maxInt(u64)),
             .Micro => @as(u128, freq * time) / 1_000_000, // ticks or cycles per µs
             .Mili => @as(u128, freq * time) / 1_000, // ticks or cycles ms
@@ -891,20 +837,13 @@ pub const SystemTimer = struct{
     fn durationIntoTicks(self: Self, duration_value: u64, unit: TimeUnit) u64{
         const per_unit: u64 = self.intoTicksFromUnit(unit);
 
-        // const mul_op = @mulWithOverflow(duration_value, per_unit);
         const wrapped_duration = std.math.mul(u64, duration_value, per_unit) catch @as(u64, std.math.maxInt(u64));
         const clamp_duration: u64 = std.math.clamp(duration_value * per_unit, 0, std.math.maxInt(u64));
+
         if(builtin.mode == .Debug){
             _ = clamp_duration; 
-            // std.log.warn("Inside 'DurationIntoTicks', wrapped_duration: {d}, clamped: {d}, maxInt(64): {d}\n", .{
-            //     wrapped_duration,
-            //     clamp_duration,
-            //     @as(u64, std.math.maxInt(u64)),
-            // });
-
         }
 
-        // @intCast(@min(num, @as(u128, std.math.maxInt(u64))));
         return wrapped_duration; 
     }
     
@@ -924,13 +863,6 @@ pub const SystemTimer = struct{
     /// Frequency (f): 1 / T, T = Time Period. 
     /// (DEPRICATED use `now_v2` instead!)
     pub fn now(self: Self, unit: TimeUnit) u64 {
-        // const unit_ticks: u64 = switch (unit) {
-        //     .Ticks => 1,
-        //     .Micro => 16, // ticks or cycles per µs
-        //     .Mili => 16_000, // ticks or cycles ms
-        //     .Sec => 16_000_000, // ticks or cycles sec
-        //
-        // };
         const unit_ticks: u64 = switch (unit) {
             .Ticks => 1,
             .Micro => self.clk_freq / 1_000_000, // ticks or cycles per µs
@@ -956,7 +888,6 @@ pub const SystemTimer = struct{
             .Sec => self.clk_freq, // ticks or cycles sec
         };
 
-        // return TimeInstant{.time = (self.readCounter() / unit_ticks), .unit = unit};
         return TimeInstant{.time = (self.now_ticks() / unit_ticks), .unit = unit};
     }
 
@@ -1004,10 +935,9 @@ pub const SystemTimer = struct{
     }
     
     pub fn duration_v2(self: Self, t1: TimeInstant) u64 {
-        // t2.time: self.readCounter() / unit_ticks
-
         const t2 = self.now_v2(t1.unit);
         return t2.time - t1.time; 
     }
+
 };
 

@@ -12,14 +12,10 @@ pub const MemoryStack = struct {
     }
 
     inline fn stackTop() usize {
-        // var _stack_top = @extern(u8, .{.name = "_stack_top"});
-        // return @intFromPtr(&_stack_top);
         return @intFromPtr(&linker_sections._stack_top);
     }
     
     inline fn stackBottom() usize {
-        // return @intFromPtr(&linker_sections._stack_bottom);
-        // var _stack_bottom = @extern(u8, .{.name = "_stack_bottom"});
         return @intFromPtr(&linker_sections._stack_bottom);
     }
 
@@ -30,46 +26,20 @@ pub const MemoryStack = struct {
 
     fn stack_region() struct{ptr: [*]volatile u8, len: usize}{
         const stack = stackAddrs();
-        // const lower = stackTop();
-        // const upper = stackBottom();
-
         return .{
             .ptr = @ptrFromInt(stack.lo),
             .len = stack_length(),
         };
     }
 
-        // asm volatile (
-        //             \\.option push;
-        //             \\.option norelax;
-        //             \\la gp, __global_pointer$;
-        //             \\.option pop;
-        //
-        //             \\la t0, _stack_bottom;
-        //             \\la t1, _stack_top;
-        //             \\li t2, 0xA5;
-        //
-        //             \\1:
-        //             \\sb t2, 0(t0);
-        //             \\addi t0, t0, 1;
-        //             \\blt t0, t1, 1b;
-
-
     inline fn read_sp() usize {
-        // var sp_val: usize = 0;
-        // asm volatile ("addi {out}, sp, 0"
-        //     : [out] "=r" (sp_val)
-        // );
         return asm volatile (
         \\ addi %[ret], sp, 0
         : [ret] "=r" (-> usize));
-
-        // return sp_val;
     }
 
     pub fn watermark_fill() void{
         // @frameAddress();
-        // var stack = stack_region();
         const stack = stackAddrs();
         const sp = read_sp();
 
@@ -89,12 +59,10 @@ pub const MemoryStack = struct {
 
         // Sanity: SP must be inside [lo, hi].
         if (!(sp > s.lo and sp <= s.hi)) {
-            // If we can’t trust SP, make this a no-op.
             return;
         }
 
         // Leave a small red zone under SP to avoid painting the current frame.
-        // const GUARD: usize = 64; // tune as needed
         const GUARD: usize = guard; // tune as needed
         const end = if (sp > GUARD) sp - GUARD else sp;
 
@@ -116,7 +84,6 @@ pub const MemoryStack = struct {
     /// Returns the number of bytes used by checking the depth of the watermarked 
     /// filled values. 
     pub fn stackUsage() usize{
-        // const stack = stack_region();
         const stack = stackAddrs();
         const stack_ptr: [*]volatile u8 = @ptrFromInt(stack.lo);
         const stack_len = stack.hi - stack.lo;
@@ -137,8 +104,6 @@ pub const MemoryStack = struct {
 
     pub fn getStackUtilization() UtilizationResult{
         const stack_len = stack_length();
-        // const stack = stack_region();
-
         const bytes_used = stackUsage();
         const free_bytes = stack_len - bytes_used;
 

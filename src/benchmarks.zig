@@ -3,6 +3,8 @@ const CSR = @import("csr.zig").CSR;
 const model = @import("model/model.zig");
 const MemoryStack = @import("memory.zig").MemoryStack;
 const SystemTimer = @import("system_timer.zig").SystemTimer;
+const Optimized = @import("optimized_utils.zig").Optimized;
+const MatmulFn = model.MatmulFn;
 
 /// Benchmark utilities.
 pub const BenchMark = struct {
@@ -26,8 +28,8 @@ pub const BenchMark = struct {
                 .{ 3, 2 },
             };
 
-            const TestMatrixC = Matrix(f16, 3, 2).create(matrix_c);
-            const TestMatrixD = Matrix(f16, 2, 3).create(matrix_d);
+            const TestMatrixC = Matrix(f16, 3, 2, .owned).create(matrix_c);
+            const TestMatrixD = Matrix(f16, 2, 3, .owned).create(matrix_d);
             // "[info] :"
             std.log.info("Test Matrix C: {any}\r\n\t  Test Matrix D: {any}\n", .{ TestMatrixC.mat, TestMatrixD.mat });
             
@@ -58,7 +60,7 @@ pub const BenchMark = struct {
                 .{ 2, 2, 1 },
             };
 
-            var TestMatrixD = Matrix(f16, 2, 3).create(matrix_d);
+            var TestMatrixD = Matrix(f16, 2, 3, .owned).create(matrix_d);
             
             const start_mcycle = Cpu.read_mcycle();
             const start_minstret = Cpu.read_minstret();
@@ -78,8 +80,41 @@ pub const BenchMark = struct {
             result.log_result("Transpose Matrix");
         }
 
+        pub fn hwlp_add_f32_test() void{
 
-        pub const InputOutputMatrix = model.Matrix(f32, 25, 1);
+            const N: usize = 400; // adjust to your cache/I-mem
+            var x: [N]f32 = undefined;
+            var y: [N]f32 = undefined;
+            var z: [N]f32 = undefined;
+
+            for (0..N) |i| {
+                x[i] = @floatFromInt(i);
+                y[i] = 1.0;
+            }
+
+            // Scalar time
+            const start_mcycle = Cpu.read_mcycle();
+            const start_minstret = Cpu.read_minstret();
+            Optimized.add_f32_scalar(&x, &y, &z); // no hwlp
+            const mcycle_delta: u64 = Cpu.read_mcycle() - start_mcycle;
+            const minstret_delta: u64 = Cpu.read_minstret() - start_minstret;
+            
+            // HWLP time
+            const start_mcycle_hwlp = Cpu.read_mcycle();
+            const start_minstret_hwlp = Cpu.read_minstret();
+            Optimized.add_f32_hwlp(&x, &y, &z, N);
+            const mcycle_delta_hwlp: u64 = Cpu.read_mcycle() - start_mcycle_hwlp;
+            const minstret_delta_hwlp: u64 = Cpu.read_minstret() - start_minstret_hwlp;
+
+            std.log.info("Scalar time: Δmcyle: {d}, Δminstret: {d}\n", .{mcycle_delta, minstret_delta});
+            std.log.info("HWLP time: Δmcyle: {d}, Δminstret: {d}\n", .{mcycle_delta_hwlp, minstret_delta_hwlp});
+        }
+
+
+        pub const InputMatrix = model.Matrix(f32, 25, 1, .owned);
+        pub const InputMatrixView = model.Matrix(f32, 25, 1, .view);
+        pub const OutputMatrix = model.Matrix(f32, 25, 1, .owned);
+
         pub const AveragePerformance = struct{
             avg_cpu: struct{
                 mcycle: f32, 
@@ -100,15 +135,16 @@ pub const BenchMark = struct {
         /// stuff to obtain a more accurent benchmark for the memory utilization report. 
         pub fn run_inference(
             comptime Context: type,
-            x: *const InputOutputMatrix, 
+            x: *const InputMatrixView, 
             parsed_model: *Context,
             comptime num_iter: usize, 
             systimer: *SystemTimer,
+            comptime matmul_mode: MatmulFn,
         ) struct{
             cpu: Cpu, 
             stack: MemoryStack.UtilizationResult, 
             performance: ?AveragePerformance,
-            y: InputOutputMatrix,
+            y: OutputMatrix,
         }
         {
             // const start_utilization = MemoryStack.getStackUtilization();
@@ -116,13 +152,15 @@ pub const BenchMark = struct {
             //WARN: - Don’t divide the raw counter before differencing, measure elapsed ticks first 
             // after that convert into delta. 
 
+            if (matmul_mode == .hwlp and (CSR.mhwloop_state_reg.read_csrr() & 0x3 == 0)) CSR.initHwLoop();
+
             if (num_iter == 0 or num_iter == 1){
                 const start_mcycle = Cpu.read_mcycle();
                 const start_minstret = Cpu.read_minstret();
                 const t0 = systimer.now_v2(.Ticks);
 
                 // shared.nn.model.predict(&X, .On)
-                const Y = parsed_model.predict(x, .On);
+                const Y = parsed_model.predict(x, .On, matmul_mode);
                 const dt: u64 = systimer.elapsed_v2(t0.time, .Ticks);
 
                 const mcycle_delta: u64 = Cpu.read_mcycle() - start_mcycle;
@@ -139,12 +177,12 @@ pub const BenchMark = struct {
                 return .{
                     .cpu = cpu_result,
                     .stack = stack_utilization,
-                    .avg_performance = null,
+                    .performance = null,
                     .y = Y,
                 };
 
             }else{
-                var y_predicts: InputOutputMatrix = undefined;
+                var y_predicts: OutputMatrix = undefined;
 
                 var cpu_copy = Cpu{
                     .delta_mcycle = 0,
@@ -177,7 +215,7 @@ pub const BenchMark = struct {
                     const start_minstret = Cpu.read_minstret();
 
                     const t0 = systimer.now_v2(.Ticks);
-                    const Y = parsed_model.predict(x, .On);
+                    const Y = parsed_model.predict(x, .On, matmul_mode);
                     const stack_utilization = MemoryStack.getStackUtilization();
                     const dt: u64 = systimer.elapsed_v2(t0.time, .Ticks);
 
@@ -239,26 +277,9 @@ pub const BenchMark = struct {
             }
         }
 
-        // pub fn inference_performance(x: *const model.Matrix(f32, 10, 1)) struct{cpu: Cpu, stack: MemoryStack.UtilizationResult}{
-        pub fn inference_performance(x: *const model.Matrix(f32, 10, 1)) void{
-            const model_builder = model.Builder(f32, "assets/model.bin", .RowSampleOrdering);
-            var nn = model_builder.build_model(1, 10, 4);
-            
-            const start_mcycle = Cpu.read_mcycle();
-            const start_minstret = Cpu.read_minstret();
-
-            const Y = nn.predict(x);
-
-            const mcycle_delta: u64 = Cpu.read_mcycle() - start_mcycle;
-            const minstret_delta: u64 = Cpu.read_minstret() - start_minstret;
-            
-            const result = Cpu{
-                .delta_mcycle = mcycle_delta,
-                .delta_minstret = minstret_delta,
-            };
-            result.log_result("Model Inference (Prediction)");
-            nn.eval_summary(x, &Y);
-
+        pub fn inference_warmup(comptime Context: type, x: *const InputMatrixView, parsed_model: *Context) void{
+            const Y = parsed_model.predict(x, .On, MatmulFn.base);
+            _ = Y;
         }
     };
 

@@ -11,9 +11,6 @@ pub const TimerGroup = struct {
     register: TimerGroupRegister,
 
     pub fn init() Self{
-        // return Self{.register = AnyRegister(.TIMERG0, register_block)};
-        // return Self{.register = register_block};
-        // const Reg = AnyRegister(.TIMERG0, TimerGroupRegister);
         return Self{.register = TimerGroupRegister{}};
     }
 

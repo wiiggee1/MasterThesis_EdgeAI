@@ -5,15 +5,28 @@ const InputConvention = @import("layers.zig").InputShapeConvention;
 const layers = @import("layers.zig");
 const Matrix = layers.Matrix; 
 const print_fn = layers.print_fn;
+const OptimizerType = @import("optimizer.zig").OptimizerType;
+
+pub const HyperParameters = struct {
+    optimizer: OptimizerType,
+    learning_rate: f16,
+    gamma: f16, 
+    dropout_rate: f16,
+    /// One epoch means the model has seen the entire training dataset once, from start to finish.
+    epochs: usize, 
+    epsilon: f16,
+    alpha: f32,
+};
 
 pub const ActivationFuncTag = enum(u8){
-    // Empty = 0,
     Sigmoid = 1,
     Relu = 2,
     LeakyRelu = 3,
     SoftMax = 4,
+    Tanh = 5,
 
-    pub fn fromInt(id: u8) ActivationFuncTag{
+    pub fn fromInt(id: u8) ?ActivationFuncTag{
+        if (id == 0 or id == 6) return null;
         return @enumFromInt(id);
     }
 };
@@ -24,6 +37,7 @@ pub const ActivationFunction = union(ActivationFuncTag) {
     Relu: void,
     LeakyRelu: f32,
     SoftMax: void,
+    Tanh: void,
 
     pub fn from(comptime tag: ActivationFuncTag, comptime alpha: ?f32) ActivationFunction{
         return comptime switch (tag) {
@@ -31,6 +45,7 @@ pub const ActivationFunction = union(ActivationFuncTag) {
             .Relu => ActivationFunction{.Relu = {}},
             .LeakyRelu => ActivationFunction{.LeakyRelu = alpha orelse 0.0},
             .SoftMax => ActivationFunction{.SoftMax = {}},
+            .Tanh => ActivationFunction{.Tanh = {}},
         };
     }
 
@@ -44,9 +59,51 @@ pub const ActivationFunction = union(ActivationFuncTag) {
             .Relu => relu(T, activation_array[0..], derive_flag),
             .LeakyRelu => |alpha| leaky_relu(T, activation_array[0..], alpha, derive_flag),
             .SoftMax => softmax(T, LayerSize, activation_array[0..]),
+            .Tanh => tanh(T, activation_array[0..], derive_flag),
         }
         return activation_array;
     }
+
+    pub inline fn execute_scalar(self: ActivationFunction, comptime T: type, x: T, derive_flag: bool) T {
+        _ = derive_flag;
+        return switch (self) {
+            .Sigmoid => sigmoid_scalar(T, x),
+            .Relu    => relu_scalar(T, x),
+            .LeakyRelu => |alpha| leaky_relu_scalar(T, x, alpha),
+            .Tanh    => tanh_scalar(T, x),
+            .SoftMax => @compileError("SoftMax needs a full vector; use execute_softmax_inplace"),
+        };
+    }
+
+    pub fn execute_inplace(self: ActivationFunction, comptime T: type, data: []T, derive_flag: bool) void {
+        switch (self) {
+            .SoftMax => @compileError("Use execute_softmax_inplace for SoftMax"),
+            else => {
+                inline for (0..data.len) |i| data[i] = self.execute_scalar(T, data[i], derive_flag);
+            }
+        }
+
+    }
+
+   inline fn sigmoid_scalar(comptime T: type, x: T) T {
+        const sigmoid_out: T = 1.0 / (1.0 + @exp(-x));
+        return sigmoid_out;
+    }
+
+    inline fn relu_scalar(comptime T: type, x: T) T {
+        const relu_out: T = (x + @abs(x)) / @as(T, 2);
+        return relu_out;
+    }
+
+    inline fn leaky_relu_scalar(comptime T: type, x: T, alpha: T) T {
+        const leaky_out: T = ((1 + alpha) / @as(T, 2.0)) * x + ((1 - alpha) / @as(T, 2.0)) * @abs(x);
+        return leaky_out;
+    }
+
+    inline fn tanh_scalar(comptime T: type, x: T) T {
+        const tanh_out: T = std.math.tanh(x);
+        return tanh_out;
+    } 
 
     /// The `ReLU` activation function is defined as `ReLU = max(0, x)`.
     /// This pass a modifiable slice and a type parameter such as f16.
@@ -87,7 +144,6 @@ pub const ActivationFunction = union(ActivationFuncTag) {
                 const x = val.*;
                 // const leaky_func: T = ((1 + alpha_val) / @as(T, 2.0)) * x + ((1 - alpha_val) / @as(T, 2.0)) * @abs(x);
                 const leaky_func: T = ((1 + alpha) / @as(T, 2.0)) * x + ((1 - alpha) / @as(T, 2.0)) * @abs(x);
-                // std.debug.print("Provided Leaky ReLu output: {any}\n", .{leaky_func});
 
                 val.* = leaky_func;
             }
@@ -103,6 +159,18 @@ pub const ActivationFunction = union(ActivationFuncTag) {
                 val.* = sigmoid_func * (1.0 - sigmoid_func);
             } else {
                 val.* = sigmoid_func;
+            }
+        }
+    }
+    
+    inline fn tanh(comptime T: type, mut_data: []T, derive_flag: bool) void {
+        for (mut_data) |*val| {
+            const x = val.*;
+            const tanh_func: T = std.math.tanh(x);
+            if (derive_flag == true) {
+                val.* = (1.0 - tanh_func * tanh_func);
+            } else {
+                val.* = tanh_func;
             }
         }
     }
@@ -174,7 +242,7 @@ pub fn Evaluation(comptime T: type, comptime TimeW: usize) type{
             anomaly_score: T,
         };
 
-        pub fn mse_window(x: *const Matrix(T, TimeW, 1), y: *const Matrix(T, TimeW, 1)) T{
+        pub fn mse_window(x: *const Matrix(T, TimeW, 1, .view), y: *const Matrix(T, TimeW, 1, .view)) T{
             comptime {
                 if(@typeInfo(T) != .float){
                     @compileError("Expected a floating point type!");
@@ -194,7 +262,7 @@ pub fn Evaluation(comptime T: type, comptime TimeW: usize) type{
 
         /// (A * B) / (||A|| * ||B||)
         /// Where ||A|| = magnitude of A = sqrt(x1^2 + x2^2 + ... xn^2) = sqrt(x * x)
-        pub fn cosine_similarity_score(x: *const Matrix(T, TimeW, 1), y: *const Matrix(T, TimeW, 1)) T{
+        pub fn cosine_similarity_score(x: *const Matrix(T, TimeW, 1, .view), y: *const Matrix(T, TimeW, 1, .view)) T{
             comptime {
                 if(@typeInfo(T) != .float){
                     @compileError("Expected a floating point type!");
@@ -237,7 +305,7 @@ pub fn Evaluation(comptime T: type, comptime TimeW: usize) type{
             return num_trigger.* >= exceed_amount;
         }
 
-        pub fn evaluation(x: *const Matrix(T, TimeW, 1), y: *const Matrix(T, TimeW, 1)) MetricScores{
+        pub fn evaluation(x: *const Matrix(T, TimeW, 1, .view), y: *const Matrix(T, TimeW, 1, .view)) MetricScores{
             const err = mse_window(x, y);
             const cosine_sim_score = cosine_similarity_score(x, y);
             const cosine_distance = @as(T, 1) - cosine_sim_score;

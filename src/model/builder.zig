@@ -2,6 +2,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const layer_api = @import("layers.zig");
 const Evaluation = @import("common_functions.zig").Evaluation;
+const ActivationFuncTag = @import("common_functions.zig").ActivationFuncTag;
+const ActivationFunction = @import("common_functions.zig").ActivationFunction;
 
 const Layer = layer_api.Layer;
 const LayerOptions = layer_api.LayerOptions;
@@ -20,6 +22,8 @@ const LayerV2 = layer_api.LayerV2;
 const LayerSettingsV2 = layer_api.LayerSettingsV2;
 const LayerTypeV2 = layer_api.LayerTypeV2;
 const print_fn = layer_api.print_fn;
+const MatmulFn = layer_api.MatmulFn;
+
 
 const PRINTMODE: layer_api.PrintMode = 
     if(builtin.cpu.arch != .riscv32 or builtin.is_test) 
@@ -103,6 +107,7 @@ pub const Dtype = enum(u8){
     }
 };
 
+//TODO: - replace some of the fields with to use LayerSettingsV2 directly
 
 pub fn ParameterSet(comptime T: type) type{
     return struct {
@@ -110,7 +115,7 @@ pub fn ParameterSet(comptime T: type) type{
 
         layer_id: usize = 0,
         kind: LayerTypeV2 = .Input,
-        // convention: InputShapeConvention = .ColumnFeatureOrdering,
+        activation: ?ActivationFuncTag = null,
         convention: InputShapeConvention = .RowSampleOrdering,
         out_feature: usize = 0,
         in_features: usize = 0,
@@ -130,12 +135,14 @@ pub fn ParameterSet(comptime T: type) type{
                     self.out_feature = header.shape.out_feature;
                     self.in_features = header.shape.in_features;
                     self.kind = header.layer_type;
+                    self.activation = header.layer_activation;
                     self.convention = header.convention;
                     self.wx = &payload; // [H * D]T in payload.
                 },
                 .wh => {
                     // self.out_feature = header.shape.out_feature;
                     self.kind = header.layer_type;
+                    self.activation = header.layer_activation;
                     self.convention = header.convention;
                     self.wh = &payload; // [H * H]T in payload.
                 },
@@ -144,10 +151,12 @@ pub fn ParameterSet(comptime T: type) type{
                     if(header.param_id == .wx_bias){
                         self.wx_bias = &payload;
                         self.kind = header.layer_type;
+                        self.activation = header.layer_activation;
                         self.convention = header.convention;
                     }else{
                         self.wh_bias = &payload;
                         self.kind = header.layer_type;
+                        self.activation = header.layer_activation;
                         self.convention = header.convention;
                     }
                 },
@@ -155,6 +164,7 @@ pub fn ParameterSet(comptime T: type) type{
                     // For Layers that is not RNN such as Dense or Fully Connected ones
                     self.bias = &payload; // [H]T in payload.
                     self.kind = header.layer_type;
+                    self.activation = header.layer_activation;
                     self.convention = header.convention;
                 }
             }
@@ -214,6 +224,7 @@ pub const Header = struct {
     /// Which layer it belongs to. 
     layer_id: u8,
     layer_type: LayerTypeV2,
+    layer_activation: ?ActivationFuncTag,
     /// Type or kind of parameter. E.g., Weight matrices (Wₓ , Wₕ), 
     /// or bias.
     param_id: ParamId,
@@ -224,32 +235,34 @@ pub const Header = struct {
     /// becomes `.{H, D}`
     shape: struct{out_feature: u8, in_features: u8},
 
+    pub const HEADER_LEN: usize = 8;
+
     /// Creates Header from the byte format: 
     /// <layer_id, layer_type, param_id, dtype_code, convention, out_dim, in_dim>
     pub fn fromOffset(comptime offset: usize, comptime data: []const u8) Header{
-        const header_size: usize = @sizeOf(Header); 
+        // const header_size: usize = @sizeOf(Header); 
+        const header_size: usize = HEADER_LEN; 
+
         std.debug.assert(offset + header_size <= data.len);
+
         const header_slice = data[offset..offset + header_size];
 
         return Header{
             .layer_id = header_slice[0],
             .layer_type = LayerTypeV2.from(header_slice[1]),
-            .param_id = ParamId.from(header_slice[2]),
-            .dtype_code = Dtype.from(header_slice[3]),
-            .convention = InputShapeConvention.from(header_slice[4]),
-            .shape = .{.out_feature = header_slice[5], .in_features = header_slice[6]},
+            .layer_activation = ActivationFuncTag.fromInt(header_slice[2]),
+            .param_id = ParamId.from(header_slice[3]),
+            .dtype_code = Dtype.from(header_slice[4]),
+            .convention = InputShapeConvention.from(header_slice[5]),
+            .shape = .{.out_feature = header_slice[6], .in_features = header_slice[7]},
         };
     }
 
     pub fn print_header(self: Header) void{
-        // const header_size: usize = @sizeOf(Header); 
-        // std.debug.assert(offset + header_size <= data.len);
-        // const header_slice = data[offset..offset + header_size];
-
         if(builtin.mode == .Debug){
-            std.debug.print("<layer_id, layer_type, param_id, dtype_code, convention, out_dim, in_dim> = <{d}, {s}, {s}, {s}, {s}, {d}, {d}>\n", .{
-                self.layer_id, @tagName(self.layer_type), @tagName(self.param_id), 
-                @tagName(self.dtype_code), @tagName(self.convention),
+            std.debug.print("<layer_id, layer_type, layer_activation, param_id, dtype_code, convention, out_dim, in_dim> = <{d}, {s}, {s}, {s}, {s}, {s}, {d}, {d}>\n", .{
+                self.layer_id, @tagName(self.layer_type), self.layer_activation orelse "null", 
+                @tagName(self.param_id), @tagName(self.dtype_code), @tagName(self.convention),
                 self.shape.out_feature, self.shape.in_features,
             });
         }
@@ -315,6 +328,13 @@ pub fn LoadedModel(comptime T: type, comptime ModelConf: ModelConfig) type{
     };
 }
 
+fn zeroed_mat(comptime T: type, comptime Row: usize, comptime Col: usize) [Row][Col]T{
+    return .{
+        .{ @as(T, 0)} ** Col
+    } ** Row;
+}
+
+
 /// Generic helper function that creates a tuple from a list of comptime known `LayerSettingsV2` objects.
 pub fn ParsedModelGraph(comptime T: type, comptime N: usize, comptime SettingsList: [N]LayerSettingsV2) type{
     // comptime var layers: [SettingsList.len]type = undefined;
@@ -354,8 +374,10 @@ pub fn ParsedModelGraph(comptime T: type, comptime N: usize, comptime SettingsLi
         pub const FirstInputDimension = SettingsList[0].getDimensionOf(.input_matrix);
         pub const OutputDimension = SettingsList[N - 1].getDimensionOf(.output_matrix);
 
-        pub const InputMatrix = Matrix(T, FirstInputDimension.@"0",  FirstInputDimension.@"1");
-        pub const OutputMatrix = Matrix(T, OutputDimension.@"0",  OutputDimension.@"1");
+        pub const InputMatrix = Matrix(T, FirstInputDimension.@"0",  FirstInputDimension.@"1", .owned);
+        pub const InputMatrixView = Matrix(T, FirstInputDimension.@"0",  FirstInputDimension.@"1", .view);
+        pub const OutputMatrix = Matrix(T, OutputDimension.@"0",  OutputDimension.@"1", .owned);
+        pub const OutputMatrixView = Matrix(T, OutputDimension.@"0",  OutputDimension.@"1", .view);
         const OutputLayerIndex: usize = SettingsList.len - 1;
 
         pub const evaluator = Evaluation(T, SettingsList[0].timewindow);
@@ -427,15 +449,24 @@ pub fn ParsedModelGraph(comptime T: type, comptime N: usize, comptime SettingsLi
             const S = SettingsList[i];
             return if (S.convention == .ColumnFeatureOrdering)
                 // [H × T]
-                Matrix(T, S.output_dim, S.timewindow)
+                Matrix(T, S.output_dim, S.timewindow, .owned)
             else
                 // [T × H]
-                Matrix(T, S.timewindow, S.output_dim);
+                Matrix(T, S.timewindow, S.output_dim, .owned);
+        }
+
+
+        fn EmptyOutMatrix(comptime i: usize) OutMatrixType(i){
+            const Rows = OutMatrixType(i).Rows;
+            const Cols = OutMatrixType(i).Cols;
+            const zeroes: [Rows][Cols]T = zeroed_mat(T, Rows, Cols);
+
+            return OutMatrixType(i).create(zeroes);
         }
 
         fn LayerOutputType(comptime i: usize) type {
             const dim = SettingsList[i].getDimensionOf(.output_matrix);
-            return Matrix(T, dim.@"0", dim.@"1");
+            return Matrix(T, dim.@"0", dim.@"1", .owned);
         }
 
         fn NextInputType(comptime i: usize) type {
@@ -444,59 +475,94 @@ pub fn ParsedModelGraph(comptime T: type, comptime N: usize, comptime SettingsLi
                     @compileError("NextInputType called on last layer");
             }
             const dim = SettingsList[i + 1].getDimensionOf(.input_matrix);
-            return Matrix(T, dim.@"0", dim.@"1");
+            // return Matrix(T, dim.@"0", dim.@"1", .owned);
+            return Matrix(T, dim.@"0", dim.@"1", .view);
         }
 
-        fn propagate_optimized(self: *Self, comptime i: usize, X: anytype) OutputMatrix{
-            // pub const OutputMatrix = Matrix(T, OutputDimension.@"0",  OutputDimension.@"1");
+        fn propagate_optimized(self: *Self, comptime i: usize, X: anytype, comptime matmul_mode: MatmulFn) OutputMatrix{
             const S = SettingsList[i];
 
             if (S.kind == .Input) {
                 if (i + 1 == NumberOfLayers) @panic("Model ends with Input layer");
-                return self.propagate_optimized(i + 1, X);
+                return self.propagate_optimized(i + 1, X, matmul_mode);
             }
 
-            var y: OutMatrixType(i) = OutMatrixType(i).zeroes();
+            
+            // var y: OutMatrixType(i) = OutMatrixType(i).zeroes();
+            var y: OutMatrixType(i) = EmptyOutMatrix(i);
+            // var y: OutMatrixType(i) = OutMatrixType(i).empty();
 
             // forwardpass_rnn_optimized(self, X, ws, out);
             if (self.network[i].kind == .Rnn) {
-                self.network[i].feedforward_optimized(X, &self.rnn_workspace, &y);
+                self.network[i].feedforward_optimized(matmul_mode, X, &self.rnn_workspace, &y);
             } else {
-                self.network[i].feedforward_optimized(X, &self.rnn_workspace, &y);
+                self.network[i].feedforward_optimized(matmul_mode, X, &self.rnn_workspace, &y);
             }
                 
             if (i + 1 == NumberOfLayers) return y;
-            return self.propagate_optimized(i + 1, &y);
-            // return self.propagate(i + 1, &y);
+
+            // return self.propagate_optimized(i + 1, &y, matmul_mode); // WORKING
+            
+            // const NextInputMatrixView = NextInputType(i).fromBuffer(&y.mat);
+            const NextInputMatrixView = NextInputType(i);
+            return self.propagate_optimized(i + 1, &NextInputMatrixView.fromBuffer(&y.mat), matmul_mode);
+            // return self.propagate_optimized(i + 1, &NextInputMatrixView, matmul_mode);
 
         }
 
         fn propagate(self: *Self, comptime i: usize, X: anytype) OutputMatrix {
             if (SettingsList[i].kind == .Input) {
-                // if (i + 1 == NumberOfLayers) @compileError("Model ends with Input layer");
                 if (i + 1 == NumberOfLayers) @panic("Model ends with Input layer");
                 return self.propagate(i + 1, X);
             }
 
             const y = self.network[i].feedforward(X) orelse unreachable;
 
-            // std.debug.print("Forwardpass at Layer({d})\n", .{i + 1});
-            // y.print_matrix("Feedforward Output", .debug_print);
-
             if (i + 1 == NumberOfLayers) return y;
-            return self.propagate(i + 1, &y);
+
+            // return self.propagate(i + 1, &y); // WORKING
+
+            const NextInputMatrixView = NextInputType(i).fromBuffer(&y.mat);
+            return self.propagate(i + 1, &NextInputMatrixView);
+
         }
 
         /// Prediction logic - propagating through all the layers. 
         /// Since we mainly target embedded devices, recursive calls should be very sparsly used. 
         /// Instead we pass two indices. One for the current layer, and a second for the next 
         /// layer that needs the output data from the previous layer. 
-        pub fn predict(self: *Self, x0: *const InputMatrix, comptime optim: Optimization) OutputMatrix{
+        pub fn predict_old(self: *Self, x0: *const InputMatrix, comptime optim: Optimization, comptime matmul_mode: MatmulFn) OutputMatrix{
             return switch(optim){
-                .On => self.propagate_optimized(0, x0),
+                .On => self.propagate_optimized(0, x0, matmul_mode),
                 .Off => self.propagate(0, x0)
             };
-            // return self.propagate(0, x0);
+        }
+        
+        /// Prediction logic - propagating through all the layers. 
+        /// Since we mainly target embedded devices, recursive calls should be very sparsly used. 
+        /// Instead we pass two indices. One for the current layer, and a second for the next 
+        /// layer that needs the output data from the previous layer. 
+        pub fn predict(self: *Self, x0: *const InputMatrixView, comptime optim: Optimization, comptime matmul_mode: MatmulFn) OutputMatrix{
+            return switch(optim){
+                .On => self.propagate_optimized(0, x0, matmul_mode),
+                .Off => self.propagate(0, x0)
+            };
+        }
+        
+        /// Prediction logic - propagating through all the layers. 
+        /// But takes owned Matrix data. 
+        pub fn predictOwned(self: *Self, x0: *const InputMatrix, comptime optim: Optimization, comptime matmul_mode: MatmulFn) OutputMatrix{
+            const matrix_view = InputMatrixView.fromBuffer(&x0.mat);
+            return self.predict(&matrix_view, optim, matmul_mode);
+        }
+        
+        /// Prediction logic - propagating through all the layers. 
+        /// But takes a *const view of the Matrix data. 
+        pub fn predictView(self: *Self, x0: *const InputMatrixView, comptime optim: Optimization, comptime matmul_mode: MatmulFn) OutputMatrix{
+            return switch(optim){
+                .On => self.propagate_optimized(0, x0, matmul_mode),
+                .Off => self.propagate(0, x0)
+            };
         }
 
 
@@ -508,7 +574,7 @@ pub fn ParsedModelGraph(comptime T: type, comptime N: usize, comptime SettingsLi
         ///     threshold = float(np.quantile(scores, quantile_val))
         /// ```
         /// "threshold": 2.7395969937060727e-06,
-        pub fn eval_summary(_: Self, x: *const InputMatrix, y: *const OutputMatrix) void{
+        pub fn eval_summary(_: Self, x: *const InputMatrixView, y: *const OutputMatrixView) void{
             const scores = evaluator.evaluation(x, y);
 
             print_fn(PRINTMODE, "Evaluation Metrics:\n\r\tMSE: {d}\r\n\tCosine Similarity Score: {d}\r\n\tCosine Distance: {d}\r\n\tWeighted Anomaly Score: {d}\n", .{
@@ -540,29 +606,14 @@ pub fn ParsedModelGraph(comptime T: type, comptime N: usize, comptime SettingsLi
 /// from external sources. Such as flatbuffers, const buffers, or 
 /// via config parsing. 
 pub fn Builder(comptime T: type, comptime path: []const u8, comptime Convention: InputShapeConvention) type {
-    // pub fn Builder(comptime T: type, comptime source: ModelSource, comptime path: []const u8, comptime Convention: InputShapeConvention) type {
     return struct {
         const Self = @This();
         
         // pub const model_bin linksection(".flash.rodata") = @embedFile(path);
         pub const model_bin linksection(".flash.rodata") = @embedFile(path);
         pub const convention = Convention;
-        
-        // layer_config: ?[LCount]LayerSettingsV2 = null,
-        // data: []T,
-        // shapes: []struct{usize, usize},
-
-        // pub fn new(comptime Batches: usize, comptime TimeWindow: usize) Self{
-        //     // return Self;
-        //     const cfg_list = comptime intoLayerSettings(Batches, TimeWindow, LCount);
-        //
-        //     return Self{
-        //         .loaded_model = build_model(Batches, TimeWindow, NumLayers),
-        //     };
-        // }
 
         pub fn get_bytes() []const u8{
-            // const bytes: []const u8 = std.mem.span(model_bin[0..model_bin.len]);
             return model_bin[0..model_bin.len];
         }
 
@@ -573,9 +624,6 @@ pub fn Builder(comptime T: type, comptime path: []const u8, comptime Convention:
                     model_bin[0..model_bin.len]
                 });
             }
-            // const bytes_hex = comptime std.fmt.bytesToHex(bytes, .lower);
-            // std.debug.print("Model hex bytes: {any}\n", .{bytes_hex});
-            // std.debug.dumpHex(bytes);
         }
 
         pub fn bytesAsSlice(bytes: []const u8) []const T {
@@ -595,7 +643,6 @@ pub fn Builder(comptime T: type, comptime path: []const u8, comptime Convention:
         /// While the function block would initialize each LayerV2 types in the tuple (or anonymous struct).
         pub fn build_model(comptime Batches: usize, comptime TimeWindow: usize, comptime NumLayers: usize) ParsedModelGraph(T, NumLayers, intoLayerSettings(Batches, TimeWindow, NumLayers)) {
             const cfg_list = comptime intoLayerSettings(Batches, TimeWindow, NumLayers);
-            // return comptime createModel(Batches, TimeWindow, NumLayers);
             return comptime createModel(NumLayers, cfg_list);
         }
 
@@ -625,7 +672,8 @@ pub fn Builder(comptime T: type, comptime path: []const u8, comptime Convention:
 
             comptime var offset: usize = 0; 
             const bytes: []const u8 = comptime get_bytes();
-            const header_size: usize = comptime @sizeOf(Header); 
+            // const header_size: usize = comptime @sizeOf(Header); 
+            const header_size: usize = comptime Header.HEADER_LEN; 
 
             // src/model/builder.zig:391:68: error: expected type 'builder.ParameterSet(f32)', found 'type'
             // comptime var layer_sets: [NumLayers]ParameterSet(T) = .{ParameterSet(T)} ** NumLayers;
@@ -691,19 +739,14 @@ pub fn Builder(comptime T: type, comptime path: []const u8, comptime Convention:
         ///       →     [layer_id=1, Rnn, wh, f32, ColumnFeatureOrdering, out_dim=1, in_dim=16, bytes]
         /// ----------------------------------------------------------
         pub fn intoLayerSettings(comptime Batches: usize, comptime TimeWindow: usize, comptime NumLayers: usize) [NumLayers]LayerSettingsV2{
-            // pub fn intoLayerSettings(comptime Batches: usize, comptime TimeWindow: usize, comptime NumLayers: usize) []const LayerSettingsV2{
-            // pub fn intoLayerSettings(comptime Batches: usize, comptime TimeWindow: usize, comptime NumLayers: usize) []const LayerSettingsV2{
             @setEvalBranchQuota(2000);
 
             comptime var offset: usize = 0; 
             const bytes: []const u8 = comptime get_bytes();
-            const header_size: usize = comptime @sizeOf(Header); 
+            const header_size: usize = comptime Header.HEADER_LEN; 
 
-            // comptime var layer_sets: [NumLayers]ParameterSet(T) = .{.{}} ** NumLayers;
             comptime var layer_sets: [NumLayers]ParameterSet(T) = .{ParameterSet(T){}} ** NumLayers;
             comptime var processed_layers: [NumLayers]bool = .{false} ** NumLayers;
-            // std.debug.print("Param data type: {s} → {d} bytes\n", .{@typeName(T), @sizeOf(T)});
-            // bytes_info();
             
             //  To extract a comptime-known length from a runtime-known offset,
             //  first extract a new slice from the starting offset, then an array of comptime-known length. 
@@ -716,19 +759,9 @@ pub fn Builder(comptime T: type, comptime path: []const u8, comptime Convention:
                 const payload_start = offset + header_size; 
                 const payload_end = payload_start + header.getNumberOfBytes(T);
 
-                // header.print_header();
-                // @compileLog("Header: ", header);
-
-                // std.debug.print("Param Shape (shape0, shape_1): ({d}, {d}) → num_elements({d}) * sizeOf({s}) = {d} * {d} = {d} num_bytes\n", .{
-                //     shape.@"0", shape.@"1", 
-                //     header.numberOfElements(), @typeName(T), 
-                //     header.numberOfElements(), @sizeOf(T), header.getNumberOfBytes(T), 
-                // });
-
                 // Reinterpret the payload as []const T (f32/f16/etc)
                 const param_bytes: [N]T = readFixedArray(N, payload_start, bytes);
                 std.debug.assert(N == header.numberOfElements());
-                // std.debug.print("real byte array: {any}\n", .{param_bytes});
 
                 // Map each parameter and load/assign in the layer's `ParameterSet`.
                 const id = @as(usize, header.layer_id) - 1;
@@ -755,62 +788,26 @@ pub fn Builder(comptime T: type, comptime path: []const u8, comptime Convention:
                     .output_dim = out_features, // H: Layer Size.
                     .timewindow = TimeWindow, // T: Timesteps/TimeWindow
                     .activation = switch(params.kind){
-                        .Dense => null, 
+                        .Dense => if(params.activation) |activation| .from(
+                            activation, 
+                            if(params.activation == .LeakyRelu) 0.01 else null
+                        ) else null, 
                         .Output => null, 
-                        // .Rnn => .{.LeakyRelu = 0.01}, // WARN: - typo should be 0.1!
-                        .Rnn => .{.LeakyRelu = 0.1},
+                        .Rnn => .{.LeakyRelu = 0.01},
                         else => null,
-                    },
+                    }
                 };
             }
 
-            // const rnn_layer = LayerV2(T, layer_cfg).init(.{ .Load = .{
-            //     .layer_id = parameters.layer_id,
-            //     .layer_kind = parameters.kind,
-            //     .wx = parameters.wx.?,
-            //     .wh = if(parameters.kind == .Rnn) parameters.wh.? else null,
-            //     .bias = parameters.bias.?,
-            // } });
-            // _ = rnn_layer;
-
-            // return &settings_list;
             return settings_list;
-
-            // In Pytorch: 
-            //      - X = [T, IN] → RowSampleOrdering by default
-            //      - W = [OUT, IN] → How data is feed via the `model_bin` file from Pytorch.
-            // In Zig: 
-            //      - X (RowSampleOrdering)     = [T, IN]
-            //      - X (ColumnFeatureOrdering) = [IN, T]
-            //      - W (RowSampleOrdering)     = [IN, OUT] → expected.
-            //      - W (ColumnFeatureOrdering) = [OUT, IN] → what we load from the bytes.
-            // Forward pass: 
-            //      - RowSampleOrdering:        X * W → [T, IN] * [IN, OUT] → OK
-            //      - ColumnFeatureOrdering:    W * X → [OUT, IN] * [IN, T] → OK 
-
-            // So given that pytorch uses Row-Ordering, we need to make sure the dimension 
-            // match for matmul operations. Since we get W_torch = [OUT, IN], and if we use 
-            // RowSampleOrdering in zig, which is loaded from the flattened W_torch = [OUT, IN]. 
-            // We get the weighted sum operation as: X * W_torch = [T, IN] * [OUT, IN] → missmatch.
-            // During weighted sum operation in RowSampleOrdering we need to perform: X.matmul(Wᵀ), 
-            // to match the dimension of [T, IN] * [IN, OUT]. The data bytes of shape0 and shape1 always 
-            // follows the pytorch dimension ordering. So dim0 = out_feature, and dim1 = in_features.
-
-            // const wx = Matrix(T, shape.@"0", shape.@"1").from_array(param_bytes, Convention);
-            // wx.print_matrix("Loaded Wx", .debug_print);
-
-            // Convert if needed to match dimensions, where the data bytes is always as [OUT, IN].
-
-
-            //TODO: - Continue, by returning the array of LayerSettings or as Layer type
         }
     };
 }
 
 
 pub fn createInputMatrix(comptime DataType: type, comptime Timesteps: usize, comptime InputFeatures: usize, comptime Convention: InputShapeConvention) switch (Convention) {
-    .RowSampleOrdering => Matrix(DataType, Timesteps, InputFeatures),
-    .ColumnFeatureOrdering => Matrix(DataType, InputFeatures, Timesteps),
+    .RowSampleOrdering => Matrix(DataType, Timesteps, InputFeatures, .owned),
+    .ColumnFeatureOrdering => Matrix(DataType, InputFeatures, Timesteps, .owned),
 }{
     const DataArray = comptime switch (Convention) {
         .RowSampleOrdering => [Timesteps][InputFeatures]DataType,
@@ -826,7 +823,7 @@ pub fn createInputMatrix(comptime DataType: type, comptime Timesteps: usize, com
                 data[t][d] = @as(DataType, @floatFromInt(10 * t + d));
             }
         }
-        return Matrix(DataType, Timesteps, InputFeatures).create(data);
+        return Matrix(DataType, Timesteps, InputFeatures, .owned).create(data);
     }else{
         for (0..InputFeatures) |d| {
             for (0..Timesteps) |t| {
@@ -834,7 +831,7 @@ pub fn createInputMatrix(comptime DataType: type, comptime Timesteps: usize, com
                 data[d][t] = @as(DataType, @floatFromInt(100 * d + t));
             }
         }
-        return Matrix(DataType, InputFeatures, Timesteps).create(data);
+        return Matrix(DataType, InputFeatures, Timesteps, .owned).create(data);
     }
 }
 
@@ -946,7 +943,7 @@ test "loading-model" {
 
 
     // We feed the first RNN with [D × T] (Column) or [T × D] (Row):
-    const X = Matrix(f32, timesteps, input_features).create(data_rowmajor);
+    const X = Matrix(f32, timesteps, input_features, .owned).create(data_rowmajor);
     // const X = createInputMatrix(f32, timesteps, input_features, convention);
     _ = convention;
 
@@ -987,7 +984,7 @@ test "loading-model" {
     }
 
     // Forward pass; output dims must match last layer
-    const Y = nn.model.predict(&X, .Off);
+    const Y = nn.model.predict(&X, .Off, .hwlp);
     Y.print_matrix("Prediction", .debug_print);
 
     nn.model.eval_summary(&X, &Y);
@@ -1062,10 +1059,10 @@ test "loading-model-optimized" {
         [_]f32 {-0.1205641031},
     };
     
-    const X = Matrix(f32, timesteps, input_features).create(data_rowmajor);
+    const X = Matrix(f32, timesteps, input_features, .owned).create(data_rowmajor);
 
     // Forward pass; output dims must match last layer
-    const Y = nn.model.predict(&X, .On);
+    const Y = nn.model.predict(&X, .On, .hwlp);
     Y.print_matrix("Prediction", .debug_print);
 
     nn.model.eval_summary(&X, &Y);

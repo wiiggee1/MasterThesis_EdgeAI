@@ -2,28 +2,27 @@
 //! ------------------------------------
 //! How to load a trained model from binary file: 
 //! ```zig 
-//! const batch_size: usize = 1;
-//! const timesteps: usize = 10; 
-//! const input_features: usize = 1;
-//! const Convention: InputShapeConvention = .RowSampleOrdering;
+//! const BATCH: usize = 1;
+//! const TIMEWINDOW: usize = 25; 
+//! const INPUT_FEATURES: usize = 1;
 //! const NUM_LAYERS: usize = 4;
 //!
-//! const ModelBuilder = Builder(
-//!     f32, 
-//!     // .binary_blob, 
-//!     "assets/model.bin",
-//!     Convention,
-//! );
+//! const ParsedModel = Model.LoadedModel(f32, .{
+//!       .batch = BATCH,
+//!       .timewindow = TIMEWINDOW,
+//!       .layer_count = NUM_LAYERS,
+//!       .convention = .RowSampleOrdering,
+//!       .path = "assets/model.bin",
+//! }),
 //!
-//! var model = ModelBuilder.build_model(batch_size, timesteps, NUM_LAYERS);
-//! const M = @TypeOf(model); // the parsed model type
+//! var nn = ParsedModel.init();
 //! ```
 const model = @This();
 const std = @import("std");
 
+
 pub const layers = @import("layers.zig");
 pub const common = @import("common_functions.zig");
-pub const model_builder = @import("model_builder.zig");
 pub const optimizer = @import("optimizer.zig");
 pub const builder = @import("builder.zig");
 
@@ -48,4 +47,4 @@ pub const ActivationFunction = common.ActivationFunction;
 pub const LossType = common.LossType; 
 pub const Evaluation = common.Evaluation;
 
-
+pub const MatmulFn = layers.MatmulFn;

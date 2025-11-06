@@ -48,6 +48,26 @@ pub const CSR = enum(u32) {
     /// OBS, the `mintstatus` CSR is located at 0x346 instead of the original 0xFB1!
     mintstatus = 0x346,
 
+    /// Configures the state of the PIE extension.
+    /// Bits[1:0]:
+    /// 0x0 = OFF,
+    /// 0x1 = INITIAL,
+    /// 0x2 = CLEAN,
+    /// 0x3 = DIRTY,
+    /// To enable PIE extension do the following:
+    /// 1. set the `mext_pie_status.STATE` bits to the INITIAL(0b01) state.
+    /// 2. Use the PIE instruction to initialize the PIE register file 
+    /// and accumulator register to zero, which will cause the `mext_pie_status.STATE`
+    /// bits to change to DIRTY(0b11) automatically
+    /// 3. Set the `mext_pie_status.STATE` bits to CLEAN(0b10)
+    /// 4. Execute program! 
+    mext_pie_status = 0x7F2,
+
+    mhwloop_state_reg = 0x7F1,
+    mhwloop0_start = 0x7C6,
+    mhwloop0_end = 0x7C7,
+    mhwloop0_count = 0x7C8,
+
     pub const Toggle = enum(u1){
         On = 0b1,
         Off = 0b0,
@@ -76,22 +96,17 @@ pub const CSR = enum(u32) {
             .mtval => "mtval",
             .mip => "mip",
             .mintstatus => "mintstatus",
+            .mext_pie_status => "mext_pie_status",
+            .mhwloop_state_reg => "mhwloop_state_reg",
         };
     }
 
     pub inline fn write_csrw(self: CSR, value: u32) void {
         const csr = comptime self.intoU32();
         if (self == .mstatus){
-            // const csrw_instruction = std.fmt.comptimePrint("csrw {s}, %[value] ... %[value] = 0b{b}", .{csr_name, value});
-            // std.log.warn("csrw {s}, %[value] ... %[value] = 0b{b}\n", .{csr_name, value});
             asm volatile ("csrw mstatus, %[value]" :: [value] "r" (value));
-            
-            // const csr_name = comptime self.intoName();
-            // const after = self.read_csrr();
-            // std.log.warn("After write to {s}: 0b{b}\n", .{csr_name, after});
         }else{
             const csrw_instruction = std.fmt.comptimePrint("csrw 0x{x}, %[value]", .{csr});
-            // std.log.warn("Attempting the csrw instruction: {s}\n", .{csrw_instruction});
             asm volatile (csrw_instruction :: [value] "r" (value));
         }
 
@@ -101,7 +116,6 @@ pub const CSR = enum(u32) {
         switch (toggle) {
             .On => self.set_csrs(bits),
             .Off => self.clear_csrc(bits),
-            // .Off => self.clear_intermediate(@as(u5, bits)),
         }
     }
 
@@ -131,7 +145,6 @@ pub const CSR = enum(u32) {
     pub inline fn clear_intermediate(self: CSR, imm_mask: u5) void{
         const csr = comptime self.intoU32();
         const csrci_instruction = std.fmt.comptimePrint("csrci {}, %[bits]", .{csr});
-        // asm volatile ("csrci mstatus, %[bits]" :: [bits] "r" (imm_mask));
         asm volatile (csrci_instruction :: [bits] "r" (imm_mask));
         
     }
@@ -142,7 +155,6 @@ pub const CSR = enum(u32) {
         if (self == .mstatus){
             const mie: u32 = self.read_csrr() | @as(u32, 1) << 3;
             asm volatile ("csrrci x0, mstatus, %[mie]" :: [mie] "r" (mie));
-            // csrci mstatus, 0x08
             
         }else{
             const mie: u32 = CSR.mstatus.read_csrr() | @as(u32, 1) << 3;
@@ -156,6 +168,21 @@ pub const CSR = enum(u32) {
         const mie: u32 = CSR.mstatus.read_csrr() | @as(u32, 1) << 3;
         asm volatile ("csrrsi a0, mnxti, %[mie]" :: [mie] "r" (mie));
         
+    }
+
+    pub fn initPIE() void{
+        CSR.mext_pie_status.write_csrw(0x1); // INITIAL
+        
+        // Execute at least one valid pie instruction - DIRTY
+        asm volatile ("esp.vclr q0");
+
+        // Set the mext_pie_status.STATE to CLEAN(0b10)
+        CSR.mext_pie_status.write_csrw(0x2);
+    }
+
+    /// STATE bits: 0=OFF, 1=INITIAL, 2=CLEAN, 3=DIRTY.
+    pub fn initHwLoop() void{
+        CSR.mhwloop_state_reg.write_csrw(0x2); // CLEAN
     }
 
 };

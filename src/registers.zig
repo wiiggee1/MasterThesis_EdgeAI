@@ -103,28 +103,6 @@ pub const Register = union(Peripheral) {
         };
     }
 
-    // pub fn RegisterType(comptime PERIPHERAL: Peripheral) switch (PERIPHERAL) {
-    //         .SYSTIMER => @FieldType(Register, "SYSTIMER"),
-    //         .GPIO => @FieldType(Register, "GPIO"), 
-    //         .USB_JTAG => @FieldType(Register, "USB_JTAG"), 
-    //         .UART0 => @FieldType(Register, "UART0"),
-    //         .SYSREG => @FieldType(Register, "SYSREG"),
-    //         .INTERRUPT_MATRIX => @FieldType(Register, "INTERRUPT_MATRIX"),
-    //         .TIMERG0 => @FieldType(Register, "TIMERG0"),
-    //         .CLIC => @FieldType(Register, "CLIC"),
-    // } {
-    //     return switch (PERIPHERAL) {
-    //         .SYSTIMER => return @FieldType(Register, "SYSTIMER"),
-    //         .GPIO => return @FieldType(Register, "GPIO"), 
-    //         .USB_JTAG => return @FieldType(Register, "USB_JTAG"), 
-    //         .UART0 => return @FieldType(Register, "UART0"),
-    //         .SYSREG => return @FieldType(Register, "SYSREG"),
-    //         .INTERRUPT_MATRIX => return @FieldType(Register, "INTERRUPT_MATRIX"),
-    //         .TIMERG0 => return @FieldType(Register, "TIMERG0"),
-    //         .CLIC => return @FieldType(Register, "CLIC"),
-    //     };
-    // }
-
     pub fn intoPeripheral(comptime self: Register) Peripheral{
         switch (self) {
             .SYSTIMER => return Peripheral.SYSTIMER,
@@ -149,12 +127,27 @@ pub const UsbJtagRegister = struct {
 
 pub const GpioRegister = struct {
     const Self = @This();
-    PADDING: u32 = 0x0000,
-    OUT: u32 = 0x0004,
+    /// GPIO0 - GPIO31 output register
+    GPIO_OUT_REG: u32 = 0x0004,
+    /// GPIO0 - GPIO31 output SET register
     W1TS_REG: u32 = 0x0008,
+    /// GPIO0 - GPIO31 output CLEAR register
     W1TC_REG: u32 = 0x000C,
-    ENABLE: u32 = 0x0020,
-    IN: u32 = 0x3C,
+    /// GPIO 32 - GPIO56 output register
+    GPIO_OUT1_REG: u32 = 0x0004,
+    GPIO_ENABLE_REG: u32 = 0x0020,
+    GPIO_ENABLE_W1TS_REG: u32 = 0x0024,
+    GPIO_ENABLE_W1TC_REG: u32 = 0x0028,
+    /// GPIO0 - GPIO31 input register
+    GPIO_IN_REG: u32 = 0x003C,
+    /// pin0 configuration
+    GPIO_PIN0_REG: u32 = 0x0074,
+    /// pin1 configuration
+    GPIO_PIN1_REG: u32 = 0x0078,
+
+    pub inline fn ioMuxRegOffset(self: Self, pin: u8) u32 {
+        return self.GPIO_OUT_REG + (@as(usize, pin) * 4);
+    }
 };
 
 pub const UartRegister = struct {
@@ -224,7 +217,6 @@ pub const SysTimerRegister = struct {
 
 pub const SysRegister = struct {
     const Self = @This();
-    // pub const BaseAddress: usize = Peripheral.SYSREG.baseAddress();
     DUMMY_FIELD: u32 = undefined,
 };
 

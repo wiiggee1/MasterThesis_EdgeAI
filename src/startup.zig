@@ -36,10 +36,10 @@ fn show_stacktrace(writer: std.Io.Writer, stack_trace: ?*std.builtin.StackTrace)
 
 fn default_panic() linksection(".iram0.isr_handler") noreturn {
     @branchHint(.cold);
-    // asm volatile ("csrc mstatus, %[m]" :: [m] "r" (@as(u32, 1) << 3));
-    // dump useful stuff like mcause/mepc stack-trace etc...
 
+    // dump useful stuff like mcause/mepc stack-trace etc...
     // @trap();
+
     while (true) {}
 }
 
@@ -61,8 +61,6 @@ pub fn panic(msg: []const u8, trace: ?*std.builtin.StackTrace, ret_addr: ?usize)
     });
 
     @trap();
-    // while (true) asm volatile ("wfi");
-    // @compileError(msg);
 }
 
 // Weak linkage means a symbol can be overridden by another 
@@ -76,33 +74,28 @@ comptime{
 
     const system_handler_info = @typeInfo(WeakHandlers.System).@"struct";
     for (system_handler_info.decls) |sys_handler|{
-        // const system_int_handler: PanicHandler = &default_panic_handler;
-        // const system_intrpt_name = std.fmt.comptimePrint("system_interrupt{d}", .{idx});
         const handler_fn = @field(WeakHandlers.System, sys_handler.name);
-        // @export(system_int_handler, .{ .name = sys_handler.name, .linkage = .weak });
         @export(&handler_fn, .{ .name = sys_handler.name, .linkage = .weak });
         count += 1;
     }
     const isrs_info = @typeInfo(WeakHandlers.ISRs).@"struct";
     for (isrs_info.decls) |weakFn|{
         const handler_fn = @field(WeakHandlers.ISRs, weakFn.name);
-        // @compileLog("Exporting the weak ISR handler: ", handler_fn);
+
         if(!@hasDecl(root, weakFn.name)){
             @export(&handler_fn, .{ .name = weakFn.name, .linkage = .weak });
         }
-        // @export(&default_interrupt_handler, .{ .name = weakFn.name, .linkage = .weak });
-        // @export(&handler_fn, .{ .name = weakFn.name, .linkage = .weak });
+
         count += 1;
     }
+
     const panics_info = @typeInfo(WeakHandlers.Panics).@"struct";
+
     for (panics_info.decls) |weakPanicFn|{
         const panic_fn = @field(WeakHandlers.Panics, weakPanicFn.name);
-        // @compileLog("Exporting the weak Panic handler: ", panic_fn);
-        // @export(&default_panic_handler, .{ .name = weakPanicFn.name, .linkage = .weak });
         @export(&panic_fn, .{ .name = weakPanicFn.name, .linkage = .weak });
         count += 1;
     }
-    // @compileLog("Exported amount of handlers: ", count);
 }
 
 pub const WeakHandlers = struct {
@@ -193,7 +186,6 @@ pub const ExternalHandlerSymbols = struct {
     };
 
     pub const ISRs = struct {
-        // pub const isr0_handler = @extern(&isr0_handler, .{ .name = "isr0_handler", .linkage = .weak});
         pub extern fn isr0_handler() linksection(".iram0.isr_handler") callconv(INTERRUPT) void;
         pub extern fn isr1_handler() linksection(".iram0.isr_handler") callconv(INTERRUPT) void;
         pub extern fn isr2_handler() linksection(".iram0.isr_handler") callconv(INTERRUPT) void;
@@ -325,7 +317,6 @@ pub fn startup_init() linksection(".iram0.startup") callconv(.c) noreturn {
     enable_fpu();
 
     // 2. Setup Clic + `mtvec` + `mtvt`.
-    // irq_setup();
     Clic.initial_setup(
         @intFromPtr(&_vector_table),
         @intFromPtr(&_mtvt_table)
@@ -346,19 +337,14 @@ pub fn enable_fpu() void{
         const FS_CLEAN: u32 = 0b10 << FS_SHIFT;
 
         var fs_mask = CSR.mstatus.read_csrr();
-        
-        // std.log.info("Step 1: ~FS_MASK: 0b{b}\n", .{~FS_MASK});
-        // const step2_log = fs_mask & ~FS_MASK;
-        // std.log.info("Step 2: mstatus & ~FS_MASK: 0b{b}\n", .{step2_log});
         fs_mask = (fs_mask & ~FS_MASK) | FS_INIT;
-        // std.log.info("Step 3: (mstatus & ~FS_MASK) | FS_INIT: 0b{b}\n", .{fs_mask});
+
         CSR.mstatus.write_csrw(fs_mask);
-        // CSR.fcsr.write_csrw(0); // Writing to `fcsr` makes FS dirty.
         CSR.fcsr.write_csrw(1); // Writing to `fcsr` makes FS dirty.
        
         fs_mask = CSR.mstatus.read_csrr();
-        // std.log.info("mstatus (dirty): 0b{b}\n", .{fs_mask});
         fs_mask = (fs_mask & ~FS_MASK) | FS_CLEAN;
+
         CSR.mstatus.write_csrw(fs_mask);
     }
 
@@ -414,13 +400,6 @@ pub fn getMemorySymbols() void {
     @export(&startup_init, .{.linkage = .strong, .name = "_startup_init"});
 }
 
-// Example of saving context for trap vector:
-// _example_trap:
-//     addi sp, sp, -16*4
-//     sw ra, 0(sp)
-//     la ra, interrupt1
-//     j _my_custom_isr
-
 /// Here we define extern function pointer types, 
 /// as our handlers in the `mtvt` table. It's 
 /// important to make it ABI-compatible by using 
@@ -454,15 +433,14 @@ pub export fn _vector_table() linksection(".iram0.vectors") callconv(.naked) nor
     // unreachable;
 }
 
-// pub export var _mtvt_table: [48]TrapVector
-//     align(64) linksection(".iram0.mtvt") = [_]TrapVector{
-// }; 
 
 fn initialize_mtvt(comptime Vector: type) [48]Vector{
     if(Vector != TrapVector) @compileError("Vector type must be the type TrapVector!");
+
     var mtvt: [48]TrapVector = undefined;
     comptime var i: usize = 0; 
     const system_handlers = @typeInfo(ExternalHandlerSymbols.System).@"struct";
+
     for(system_handlers.decls) |handler|{
         mtvt[i] = TrapVector{.PANIC_HANDLER = @field(ExternalHandlerSymbols.System, handler.name)};
         i += 1;
@@ -471,26 +449,27 @@ fn initialize_mtvt(comptime Vector: type) [48]Vector{
     // batch 1: 0..24 includes from index 0 to 23 (end-exclusive).
     const isr_batch = @typeInfo(ExternalHandlerSymbols.ISRs).@"struct";
     const batch2 = isr_batch.decls[24..];
+
     for(0..24) |batch1_index|{
         const isr_handler = isr_batch.decls[batch1_index];
         mtvt[i] = TrapVector{.ISR_HANDLER = @field(ExternalHandlerSymbols.ISRs, isr_handler.name)};
         i += 1;
     }
+
     const panics = @typeInfo(ExternalHandlerSymbols.Panics).@"struct";
+
     for(panics.decls) |handler|{
         mtvt[i] = TrapVector{.PANIC_HANDLER = @field(ExternalHandlerSymbols.Panics, handler.name)};
         i += 1;
     }
+
     for(batch2) |isr_handler|{
         mtvt[i] = TrapVector{.ISR_HANDLER = @field(ExternalHandlerSymbols.ISRs, isr_handler.name)};
         i += 1;
     }
 
     if(i != 48) @compileError("Failed filling all 48 entries to the _mtvt_table!");
-    // @compileLog("mtvt contains: \n");
-    // for(mtvt) |handler_entry|{
-    //     @compileLog(handler_entry);
-    // }
+
     return mtvt;
 
 }
@@ -508,7 +487,6 @@ fn initialize_mtvt(comptime Vector: type) [48]Vector{
 /// ISR function (non-weak) symbol with the same name. 
 pub export var _mtvt_table: [48]TrapVector
     align(64) linksection(".iram0.mtvt") = initialize_mtvt(TrapVector); 
-
 
 // align(64) linksection(".iram0.mtvt") = [_]u32{0} ** 48; 
 
@@ -568,76 +546,8 @@ pub fn GenericHandlers(comptime Handler: VectorHandler, comptime handler_name: [
 }
 
 
-// pub fn getWeakGenericHandlerSymbols() align(64) [48]GenericHandlers {
-// pub fn getWeakGenericHandlerSymbols() [48]type {
-//     return [48]GenericHandlers{
-
-// pub fn getWeakGenericHandlerSymbols() type {
-//     var handler_field: [48]std.builtin.Type.StructField = undefined;
-//     // var handlers: [48]GenericHandlers = undefined;
-//     comptime var num: usize = 0;
-//
-//     inline for (handler_field[0..], 0..) |*field, idx|{
-//         if (idx < 16){
-//             const Type = GenericHandlers(.PANIC_HANDLER, std.fmt.comptimePrint("system_interrupt{d}", .{idx}));
-//             field.* = .{
-//                 .name = std.fmt.comptimePrint("system_interrupt{d}", .{idx}),
-//                 .type = Type,
-//                 .default_value_ptr = null,
-//                 .is_comptime = false,
-//                 .alignment = @alignOf(Type),
-//             };
-//         }else if ((idx >= 16 and idx <= 40) or idx > 45){
-//             num += 1;
-//             const Type = GenericHandlers(.ISR_HANDLER, std.fmt.comptimePrint("isr{d}", .{num - 1}));
-//             field.* = .{
-//                 .name = std.fmt.comptimePrint("isr{d}", .{num - 1}),
-//                 .type = Type,
-//                 .default_value_ptr = null,
-//                 .is_comptime = false,
-//                 .alignment = @alignOf(Type),
-//             };
-//         }else{
-//             const Type = if (idx == 41) GenericHandlers(.PANIC_HANDLER, "soc_panic0") 
-//                         else if(idx == 42) GenericHandlers(.PANIC_HANDLER, "soc_panic1")
-//                         else if(idx == 43) GenericHandlers(.PANIC_HANDLER, "memprot_isr")
-//                         else if (idx == 44) GenericHandlers(.PANIC_HANDLER, "assist_debug_isr")
-//                         else if(idx == 45) GenericHandlers(.PANIC_HANDLER, "ipc_isr");
-//
-//             const panic_name = if(idx == 41) "soc_panic0"
-//                         else if(idx == 42) "soc_panic1"
-//                         else if(idx == 43) "memprot_isr"
-//                         else if (idx == 44) "assist_debug_isr"
-//                         else if(idx == 45) "ipc_isr";
-//             field.* = .{
-//                 .name = panic_name,
-//                 .type = Type,
-//                 .default_value_ptr = null,
-//                 .is_comptime = false,
-//                 .alignment = @alignOf(Type),
-//             };
-//         }
-//     }
-//
-//     return @Type(.{
-//         .@"struct" = .{
-//             .layout = .auto,
-//             .fields = &handler_field,
-//             .decls = &.{},
-//             .is_tuple = false,
-//         }
-//     });
-//
-//
-// }
-
-// pub var _weak_handlers: [48]DefaultHandlers align(64) = [48]DefaultHandlers{};
-
-
 pub fn getStartupSymbols() void {
-    // @export(&_mtvt_table, .{.linkage = .strong, .name = "_mtvt_table", .section = ".iram0.mtvt"});
     @export(&startup_init, .{.linkage = .strong, .name = "startup_init", .section = ".iram0.startup"});
-    // @export(&startup_init, .{.linkage = .strong, .name = "_startup_init"});
 }
 
 
@@ -661,8 +571,8 @@ inline fn mem_setup() void {
     // @setRuntimeSafety(true);
 }
 
-///If an interrupt occurs and is configured as (hardware) vectored, 
-///the CPU will jump to MTVT[31:0] + 4 * interrupt_id → callback (ISR) function.
+/// If an interrupt occurs and is configured as (hardware) vectored, 
+/// the CPU will jump to MTVT[31:0] + 4 * interrupt_id → callback (ISR) function.
 /// ---------------------------------------------------
 /// `mtvec` → "Machine Trap-Vector Base-Address Register" → selects interrupt mode, IRQ handler.
 /// `mcause` → "Machine Cause Register".
@@ -675,8 +585,7 @@ pub inline fn irq_setup() void {
     // Then it writes a CSR reg for setting the machine mode interrupt vector
     // base address from the given external `_vector_table` symbol from the linker. 
 
-    // InterruptCSRs.set_mtvec_csrw(@intFromPtr(&_vector_table), .clic); // In ESP32P4 mode has to be 3. 
-    InterruptCSRs.setup_mtvec(@intFromPtr(&_vector_table), .clic);
+    InterruptCSRs.setup_mtvec(@intFromPtr(&_vector_table), .clic); // On ESP32-P4, mode has to be set to 3 for CLIC.
     // Sets address to our jump interrupt vector table - `MTVT`.
     InterruptCSRs.set_mtvt(@intFromPtr(&_mtvt_table)); 
 }

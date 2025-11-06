@@ -9,8 +9,6 @@ const ISR = @import("startup.zig").ISR;
 const TrapVector = @import("startup.zig").TrapVector;
 
 pub fn DriverApi(comptime P: Peripheral, comptime D: type) type{
-    // @compileLog("(DriverApi): Received Peripheral: ", P);
-    // @compileLog("(DriverApi): Received D: ", D);
     const API = comptime switch (P) {
         .USB_JTAG => Peripheral.Api(.USB_JTAG),
         .UART0 => Peripheral.Api(.UART0),
@@ -23,7 +21,6 @@ pub fn DriverApi(comptime P: Peripheral, comptime D: type) type{
         .RSTCLK => Peripheral.Api(.RSTCLK),
     };
     _ = API;
-    // @compileLog("(DriverApi): API as inferred type: ", API);
 
     return struct {
         const Self = @This();
@@ -159,16 +156,7 @@ pub const Peripheral = enum(u32) {
         };
     }
 
-    // pub fn init_driver(comptime self: Self, D: type, settings: anytype) D{
     pub fn driverAPI(comptime self: Self, comptime api: anytype, settings: anytype) DriverApi(self, @TypeOf(api)){
-        // const systemtimer_config: ?SystemTimerConfig = if (@TypeOf(settings) == SystemTimerConfig) settings
-        //     else null;
-        // const interrupt_config: ?InterruptConfig = if (@TypeOf(settings) == InterruptConfig) settings
-        //     else null;
-        // const clic_mtvt: []TrapVector = if (@TypeOf(settings) == []TrapVector) settings 
-        //     else null;
-
-        
         if (@TypeOf(api) != Driver) @compileError("Argument of 'api' needs to be of type: "++@typeName(Driver));
         const driver: Driver = Driver.create(self, settings);
          
@@ -185,7 +173,6 @@ pub const Peripheral = enum(u32) {
         return driver_init;
     }
     
-    // pub fn ApiNew(comptime self: Self, settings: anytype) DriverApi(self, @TypeOf(self.Api())){
     pub fn ApiNew(comptime self: Self, settings: anytype) DriverApi(self, Api(self)){
         const driver_api = Driver.create(self, settings);
         const driver_names = comptime std.meta.fieldNames(Driver);
@@ -208,7 +195,6 @@ pub const Peripheral = enum(u32) {
     }
     
     pub fn Api(comptime self: Self) type{
-        // @compileLog("(Api) Found comptime self as: ", self);
         const api = comptime api_type:{
             switch (self) {
                 .USB_JTAG => break :api_type @import("usb_jtag.zig").UsbJtag,
@@ -222,12 +208,11 @@ pub const Peripheral = enum(u32) {
                 .RSTCLK  => break : api_type @import("registers.zig").ResetClockRegister,
             }
         };
-        // @compileLog("(Api) return type as: ", api);
+
         return api;
     }
 
     pub fn register_ptr(self: Self, offset: usize) *volatile u32 {
-        // const base_address = @intFromEnum(self);
         return @ptrFromInt(self.baseAddress() + @as(usize, offset));
     }
 
@@ -239,7 +224,6 @@ pub const Peripheral = enum(u32) {
 
     /// Return true if `bit_index` is 1. 
     pub inline fn isBitSet(self: Self, offset: u32, bit_index: u6) bool {
-        // const mask: u32 = @as(u32, 1) << bit_index; 
         const mask: u32 = @as(u32, 1) << bit_index;
         return (self.read_register(offset) & mask) != 0; 
     }
@@ -247,10 +231,9 @@ pub const Peripheral = enum(u32) {
     /// Set one bit
     pub inline fn setBit(self: Self, offset: u32, bit_index: u6) void {
         const bit_pos: std.math.Log2Int(u32) = @intCast(bit_index);
-
-        // const mask: u32 = @as(u32, 1) << bit_index;
         const mask: u32 = @as(u32, 1) << bit_pos;
         const addr_ptr = self.register_ptr(offset);
+
         addr_ptr.* = addr_ptr.* | mask;
     }
     
@@ -258,8 +241,8 @@ pub const Peripheral = enum(u32) {
     pub inline fn clearBit(self: Self, offset: u32, bit_index: u6) void {
         const bit_pos: std.math.Log2Int(u32) = @intCast(bit_index);
         const mask: u32 = @as(u32, 1) << bit_pos;
-        // const mask: u32 = @as(u32, (1 << bit_index));
         const addr_ptr = self.register_ptr(offset);
+
         addr_ptr.* = addr_ptr.* & ~mask;
     }
 
@@ -284,8 +267,6 @@ pub const Peripheral = enum(u32) {
         const reg: *volatile u32 = @ptrFromInt(base + offset);
         reg.* &= ~mask; // AND with inverted mask to clear bits
     }
-
-    // pub inline toggle_bit ^= mask
 
     // ===============================================================
     // Below are APIs for setting a specific register (BASE + OFFSET):
