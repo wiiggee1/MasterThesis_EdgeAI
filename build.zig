@@ -6,28 +6,6 @@ const BuildConfig = build_types.BuildConfig;
 const Toolchain = build_types.Toolchain; 
 const Firmware = build_types.Firmware; 
 
-//     {
-//   "dimensions": {
-//     "input_features": 1,
-//     "timesteps": 10,
-//     "hidden_encoder": 16,
-//     "latent": 8,
-//     "hidden_decoder": 16
-//   },
-//   "batch_size": 128,
-//   "convention": "ColumnFeatureOrdering",
-//   "alpha": 0.1,
-//   "learning_rate": 0.0001,
-//   "epochs": 750,
-//   "optimizer": "AdamW",
-//   "loss_fn": "MSELoss",
-//   "scheduler": "ReduceLROnPlateau",
-//   "dtype": "f32",
-//   "threshold_quantile": 0.98,
-//   "threshold": 2.7395969937060727e-06,
-//   "persistence": 3,
-//   "split_ratio": 0.2
-// }
 const ModelRuntimeConfig = struct {
     dimensions: struct {
         input_features: usize,
@@ -86,23 +64,16 @@ pub fn build(b: *std.Build) !void {
         .cpu_model = .{ .explicit = &std.Target.riscv.cpu.generic_rv32 },
         // .cpu_model = .{ .explicit = &std.Target.riscv.cpu.esp32p4 },
         .os_tag = .freestanding,
-        // .abi = .eabi,
         .abi = .none,
-        // .abi = .ilp32,
-        // .abi = .eabihf,
         .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, .d,}),
         // Testing without F extension. 
         // .cpu_features_sub = std.Target.riscv.featureSet(&.{ .zca, .zcb, .zcmt, .zcmp, .f }),
         .cpu_features_add = std.Target.riscv.featureSet(&.{
             .i, .a, .m, .c, .f,
-            .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc, 
+            .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc,
             // .xcvsimd,
             // .zve64d, .zvl128b,
         }),
-        // .cpu_features_add = std.Target.riscv.featureSet(&.{
-        //     .i, .a, .f, .m, .c, 
-        //     .zicsr, .zifencei, .zmmul, .zaamo, .zalrsc,
-        // }),
     };
 
     // ===================================== Supported Targets.
@@ -166,17 +137,6 @@ pub fn build(b: *std.Build) !void {
         .target = build_config.target,
         .optimize = optimization_profile,
     });
-
-    // const cfg_file = std.fs.cwd().readFileAlloc(b.allocator, "config/model_runtime_config.json", 10*1024) catch |err| {
-    //     std.process.fatal("Failed reading '{s}': {s}", .{ "config/model_runtime_config.json", @errorName(err) });
-    // };
-    //
-    // var parsed_config = try std.json.parseFromSlice(ModelRuntimeConfig, b.allocator, cfg_file, .{.allocate = .alloc_always});
-    // defer b.allocator.free(cfg_file);
-    // defer parsed_config.deinit();
-    //
-    // const model_config = b.addOptions();
-    // model_config.addOption(ModelRuntimeConfig, "runtime_config", parsed_config);
     
     const gpio_mod = b.createModule(.{
         .root_source_file = b.path("src/gpio.zig"),
@@ -188,17 +148,11 @@ pub fn build(b: *std.Build) !void {
         .root_source_file = b.path("src/model/model.zig"),
     });
     
-
     const nn_lib = b.addLibrary(.{
         .linkage = .static,
         .name = "model",
         .root_module = nn_mod,
     });
-
-
-
-    // nn_lib.root_module.addObjectFile
-    // nn_lib.root_module.addEmbedPath(lazy_path:
 
     const imports = [_]std.Build.Module.Import{
         .{.name = "startup", .module = b.createModule(.{
@@ -227,12 +181,8 @@ pub fn build(b: *std.Build) !void {
         .target = build_config.target,
         .optimize = optimization_profile,
         .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example_name})),
-        // .imports = &.{
-        //     .{.name = "core", .module = core_mod},
-        // }
     });
 
-    // firmware_mod.addImport("core", core_mod);
 
     const firmware = b.addExecutable(.{
         .name = b.fmt("{s}.{s}", .{example_name, "elf"}),
@@ -267,8 +217,6 @@ pub fn build(b: *std.Build) !void {
         // .root_module = firmware.root_module,
         .root_module = firmware_mod,
     });
-
-    // exe_check.root_module.addImport("core", core_mod); // This is working!
 
     const desc = b.fmt("Check if '{s}' compiles", .{example_name});
     const check = b.step("check", desc);
