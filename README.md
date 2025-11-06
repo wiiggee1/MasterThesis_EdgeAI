@@ -14,9 +14,9 @@ as useful [documents](./docs).
 
 #### Initial Setup: 
 
-##### Setting up the environment using ESP-IDF run thee steps:
+##### Setting up the environment using ESP-IDF run these steps:
 
-First download the [esp-idf](https://github.com/espressif/esp-idf.git).
+1. First download the [esp-idf](https://github.com/espressif/esp-idf.git).
 
 ```zsh
     mkdir -p ~/esp
@@ -24,11 +24,11 @@ First download the [esp-idf](https://github.com/espressif/esp-idf.git).
     git clone --recursive https://github.com/espressif/esp-idf.git
 ```
 
-Next install by running the following commands: 
+2. Next install by running the following commands: 
 
 ```zsh
 cd ~/esp/esp-idf
-./install.sh esp32s3
+./install.sh esp32p4
 . $HOME/esp/esp-idf/export.sh
 sudo pacman -S esptool
 sudo pacman -S picocom
@@ -48,57 +48,42 @@ from the ESP-IDF framework. Is explained below.
     `zig build -Dtarget=xtensa-freestanding-none -Dcpu=esp32s3`
 ```
 
-###### RISCV-32 Target
+###### Baremetal RISCV-32 Target
 Building, running, flashing the target: 
 
-```zsh
-zig build --summary all -- --target esp32p4
-```
+Building and flashing directly can be done via the following CLI command + flags:  
+- `zig build flash -- --example <file> --profile <str>`, the `--example` flag 
+expects the name of the firmware file to flash, and `--profile` have the supported values: 
+    - Debug
+    - ReleaseSafe
+    - ReleaseFast
+    - ReleaseSmall
+
+Example for building and flash the example firmware: 
 
 ```zsh
- zig build flash -- --example <file> --target <str> 
+zig build flash -- --example edge_ai --profile ReleaseFast
 ```
 
-
-Flashing is internally done via `idf.py` command-line tool, which is a wrapper around the 
-`CMAKE` build system. `idf.py` internally calls the python library `esptool`.
-<br>
-<br>
-After setting up the ESP-IDF environment and running the `export.sh`
-accessed by the following PATH: `$IDF_PATH/tools/idf.py`.
-We gain access to the python script `idf.py -p /dev/ttyACM0 flash monitor`. 
-
-**Flashing the Firmware**
-```zsh
-idf.py -p /dev/ttyACM0 flash monitor
-...
-python3 -m esptool -port /dev/ttyACM0 write_flash 0 ./zig-out/bin/$1.bin
-
-python -m esptool --chip esp32p4 -b 460800 --before default-reset --after hard-reset write-flash --flash-mode dio --flash-size 2MB --flash-freq 40m 0x2000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 ./zig-out/bin/$1.bin
-
-```
 
 ---
 
-### Benchmarks
-
-**TODO** ...
-
-Benchmark dummy summary: 
-
-```zsh
-benchmark           iterations      time (avg ± σ)          memory        operations        optimization
----------------------------------------------------------------------------------------------------------------
-<function_name>       <num>       <int>ms ± <int>ms       <RAM usage>      <num>/sec            <str>
-```
-
-- `Memory` : Dynamic Memory (RAM, Heap) and Static Memory (ROM, Flash) footprint. 
-- `Operations` : FLOPS, Operations per second, Instruction per cycle (IPC) and Cycle per instruction (CPI), 
-
-- **Metrics** : Throughput, Speedup 
-
-```math
-\text{Speedup} = \frac{\text{Time}_{\text{old}}}{\text{Time}_{\text{new}}} 
-```
+<!-- Flashing is internally done via `idf.py` command-line tool, which is a wrapper around the  -->
+<!-- `CMAKE` build system. `idf.py` internally calls the python library `esptool`. -->
+<!-- <br> -->
+<!-- <br> -->
+<!-- After setting up the ESP-IDF environment and running the `export.sh` -->
+<!-- accessed by the following PATH: `$IDF_PATH/tools/idf.py`. -->
+<!-- We gain access to the python script `idf.py -p /dev/ttyACM0 flash monitor`.  -->
+<!---->
+<!-- **Flashing the Firmware** -->
+<!-- ```zsh -->
+<!-- idf.py -p /dev/ttyACM0 flash monitor -->
+<!-- ... -->
+<!-- python3 -m esptool -port /dev/ttyACM0 write_flash 0 ./zig-out/bin/$1.bin -->
+<!---->
+<!-- python -m esptool --chip esp32p4 -b 460800 --before default-reset --after hard-reset write-flash --flash-mode dio --flash-size 2MB --flash-freq 40m 0x2000 build/bootloader/bootloader.bin 0x8000 build/partition_table/partition-table.bin 0x10000 ./zig-out/bin/$1.bin -->
+<!---->
+<!-- ``` -->
 
 
