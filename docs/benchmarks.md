@@ -347,3 +347,87 @@ Classification report:
     accuracy                         0.6813      6426
    macro avg     0.7964    0.6813    0.6470      6426
 weighted avg     0.7964    0.6813    0.6470      6426
+
+
+
+### Model (T=25, 16-12-16):
+
+--- Test Evaluation ---
+threshold: 1.14656e-07
+Confusion matrix [[TN,FP],[FN,TP]]:
+[[4885  185]
+ [2142 1071]]
+F1:   0.4793
+AUROC: 0.7518285245283737
+AUPRC: 0.7117099223947015
+
+Classification report:
+               precision    recall  f1-score   support
+
+           0     0.6952    0.9635    0.8076      5070
+           1     0.8527    0.3333    0.4793      3213
+
+    accuracy                         0.7191      8283
+   macro avg     0.7739    0.6484    0.6435      8283
+weighted avg     0.7563    0.7191    0.6803      8283
+
+
+--- Test Evaluation (Balanced) ---
+threshold: 1.14656e-07
+Confusion matrix [[TN,FP],[FN,TP]]:
+[[3085  128]
+ [2142 1071]]
+F1:   0.4855
+AUROC: 0.7498489107577186
+AUPRC: 0.7796943045085409
+
+Classification report:
+               precision    recall  f1-score   support
+
+           0     0.5902    0.9602    0.7310      3213
+           1     0.8932    0.3333    0.4855      3213
+
+    accuracy                         0.6467      6426
+   macro avg     0.7417    0.6467    0.6083      6426
+weighted avg     0.7417    0.6467    0.6083      6426
+
+### Model benchmark ((Timewindow = 25, VAL-RATIO = 0.15, 15-10-15))
+--- Test Evaluation ---
+threshold: 5.00026e-08
+Confusion matrix [[TN,FP],[FN,TP]]:
+[[5035   35]
+ [1728 1485]]
+F1:   0.6275
+AUROC: 0.6673308815088604
+AUPRC: 0.7425633256576549
+
+Classification report:
+               precision    recall  f1-score   support
+
+           0     0.7445    0.9931    0.8510      5070
+           1     0.9770    0.4622    0.6275      3213
+
+    accuracy                         0.7872      8283
+   macro avg     0.8607    0.7276    0.7393      8283
+weighted avg     0.8347    0.7872    0.7643      8283
+
+
+--- Test Evaluation (Balanced) ---
+threshold: 5.00026e-08
+Confusion matrix [[TN,FP],[FN,TP]]:
+[[3191   22]
+ [1728 1485]]
+F1:   0.6292
+AUROC: 0.6667192657745742
+AUPRC: 0.7922180284532253
+
+Classification report:
+               precision    recall  f1-score   support
+
+           0     0.6487    0.9932    0.7848      3213
+           1     0.9854    0.4622    0.6292      3213
+
+    accuracy                         0.7277      6426
+   macro avg     0.8171    0.7277    0.7070      6426
+weighted avg     0.8171    0.7277    0.7070      6426
+
