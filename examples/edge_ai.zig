@@ -7,6 +7,7 @@ const Hardware = core.Hardware;
 const hal = core.DriversImpl;
 const Model = core.Model;
 const MemoryStack = core.MemoryStack;
+const runtime_config = @import("runtime_config");
 
 pub const std_options = core.std_options; // Custom logging over usb-jtag.
 
@@ -29,14 +30,30 @@ comptime {
 const XTAL_CLK_FREQ: u64 = 40_000_000; // 40 MHz.
 const FREQ_HZ: u64 = 16_000_000; // Average clock frequency: 16 MHz XTAL clk
 
-const INFERENCE_RATE_US: u64 = 1_450; 
-const RUNTIME: u64 = 5_000;
-const WARMUP_N = 5;
-const NUM_ITER: usize = 10;
+// const INFERENCE_RATE_US: u64 = 1_450; 
+// const RUNTIME: u64 = 5_000;
+// const WARMUP_N = 5;
+// const NUM_ITER: usize = 10;
+// const AVERAGE_BENCHMARK: bool = true;
+// const MISSRATE_BENCHMARK: bool = true;
 
-const AVERAGE_BENCHMARK: bool = true;
-const MISSRATE_BENCHMARK: bool = true;
-const MATMUL_MODE: core.Model.MatmulFn = .base;
+const RuntimeConfig = struct {
+    const INFERENCE_RATE_US: u64 = runtime_config.@"inference-rate-us"; 
+    const RUNTIME: u64 = runtime_config.@"runtime-duration";
+    const WARMUP_N = runtime_config.@"num-warmups";
+    const NUM_ITER: usize = runtime_config.@"num-iterations";
+    const AVERAGE_BENCHMARK: bool = runtime_config.@"average-benchmark";
+    const MISSRATE_BENCHMARK: bool = runtime_config.@"missrate-benchmark";
+    const MATMUL_MODE: core.Model.MatmulFn = .base;
+};
+
+// const INFERENCE_RATE_US: u64 = runtime_config.@"inference-rate-us"; 
+// const RUNTIME: u64 = runtime_config.@"runtime-duration";
+// const WARMUP_N = runtime_config.@"num-warmups";
+// const NUM_ITER: usize = runtime_config.@"num-iterations";
+// const AVERAGE_BENCHMARK: bool = runtime_config.@"average-benchmark";
+// const MISSRATE_BENCHMARK: bool = runtime_config.@"missrate-benchmark";
+// const MATMUL_MODE: core.Model.MatmulFn = .base;
 
 const BATCH: usize = 1;
 const TIMEWINDOW: usize = 25; 
@@ -82,7 +99,8 @@ const Shared = struct {
         .timewindow = TIMEWINDOW,
         .layer_count = NUM_LAYERS,
         .convention = .RowSampleOrdering,
-        .path = "assets/model.bin",
+        // .path = "assets/model.bin",
+        .path = runtime_config.@"model-size",
     }),
 };
 
@@ -169,7 +187,7 @@ pub export fn app_main() callconv(.c) void {
     // input_buf = data_rowmajor;
 
     const X = BufferedMatrix.fromBuffer(&input_buf); // OwnedMatrix.create(input_buf);
-    const model_size = @sizeOf(@TypeOf(shared.nn.model));
+    // const model_size = @sizeOf(@TypeOf(shared.nn.model));
 
     // Alt. pass `Interrupt.Config` directly as argument to .init
     const systimer_interrupt: Interrupt = Interrupt.init(.{
@@ -183,7 +201,7 @@ pub export fn app_main() callconv(.c) void {
         .threshold = @as(?u4, null),
     });
 
-    shared.systimer.setup_clock(.{.time = @as(u64, INFERENCE_RATE_US), .unit = .Micro}) catch |err|{
+    shared.systimer.setup_clock(.{.time = @as(u64, RuntimeConfig.INFERENCE_RATE_US), .unit = .Micro}) catch |err|{
         std.log.err("Failed setting up clock. Got: {s}\n", .{@errorName(err)});
         startup.panic("Hell noooooo...", null, null);
     };
@@ -196,16 +214,15 @@ pub export fn app_main() callconv(.c) void {
     shared.systimer.clear_interrupt();
     shared.systimer.enable_interrupt(true);
     shared.clic.enable_mie(); // Enable/Set MIE - global interrupts.
+
+    std.log.warn("Main stack frame Address: 0x{x}\n", .{main_frame});
+    show_runtime_config();
     
-    for (0..WARMUP_N) |_|{
+    for (0..RuntimeConfig.WARMUP_N) |_|{
         core.BenchMark.Tests.inference_warmup(@TypeOf(shared.nn.model), &X, &shared.nn.model);
     }
 
-    if (AVERAGE_BENCHMARK){
-        const model_kb: f32 = @as(f32, @floatFromInt(model_size)) / @as(f32, 1024);
-
-        std.log.warn("Main stack frame Address: 0x{x}\n", .{main_frame});
-        std.log.warn("Loaded Model Size: {d:.6} KiB\n", .{model_kb});
+    if (RuntimeConfig.AVERAGE_BENCHMARK){
         average_benchmark(&X, &shared);
 
     }
@@ -214,14 +231,11 @@ pub export fn app_main() callconv(.c) void {
     const now_initial = shared.systimer.now_v2(.Micro).time;
 
     // Starts the next tick, repeated every 2 ms.
-    const task_inference = scheduler.add_task(inference_task, @ptrCast(&inference_ctx), now_initial + INFERENCE_RATE_US, INFERENCE_RATE_US);
+    const task_inference = scheduler.add_task(inference_task, @ptrCast(&inference_ctx), now_initial + RuntimeConfig.INFERENCE_RATE_US, RuntimeConfig.INFERENCE_RATE_US);
 
     const run_start = shared.systimer.now_v2(.Micro).time;
     while (true) {
         asm volatile ("wfi");
-        // const t1 = shared.systimer.now_v2(.Micro).time;
-        // std.log.info("SYSTIMER now: {d} µs\n", .{t1});
-        // std.log.info("Number of interrupts: {d}\n", .{int_counter});
 
         // Toggles a wake-up flag by the timer ISR 
         if (core.Scheduler.tick_pending.swap(0, .seq_cst) == 1){
@@ -230,28 +244,33 @@ pub export fn app_main() callconv(.c) void {
 
             // Stop after running for RUNTIME (µs)
             const elapsed_us = now_us - run_start;
-            if (elapsed_us >= RUNTIME * 1_000) break;
+            // if (elapsed_us >= RUNTIME * 1_000) break;
+            if (elapsed_us >= RuntimeConfig.RUNTIME) break;
         }
     }
 
     shared.systimer.enable_interrupt(false);
 
-    if (MISSRATE_BENCHMARK){
+    if (RuntimeConfig.MISSRATE_BENCHMARK){
         if (scheduler.tasks[task_inference.?]) |t| {
             const run_end_us = shared.systimer.now_v2(.Micro).time;
             const elapsed_us = run_end_us - run_start;
             const expected_releases: u64 = if (t.period_us == 0) 0 else elapsed_us / t.period_us;
 
-            std.log.info(
-                "Scheduler SUMMARY: period={d}us, elapsed={d}us, expected_releases={d}, missed_deadlines={d}\n",
-                .{ t.period_us, elapsed_us, expected_releases, t.missed_deadlines }
-            );
-
             // “miss rate” convenient for result section:
             const miss_rate: f32 = if (expected_releases == 0) 0
                 else @as(f32, @floatFromInt(t.missed_deadlines)) /
                      @as(f32, @floatFromInt(expected_releases));
-            std.log.info("Scheduler SUMMARY: miss_rate={d:.6}%\n", .{ miss_rate * 100.0 });
+
+            std.log.info(
+                "---Scheduler Missrate Benchmark--- \r\n\t\tperiod = {d}µs\r\n\t\telapsed = {d}µs \r\n\t\texpected releases = {d}\r\n\t\tmissed deadlines = {d}\r\n\t\tmiss-rate = {d:.6}%\n", .{ 
+                    t.period_us, 
+                    elapsed_us, 
+                    expected_releases, 
+                    t.missed_deadlines,
+                    miss_rate * 100.0,
+            });
+
         }
     }
 
@@ -285,12 +304,35 @@ fn inference_task(ctx_ptr: *anyopaque) void{
         ctx.x, &shared.nn.model, 
         1, 
         &shared.systimer,
-        MATMUL_MODE,
+        RuntimeConfig.MATMUL_MODE,
     );
     _ = result;
     // std.log.info("Inference delta time: {d:.3}\n", .{result.cpu.time_conversion(&shared.systimer, .Micro)});
 }
 
+fn show_runtime_config() void{
+
+    const model_size = @sizeOf(@TypeOf(shared.nn.model));
+    const model_kb: f32 = @as(f32, @floatFromInt(model_size)) / @as(f32, 1024);
+    const optimizer_mode = builtin.mode;
+    const cpu_model_name = builtin.cpu.model.name;
+    const cpu_arch = builtin.cpu.arch;
+    const model_size_config = runtime_config.@"model-size";
+
+    std.log.warn("---Applied Runtime Config--- \r\n\t\tInference Rate: {d:.3}µs\r\n\t\tRuntime Duration: {d:.0}µs\r\n\t\tNumber of Warmups: {}\r\n\t\tNumber of Iterations: {}\r\n\t\tAverage Benchmark: {}\r\n\t\tScheduler Missrate Benchmark: {}\r\n\t\tLoaded Model Size: {d:.6} KiB\r\n\t\tModel Size Demo: {s}\r\n\t\tOptimization Mode: {}\r\n\t\tCPU Model: {s}\r\n\t\tCPU Arch: {s}\n", .{
+        runtime_config.@"inference-rate-us",
+        runtime_config.@"runtime-duration",
+        runtime_config.@"num-warmups",
+        runtime_config.@"num-iterations",
+        runtime_config.@"average-benchmark",
+        runtime_config.@"missrate-benchmark",
+        model_kb,
+        model_size_config,
+        optimizer_mode,
+        cpu_model_name,
+        @tagName(cpu_arch),
+    });
+}
 
 
 fn print_general_info(shared_ctx: *Shared, interrupt: *core.Hardware.Interrupt) void{
@@ -313,15 +355,15 @@ fn average_benchmark(X_INPUT: *const BufferedMatrix, shared_ctx: *Shared) void{
         @TypeOf(shared_ctx.nn.model), 
         X_INPUT, // &X
         &shared_ctx.nn.model, 
-        NUM_ITER, 
+        RuntimeConfig.NUM_ITER, 
         &shared_ctx.systimer,
-        MATMUL_MODE,
+        RuntimeConfig.MATMUL_MODE,
     );
     
-    std.log.warn("---Inference Benchmark Performance (iter = {d})---\n", .{NUM_ITER});
+    // std.log.warn("---Inference Benchmark Performance (iter = {d})---\n", .{RuntimeConfig.NUM_ITER});
 
     if(inference_result.performance) |inference_performance| {
-        std.log.info("Average Inference Result - CPU: \r\n\t\tΔTime = {d:.3}µs\r\n\t\tΔmcyle = {d:.0}\r\n\t\tΔminstret = {d:.0}\r\n\t\tIPC (Δminstret / Δmcyle) = {d:.3}\r\n\t\tPPS = {d:.3} predicts/sec\n", .{
+        std.log.info("---Average Inference Benchmark--- \r\n\t\tΔTime = {d:.3}µs\r\n\t\tΔmcyle = {d:.0}\r\n\t\tΔminstret = {d:.0}\r\n\t\tIPC (Δminstret / Δmcyle) = {d:.3}\r\n\t\tPPS = {d:.3} predicts/sec\n", .{
             inference_performance.avg_cpu.delta_time,
             inference_performance.avg_cpu.mcycle,
             inference_performance.avg_cpu.minstret,
@@ -350,7 +392,7 @@ fn average_benchmark(X_INPUT: *const BufferedMatrix, shared_ctx: *Shared) void{
         });
     }
 
-    std.log.info("\tInference - Prediction (Window) Output: {any}\n", .{inference_result.y.mat});
+    // std.log.info("\tInference - Prediction (Window) Output: {any}\n", .{inference_result.y.mat});
     const preds = BufferedMatrix.fromBuffer(&inference_result.y.mat);
     shared.nn.model.eval_summary(X_INPUT, &preds);
 }

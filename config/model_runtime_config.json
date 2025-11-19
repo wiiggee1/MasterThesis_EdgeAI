@@ -2,9 +2,9 @@
   "dimensions": {
     "input_features": 1,
     "timesteps": 25,
-    "hidden_encoder": 15,
+    "hidden_encoder": 16,
     "latent": 10,
-    "hidden_decoder": 15
+    "hidden_decoder": 16
   },
   "batch_size": 32,
   "convention": "2",
@@ -16,7 +16,7 @@
   "scheduler": "ReduceLROnPlateau",
   "dtype": "f32",
   "threshold_quantile": 0.95,
-  "threshold": 0.0003200018545612693,
+  "threshold": 0.0004155243805143982,
   "persistence": 3,
   "split_ratio": 0.15,
   "patience": 12,

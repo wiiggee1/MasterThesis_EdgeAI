@@ -577,7 +577,7 @@ pub fn ParsedModelGraph(comptime T: type, comptime N: usize, comptime SettingsLi
         pub fn eval_summary(_: Self, x: *const InputMatrixView, y: *const OutputMatrixView) void{
             const scores = evaluator.evaluation(x, y);
 
-            print_fn(PRINTMODE, "Evaluation Metrics:\n\r\tMSE: {d}\r\n\tCosine Similarity Score: {d}\r\n\tCosine Distance: {d}\r\n\tWeighted Anomaly Score: {d}\n", .{
+            print_fn(PRINTMODE, "Evaluation Metrics:\n\r\t\tMSE: {d}\r\n\t\tCosine Similarity Score: {d}\r\n\t\tCosine Distance: {d}\r\n\t\tWeighted Anomaly Score: {d}\n", .{
                 scores.mse,
                 scores.cos_similarity,
                 scores.cos_distance,

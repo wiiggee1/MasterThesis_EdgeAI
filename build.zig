@@ -6,6 +6,21 @@ const BuildConfig = build_types.BuildConfig;
 const Toolchain = build_types.Toolchain; 
 const Firmware = build_types.Firmware; 
 
+const RuntimeConfig = struct {
+    scheduler_period: u64 = 1_800,
+    inference_rate_us: u64 = 1_800,
+    runtime_duration_us: u64 = 5_000,
+    num_warmups: usize = 5,
+    num_iter: usize = 10,
+    average_benchmark: bool = true,
+    missrate_benchmark: bool = true,
+    matmul_mode: enum {
+        base,
+        vecdot,
+        hwlp,
+    } = .base,
+};
+
 const ModelRuntimeConfig = struct {
     dimensions: struct {
         input_features: usize,
@@ -116,6 +131,32 @@ pub fn build(b: *std.Build) !void {
             break :conf BuildConfig{}; 
         }
     };
+
+    const inference_rate = b.option(u64, "inference-rate-us", "inference rate/scheduler period in microseconds") orelse 2_000;
+
+    const runtime_duration = b.option(u64, "runtime-duration", "the duration in microseconds to run the scheduler/inference") orelse 5_000 * 1_000;
+
+    const num_warmups = b.option(usize, "num-warmups", "number of warmup iterations from cold boot") orelse 5; 
+    
+    const num_iterations = b.option(usize, "num-iterations", "number of iterations for average benchmark test") orelse num_warmups; 
+
+    const run_average_benchmark = b.option(bool, "average-benchmark", "runs the average benchmark test") orelse true;
+    
+    const run_missrate_benchmark = b.option(bool, "missrate-benchmark", "runs the scheduler missrate benchmark test") orelse true;
+
+    const model_size_demo_path = b.option([]const u8, "model-size", "live demo for loading small or larger model") orelse "small";
+
+    // .path = "assets/model.bin",
+    const model_path = if (std.mem.eql(u8, model_size_demo_path, "large")) "assets/model_large.bin" else "assets/model.bin";
+
+    const runtime_config_opts = b.addOptions();
+    runtime_config_opts.addOption(u64, "inference-rate-us", inference_rate);
+    runtime_config_opts.addOption(u64, "runtime-duration", runtime_duration);
+    runtime_config_opts.addOption(usize, "num-warmups", num_warmups);
+    runtime_config_opts.addOption(usize, "num-iterations", num_iterations);
+    runtime_config_opts.addOption(bool, "average-benchmark", run_average_benchmark);
+    runtime_config_opts.addOption(bool, "missrate-benchmark", run_missrate_benchmark);
+    runtime_config_opts.addOption([]const u8, "model-size", model_path);
     
     const default_profile = build_config.profile orelse b.standardOptimizeOption(.{});
     const optimization_profile = b.option(std.builtin.OptimizeMode, "profile", "") orelse default_profile;
@@ -182,6 +223,8 @@ pub fn build(b: *std.Build) !void {
         .optimize = optimization_profile,
         .root_source_file = b.path(b.fmt("examples/{s}.zig", .{example_name})),
     });
+
+    firmware_mod.addOptions("runtime_config", runtime_config_opts);
 
 
     const firmware = b.addExecutable(.{

@@ -416,17 +416,6 @@ pub const Firmware = struct {
         firmware_target.linkLibC(); 
         firmware_target.addIncludePath(b.path("zig-out/include/"));
 
-        // switch (firmware_target.rootModuleTarget().cpu.arch) {
-        //     inline else => |arch| {
-        //         if (arch.isRISCV()){
-        //             try riscv_setup(b, null, build_settings);
-        //         }
-        //         if (arch == .xtensa){
-        //             try esp32s3_setup(b, null, build_settings);
-        //         } 
-        //     }
-        // }
-
         for (modules) |module| {
             firmware_target.root_module.addImport(module.name, module.module);
         }

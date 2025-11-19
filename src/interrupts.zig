@@ -33,7 +33,7 @@ pub const InterruptCSRs = struct {
         const mask_bits: u32 = CSR.mstatus.read_csrr() | @as(u32, 1) << 3;
         
         // Mask for enabling global interrupts in 'mstatus': 0b1000
-        std.log.warn("Mask for enabling global interrupts in 'mstatus': 0b{b}\n", .{mask_bits});
+        // std.log.warn("Mask for enabling global interrupts in 'mstatus': 0b{b}\n", .{mask_bits});
         CSR.mstatus.write_csrw(mask_bits);
     }
 
@@ -136,7 +136,7 @@ pub const InterruptConfig = struct {
             }
         }
         interrupt_config.mtvt_index = Clic.CLIC_EXT_INTR_NUM_OFFSET + interrupt_config.id; // 16..47
-        std.log.info("Parsed InterruptConfig (v2): {any}\n", .{interrupt_config});
+        // std.log.info("Parsed InterruptConfig (v2): {any}\n", .{interrupt_config});
         return interrupt_config;
     }
 
@@ -183,7 +183,7 @@ pub const Interrupt = struct {
         const source_values = std.enums.values(PeripheralInterruptSources);
         for(source_values, 0..) |source_tag, i| {
             if(source_tag == self.config.source){
-                std.log.warn("Found Interrupt Source: {s} at index: {d}\n", .{@tagName(source_tag), i});
+                // std.log.warn("Found Interrupt Source: {s} at index: {d}\n", .{@tagName(source_tag), i});
                 index = i; 
                 break; 
             }
@@ -469,9 +469,9 @@ pub const Clic = struct {
         const isr_jump_address = @intFromPtr(isr);
 
         slot_word.* = isr_jump_address;
-        const slot_word_after: *volatile u32 = @ptrCast(&self.mtvt[idx]);
 
-        std.log.warn("--After-- mtvt[17] value = 0x{x} (expect 0x{x})\n", .{ slot_word_after.*, isr_jump_address });
+        // const slot_word_after: *volatile u32 = @ptrCast(&self.mtvt[idx]);
+        // std.log.warn("--After-- mtvt[17] value = 0x{x} (expect 0x{x})\n", .{ slot_word_after.*, isr_jump_address });
     }
 
     /// Related to the `clicintip[i]` - clic interrupt[i] pending bit. 

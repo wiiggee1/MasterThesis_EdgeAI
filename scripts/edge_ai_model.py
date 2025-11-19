@@ -1237,8 +1237,8 @@ MIN_VAR = 1e-5  # 1e-5 best so far
 # optimizer, mode="min", factor=0.5, patience=6)
 PATIENCE = 12
 PATIENCE_SCHEDULER = 6
-# CKPT_BEST = "checkpoints/edgeai_larger_window.pth"
 CKPT_BEST = "checkpoints/edgeai_tw25.pth"
+CKPT_BEST_LARGE = "checkpoints/edgeai_tw25_large.pth"
 CKPT_BEST_TW20 = "checkpoints/edgeai_tw20_best.pth"
 DO_TRAIN = False
 MODE = RunMode.NewTraining  # Evaluation mode, same as DO_TRAIN = False
@@ -1249,9 +1249,9 @@ Q = 0.95  # 0.995, quantile value
 layer_dimensions = {
     "input_features": INPUT_FEATURES,
     "timesteps": TIMEWINDOW,
-    "hidden_encoder": 15,   # 20 best so far
+    "hidden_encoder": 16,   # 20 best so far
     "latent": 10,           # 10 OK...
-    "hidden_decoder": 15,
+    "hidden_decoder": 16,
 }
 # layer_dimensions = {
 #     "input_features": INPUT_FEATURES,
@@ -1631,7 +1631,8 @@ elif MODE is RunMode.ResumeFromCheckpoint:
     )
 
 else:
-    writer = SummaryWriter('checkpoints/runs/training_summary_tw25')
+    # writer = SummaryWriter('checkpoints/runs/training_summary_tw25')
+    writer = SummaryWriter('checkpoints/runs/training_summary_tw25_large')
     print("Training model...")
 
     # optimizer = type(optimizer)(model.parameters(), **optimizer.defaults)
@@ -1992,10 +1993,12 @@ plt.show()
 
 cwd = os.getcwd()
 model_output_path = os.path.join(cwd, "../src/model/assets/model.bin")
+model_large_output_path = os.path.join(cwd, "../src/model/assets/model_large.bin")
 model_qint8_path = os.path.join(cwd, "../src/model/assets/model_qint8.bin")
 
 
-export_trained_model(model_output_path, model, DTYPE, Convention.RowSampleOrdering)
+# export_trained_model(model_output_path, model, DTYPE, Convention.RowSampleOrdering)
+export_trained_model(model_large_output_path, model, DTYPE, Convention.RowSampleOrdering)
 # export_trained_model(model_output_path, model_best, DTYPE, Convention.RowSampleOrdering)
 # export_trained_model(model_qint8_path, model_small, torch.qint8, Convention.RowSampleOrdering)
 
